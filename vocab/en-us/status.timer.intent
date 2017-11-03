@@ -1,0 +1,8 @@
+how much time is left on (the timer|timer {timervalue})
+how much time left?
+status of timer {timervalue}
+timer status
+status of timer ({timervalue}| })
+timer left?
+time remaining on timer ({timervalue}|)
+time remaining (for timer|{timervalue}|)?
