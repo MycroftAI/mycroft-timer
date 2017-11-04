@@ -16,6 +16,8 @@ from mycroft.skills.core import MycroftSkill
 from mycroft.util.log import LOG
 from datetime import datetime, timedelta
 from os.path import join, isfile, abspath, dirname
+from mycroft.util import play_mp3
+from mycroft.audio import wait_while_speaking
 
 import json
 import time
@@ -28,13 +30,16 @@ util = __import__('util')
 
 
 # TODO: display timer if it's a mark_1 device
+# TODO: add labels for timers, first, second, etc
+# TODO: add stop timer sound functionality
 class TimerSkill(MycroftSkill):
     def __init__(self):
         super(TimerSkill, self).__init__("TimerSkill")
         self.active_timers = []
         self.should_converse = False
         self.intent_context = None
-        
+        self.sound_file = join(abspath(dirname(__file__)), 'timerBeep.mp3')
+
     def initialize(self):
         self.register_intent_file(
             'start.timer.intent', self.handle_start_timer)
@@ -46,25 +51,29 @@ class TimerSkill(MycroftSkill):
         self.register_entity_file('timervalue.entity')
 
     def handle_start_timer(self, message):
-        """ callback for start timer intent """
+        """ callback for start timer intent
+
+            Args:
+                message (Message): object passed by messagebus
+        """
         duration = message.data["duration"]
         timer_time = util.parse_to_datetime(duration)
-        # this will recycle the timer names after it's being used
-        count = 1
-        timer_name = "timer {}".format(str(count))
-        while timer_name in self.active_timers:
-            count += 1
-            timer_name = "timer {}".format(str(count))
+
+        timer_name = duration
 
         self.active_timers.append(timer_name)
 
-        self.speak("okay. setting {} for {}".format(timer_name, duration))
+        self.speak("okay. {} starting now".format(duration))
         self.schedule_event(
             self._handle_end_timer, timer_time,
             data=timer_name, name=timer_name)
 
     def handle_status_timer(self, message):
-        """ callback for timer status intent """
+        """ callback for timer status intent
+
+            Args:
+                message (Message): object passed by messagebus
+        """
         intent = message.data
         amt_of_timer = len(self.active_timers)
         if amt_of_timer == 0:
@@ -73,22 +82,40 @@ class TimerSkill(MycroftSkill):
             timer_name = self.active_timers[0]
             self.speak_timer_status(timer_name)
         elif amt_of_timer > 1:
-            if 'timervalue' not in intent.keys():
-                self.should_converse = True
-                # let converse knows how to handle utterances
-                self.intent_context = 'status.timer.intent'
-                # when setting expect_respose = True, let's mycroft activate
-                # listening mode right after speak
-                self.speak("You have {} active timers, ".format(amt_of_timer) +
-                           "which one's are you refering to?",
-                           expect_response=True)
-            else:
-                timer_value = intent['timervalue']
-                timer_name = "timer {}".format(timer_value)
-                self.speak_timer_status(timer_name)
+            self.multiple_timer_status(intent, amt_of_timer)
+
+    def multiple_timer_status(self, intent, amt_of_timer):
+        """ determines which timer to speak the status of
+
+            Args:
+                intent (dict): data from Message object
+        """
+        if 'duration' not in intent.keys():
+            self.should_converse = True
+            # let converse knows how to handle utterances
+            self.intent_context = 'status.timer.intent'
+            # when setting expect_respose = True, let's mycroft activate
+            # listening mode right after speak
+            mult_str = "You have {} active timers. ".format(amt_of_timer)
+            for i in range(len(self.active_timers)):
+                mult_str += "the {} timer, ".format(self.active_timers[i])
+                if (i + 2) == len(self.active_timers):
+                    mult_str += "and "
+                if ((i + 1) == len(self.active_timers)):
+                    mult_str += "."
+            mult_str += "Which one were you referring to?"
+            self.speak(mult_str, expect_response=True)
+        else:
+            duration = intent['duration']
+            timer_name = duration
+            self.speak_timer_status(timer_name)
 
     def handle_cancel_timer(self, message):
-        """ callback for cancel intent """
+        """ callback for cancel intent
+
+            Args:
+                message (Message): object passed by messagebus
+        """
         intent = message.data
         amt_of_timer = len(self.active_timers)
         if amt_of_timer == 0:
@@ -106,9 +133,21 @@ class TimerSkill(MycroftSkill):
                            expect_response=True)
             else:
                 timer_value = intent['timervalue']
-                timer_name = "timer {}".format(timer_value)
+                timer_name = duration
                 self.cancel_timer(timer_name)
                 self.speak("Okay. {} is canceled".format(timer_name))
+
+    def _handle_end_timer(self, message):
+        """ callback for start timer scheduled_event()
+
+            Args:
+                message (Message): object passed by messagebus
+        """
+        timer_name = message.data
+        self.cancel_timer(timer_name)
+        self.speak("the {} timer is up".format(timer_name))
+        wait_while_speaking()
+        self.play_timer_sound(repeat=3)
 
     def speak_timer_status(self, timer_name):
         """ wrapper to speak status of timer
@@ -122,12 +161,6 @@ class TimerSkill(MycroftSkill):
         speak_string = util.get_time_left_string(time_left, timer_name)
         self.speak(speak_string)
 
-    def _handle_end_timer(self, message):
-        """ callback for scheduled_event() that accepts messages """
-        timer_name = message.data
-        self.cancel_timer(timer_name)
-        self.speak("{} is up".format(timer_name))
-
     def cancel_timer(self, timer_name):
         """ cancel timer through event shceduler
 
@@ -137,6 +170,25 @@ class TimerSkill(MycroftSkill):
         self.cancel_scheduled_event(timer_name)
         if timer_name in self.active_timers:
             self.active_timers.remove(timer_name)
+
+    def play_timer_sound(self, repeat=0, cancel=False, name=None):
+        """ callback for end_timer for scheduled_event()
+            recursively calls itself to repeat > 1
+
+            Args:
+                repeat (int): for how many times to schedule play sound
+                cancel (bool): used to cancel previous event
+                name (str): name of event scheduled
+        """
+        if cancel is True:
+            self.cancel_scheduled_event(name)
+        if repeat > 0:
+            play_mp3(self.sound_file)
+            time_to_repeat = util.parse_to_datetime('6 seconds')
+            name = "timerskill.playsound.repeat.{}".format(repeat)
+            self.schedule_event(
+                lambda x=None: self.play_timer_sound((repeat - 1), True, name),
+                time_to_repeat, data=name, name=name)
 
     def reset_converse(self):
         """ set converse to false and empty intent_context """

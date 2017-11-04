@@ -1,4 +1,5 @@
 import dateutil.parser as dparser
+import time
 from datetime import datetime, timedelta
 
 
@@ -20,15 +21,19 @@ def get_time_left_string(time_left, timer_name):
 
     speak_string = "There is "
     if days > 0:
-        speak_string += "{} days ".format(days)
+        time_string = "days" if days == 1 else "day"
+        speak_string += "{} {} ".format(days, time_string)
     if hours > 0:
-        speak_string += "{} hours ".format(hours)
+        time_string = "hour" if hours == 1 else "hours"
+        speak_string += "{} {} ".format(hours, time_string)
     if minutes > 0:
-        speak_string += "{} minutes ".format(minutes)
+        time_string = "minute" if minutes == 1 else "minutes"
+        speak_string += "{} {} ".format(minutes, time_string)
     if seconds > 0:
-        speak_string += "{} seconds ".format(seconds)
+        time_string = "second" if seconds == 1 else "seconds"
+        speak_string += "{} {} ".format(seconds, time_string)
+    speak_string += "left on the {} timer".format(timer_name)
 
-    speak_string += "left on {}".format(timer_name)
     return speak_string
 
 

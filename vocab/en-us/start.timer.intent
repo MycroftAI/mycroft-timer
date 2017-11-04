@@ -5,6 +5,7 @@ Timer {duration}.
 Timer for {duration}.
 {duration} timer.
 Set a timer for {duration}.
+Set a {duration} timer.
 Give me a {duration} timer please.
 Count {duration} for me.
 Time {duration} for me.

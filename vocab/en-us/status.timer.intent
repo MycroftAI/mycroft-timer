@@ -1,8 +1,12 @@
-how much time is left on (the timer|timer {timervalue})
+how much time is left on the ({duration} timer| timers)
+how much time left on the timers?
 how much time left?
-status of timer {timervalue}
+status of the timer
+status of timers
+status of the timers
 timer status
-status of timer ({timervalue}| })
+timer statuses
+status of the ({duration} timer| timer})
 timer left?
-time remaining on timer ({timervalue}|)
-time remaining (for timer|{timervalue}|)?
+time remaining on the ({duration} timer| timer)
+time remaining for (timer|{duration} timer|)?
