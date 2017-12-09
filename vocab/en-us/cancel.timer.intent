@@ -9,3 +9,6 @@ abort timer ({timervalue}|).
 delete timer ({timervalue}|).
 kill the timer.
 kill timer ({timervalue}|).
+cancel {all} timers.
+delete {all} timers.
+turn off {all} timers.
