@@ -2,7 +2,7 @@
 A skill to set timers
 
 ## Description 
-Allow users to set timers. Ability to set multiple timers which will be named incrementally from 1. For example, timer 1, timer 2, timer 3 ...
+Allow users to set timers. Ability to set multiple timers
 
 ## Examples 
 * "set a timer for 30 seconds"
