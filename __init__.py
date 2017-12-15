@@ -16,7 +16,7 @@ from mycroft.skills.core import MycroftSkill
 from mycroft.util.log import LOG
 from datetime import datetime, timedelta
 from os.path import join, isfile, abspath, dirname
-from mycroft.util import play_mp3
+from mycroft.util import play_wav
 from mycroft.audio import wait_while_speaking
 
 import json
@@ -95,7 +95,7 @@ class TimerSkill(MycroftSkill):
         self.intent_context = None
         self.stop_notify = False
         self.allow_notify = False
-        self.sound_file = join(abspath(dirname(__file__)), 'timerBeep.mp3')
+        self.sound_file = join(abspath(dirname(__file__)), 'timerBeep.wav')
 
     def initialize(self):
         self.register_intent_file(
@@ -210,7 +210,10 @@ class TimerSkill(MycroftSkill):
         """
         timer_name = message.data
         self.cancel_timer(timer_name)
-        self.speak("the {} timer is up".format(timer_name))
+        self.notify_process = play_wav(self.sound_file)
+        self.notify_process.wait()
+        self.speak("the {} timer is up".format(timer_name),
+                   expect_response=True)
         wait_while_speaking()
         self.notify()
 
@@ -237,7 +240,7 @@ class TimerSkill(MycroftSkill):
             self.active_timers.remove(timer_name)
 
     def notify(self, repeat=6):
-        """ recursively calls it's self to play alarm mp3
+        """ recursively calls it's self to play alarm sound
 
             Args:
                 repeat (int): number of times it'll call itself
@@ -246,11 +249,10 @@ class TimerSkill(MycroftSkill):
             self.cancel_scheduled_event(self.notify_event_name)
 
         self.allow_notify = True
-        path = join(abspath(dirname(__file__)), 'timerBeep.mp3')
-        self.notify_process = play_mp3(path)
+        self.notify_process = play_wav(self.sound_file)
         if self.stop_notify is False:
             if repeat > 0:
-                time_to_repeat = util.parse_to_datetime('6 seconds')
+                time_to_repeat = parse_to_datetime('6 seconds')
                 self.notify_event_name = \
                     "timerskill.playsound.repeat.{}".format(repeat)
                 self.schedule_event(
