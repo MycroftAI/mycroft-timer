@@ -239,11 +239,12 @@ class TimerSkill(MycroftSkill):
         if timer_name in self.active_timers:
             self.active_timers.remove(timer_name)
 
-    def notify(self, repeat=6):
+    def notify(self, repeat=360):
         """ recursively calls it's self to play alarm sound
 
             Args:
                 repeat (int): number of times it'll call itself
+                              each repeat is about 10 seconds
         """
         if hasattr(self, 'notify_event_name'):
             self.cancel_scheduled_event(self.notify_event_name)
