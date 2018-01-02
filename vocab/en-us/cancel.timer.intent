@@ -4,7 +4,7 @@ turn the timer off
 turn off the {duration} timer
 turn off timer
 cancel the timer
-(cancel|remove|delete|abort) the {duration} timer
+(cancel|remove|delete|abort) (the|a|) {duration} (timer|)
 kill the timer
 kill {duration} timer
 cancel {all} timers
