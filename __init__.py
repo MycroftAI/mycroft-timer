@@ -176,7 +176,6 @@ class TimerSkill(MycroftSkill):
         intent = message.data
         if 'all' in intent:
             active_timers = list(self.active_timers)
-            LOG.info('inside all')
             self.speak_dialog('cancel.all')
             for timers in active_timers:
                 self.cancel_timer(timers)

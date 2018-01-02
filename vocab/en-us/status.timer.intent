@@ -10,3 +10,5 @@ status of the ({duration} timer| timer})
 timer left?
 time remaining on the ({duration} timer| timer)
 time remaining for (timer|{duration} timer|)?
+list out timers
+list timers

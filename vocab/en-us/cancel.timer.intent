@@ -4,6 +4,7 @@ turn the timer off.
 turn timer ({timervalue}|) off.
 turn off timer.
 cancel the timer.
+(cancel|remove|delete|abort) the ({timervalue}) timer.
 cancel timer ({timervalue}|)
 abort timer ({timervalue}|).
 delete timer ({timervalue}|).
