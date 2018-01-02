@@ -1,12 +1,12 @@
-end ({timervalue}|).
-turn it off.
-turn the timer off.
-turn ({timervalue}|) off.
-turn off timer.
-cancel the timer.
-(cancel|remove|delete|abort) the ({timervalue}).
-kill the timer.
-kill timer ({timervalue}|).
-cancel {all} timers.
-delete {all} timers.
-turn off {all} timers.
+end {timervalue}
+turn it off
+turn the timer off
+turn off the {timervalue}
+turn off timer
+cancel the timer
+(cancel|remove|delete|abort) the {timervalue}
+kill the timer
+kill {timervalue}
+cancel {all} timers
+delete {all} timers
+turn off {all} timers
