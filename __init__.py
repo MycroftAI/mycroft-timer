@@ -107,6 +107,7 @@ class TimerSkill(MycroftSkill):
         self.register_intent_file('stop.intent', self._stop)
         self.register_entity_file('duration.entity')
         self.register_entity_file('timervalue.entity')
+        self.register_entity_file('all.entity')
 
     def handle_start_timer(self, message):
         """ callback for start timer intent
