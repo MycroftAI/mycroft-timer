@@ -1,2 +1,2 @@
-I stopped the timer for {{duration}}
-The timer for {{duration}} has been stopped
+I stopped the {{name}} timer for {{duration}}
+The {{name}} timer for {{duration}} has been stopped
