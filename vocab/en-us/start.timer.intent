@@ -1,14 +1,19 @@
-Start a {duration} timer.
-Start {duration} timer.
-Start a timer for {duration}.
+Start a timer.
+Set a timer.
+Start a (##-second|##-hour|##-minute) timer.
+Start a (##-second|##-hour|##-minute) timer (called|for) {name}.
+(Start|Set) (a|) {duration} timer.
+(Start|Set) (a|) {duration} timer (called|for) {name}.
+(Start|Set) a timer for {duration}.
 Timer {duration}.
 Timer for {duration}.
+Timer for {duration} (called|for) {name}.
 {duration} timer.
-Set a timer for {duration}.
-Set a {duration} timer.
-Give me a {duration} timer please.
+{duration} timer (called|for) {name}.
+Give me a {duration} timer.
 Count {duration} for me.
 Time {duration} for me.
 I need a {duration} timer.
 I need you to measure {duration} for me.
 Create a timer for {duration}.
+Create a timer for {duration} (called|for) {name}.

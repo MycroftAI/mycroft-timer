@@ -1,15 +1,21 @@
-## Timer Skill
-A skill to set timers
+## Timer
+Set timers for cooking, watering plants and more!
 
 ## Description 
-Allow users to set timers. Ability to set multiple timers
+Use Mycroft when your hands are messy or you need more that the one timer
+in your kitchen.  Multiple timers are easy to set and track with
+conversational interactions.
+
+On a Mark 1 you'll see visual feedback as the timer runs, and you can use
+the top button to stop the beeping once a timer expires.
 
 ## Examples 
-* "set a timer for 30 seconds"
-* "set a timer for 5 minutes and 30 seconds"
-* "set a timer for 3 hours 10 minutes and 30 seconds"
-* "cancel the 5 minutes and 30 seconds timer"
-* "status of the 3 hours 10 minutes and 30 seconds timer"
+* "Start a timer for 30 seconds"
+* "Set a timer for 1 minutes"
+* "Set a timer for 3 hours called turkey"
+* "Cancel the timer"
+* "How long is left on the timer?"
+* "Mute the timer" (once triggered)
 
 ## Credits 
 Mycroft Inc
