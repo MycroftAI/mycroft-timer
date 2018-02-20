@@ -24,23 +24,30 @@ from mycroft.messagebus.message import Message
 from mycroft.util.parse import extractnumber, fuzzy_match
 from mycroft.util.format import pronounce_number
 
+from mycroft.skills.skill_data import to_letters
+
 
 # TEST SCRIPT:
 #  set a 30 second timer
 #  stop (confirms)
 #  set a timer for 5 minutes
-#  cancel timer                 (TODO: Awkward wording)
+#  cancel timer
 #  set a 10 second timer
 #  set a timer for 5 minutes
 #       wait 10 secs.  first timer fires
 #  stop
 #       second timer should continue
 #  stop
-#       should get confirmation (TODO: awkward wording)
+#       should get confirmation
 #  set a timer for 5 minutes
 #  how much is left on the timer
 #  set a 7 minute timer
-#  how much time is left        (TODO: fails, gives current time instead)
+#  how much time is left                    (FAIL: gives current time instead)
+#  how much is left on the 5 minute timer
+#  how much time is left on the 5 minute timer
+#  status of the 5 minute timer
+#  status of the 7 minute timer
+#  how much is left on the first timer      (FAIL)
 #  how much is left on the timer
 #       should ask for which timer
 #  number one
@@ -141,45 +148,81 @@ class TimerSkill(MycroftSkill):
         self.schedule_repeating_event(self.update_display,
                                       None, 1, name='ShowTimer')
 
+    def _extract_duration(self, text):
+        # return the duration in seconds
+        num = extractnumber(text)
+        if not num:
+            return None
+
+        unit = 1  # default to secs
+        if any(i.strip() in text for i in self.translate_list('second')):
+            unit = 1
+        elif any(i.strip() in text for i in self.translate_list('minute')):
+            unit = 60
+        elif any(i.strip() in text for i in self.translate_list('hour')):
+            unit = 60*60
+        return num*unit
+
     # Handles 'Start a 30 second timer'
     # TODO: Doesn't handle 'start 1 and a half minute timer'
     @intent_file_handler('start.timer.intent')
     def handle_start_timer(self, message):
-        duration = message.data["duration"]
+        # Extract the requested timer duration
+        if not 'duration' in message.data:
+            duration = self.get_response('ask.how.long')
+        else:
+            duration = message.data["duration"]
+        secs = self._extract_duration(duration)
+        if not secs:
+            self.speak("you gotta tell me how long!")
+            return
 
         # Name the timer
         # TODO: Get a name from request
         # ????: Name sequentially, e.g. "Timer 1", "Timer 2"?
-        timer_name = duration
-
-        # Extract the requested timer duration
-        num = extractnumber(duration)
-        unit = 1  # default to secs
-        if any(i.strip() in duration for i in self.translate_list('second')):
-            unit = 1
-        elif any(i.strip() in duration for i in self.translate_list('minute')):
-            unit = 60
-        elif any(i.strip() in duration for i in self.translate_list('hour')):
-            unit = 60*60
+        timer_name = nice_duration(secs)
 
         now = datetime.now()
-        time_expires = now + timedelta(seconds=num*unit)
+        time_expires = now + timedelta(seconds=secs)
         timer = {"name": timer_name,
-                 "duration": num*unit,
+                 "duration": secs,
                  "expires": time_expires}
         self.active_timers.append(timer)
 
         self.speak_dialog("started.timer",
                           data={"duration": nice_duration(timer["duration"])})
 
+        self.hack_enable_intent("handle_cancel_timer")
+        self.hack_enable_intent("handle_mute_timer")
+        self.hack_enable_intent("handle_status_timer")
+
         # Start showing the remaining time on the faceplate
         self.update_display(None)
-        self.enable_intent("handle_cancel_timer")
-        self.enable_intent("handle_mute_timer")
-        self.enable_intent("handle_status_timer")
 
         # reset the mute flag with a new timer
         self.mute = False
+
+    def hack_enable_intent(self, intent_name):
+        # THIS IS HACKING AROUND A BUG IN 0.9.17's enable_intent()
+        for (name, intent) in self.registered_intents:
+            if name == intent_name:
+                self.registered_intents.remove((name, intent))
+                intent.name = name
+
+                # Hackery - clean up the name of intent pieces
+                munged = to_letters(self.skill_id)
+                req = []
+                for i in intent.requires:
+                    if munged in i[0]:
+                        req.append(( i[0].replace(munged,""),
+                                     i[1].replace(munged,"") ))
+                    else:
+                        req.append(i)
+                intent.requires = req
+
+                self.register_intent(intent, None)
+                break
+
 
     def _get_next_timer(self):
         # Retrieve the next timer set to trigger
@@ -204,8 +247,8 @@ class TimerSkill(MycroftSkill):
             self.cancel_scheduled_event('ShowTimer')
             self.displaying_timer = None
             self.disable_intent("handle_cancel_timer")
-            self.disable_intent("handle_mute_timer")
-            self.disable_intent("handle_status_timer")  # TODO: Change to Adapt for this
+            # self.disable_intent("handle_mute_timer")
+            # self.disable_intent("handle_status_timer")  # TODO: Change to Adapt for this
             self.enclosure.eyes_reset()
             self._stop_beep()
             self._clear_display()
@@ -223,6 +266,7 @@ class TimerSkill(MycroftSkill):
                                           None, freq,
                                           name='ShowTimer')
             self.displaying_timer = timer
+            self.enable_intent("handle_cancel_timer")
 
         # Calc remaining time and show using faceplate
         now = datetime.now()
@@ -231,7 +275,7 @@ class TimerSkill(MycroftSkill):
             # Timer still running
             remaining = (timer["expires"] - now).seconds
             dur = timer["duration"]
-            self.eyes_fill(int(remaining*100.0/dur))
+            self.show_timer(int(remaining*100.0/dur))
         else:
             # Timer has expired but not been cleared, flash eyes
             overtime = (now - timer["expires"]).seconds
@@ -246,6 +290,28 @@ class TimerSkill(MycroftSkill):
 
             # Show the expired time.  This naturally "flashes"
             self._show(nice_duration(overtime, speech=False))
+
+    def show_timer(self, pct1):
+        # Fill across two eyes.  A little awkward, but works.
+        self.eyes_fill(pct1)
+
+        # This approach would allow each eye to show a different timer,
+        # but it looks bad without the display manager -- miscolored pixels.
+        #
+        # top = int(round(pct1*12.0/100.0))
+        # for i in range(0, 12):
+        #    idx = 11-i
+        #    if top < idx:
+        #        self.enclosure.eyes_setpixel(idx+12, 0,0,0)
+        #    else:
+        #        self.enclosure.eyes_setpixel(idx+12, 255,55,55)
+        #    time.sleep(0.05)
+        #    if top < idx:
+        #        self.enclosure.eyes_setpixel(idx, 0,0,0)
+        #    else:
+        #        self.enclosure.eyes_setpixel(idx, 255,55,55)
+        #    time.sleep(0.05)
+
 
     # Handles 'How much time left'
     @intent_file_handler('status.timer.intent')
@@ -384,9 +450,9 @@ class TimerSkill(MycroftSkill):
         elif self.active_timers:
             # Confirm cancel of live timers...
             if len(self.active_timers) > 1:
-                confirm = self.get_response('ask.cancel.running')
-            else:
                 confirm = self.get_response('ask.cancel.running.plural')
+            else:
+                confirm = self.get_response('ask.cancel.running')
             yes_words = self.translate_list('yes')
             if (confirm and any(i.strip() in confirm for i in yes_words)):
                 # Cancel all timers
