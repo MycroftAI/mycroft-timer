@@ -77,6 +77,8 @@ from mycroft.skills.skill_data import to_letters
 #  set a 1 and a half minute timer
 #  set a timer for 3 hours 45 minutes
 
+PLATFORMS_WITH_EYES = ['mycroft_mark_1']
+
 # TODO: Temporary while EnclosureAPI.eyes_fill() gets implemented
 def enclosure_eyes_fill(percentage):
     import subprocess
@@ -141,10 +143,14 @@ class TimerSkill(MycroftSkill):
         super(TimerSkill, self).__init__("TimerSkill")
         self.active_timers = []
         self.sound_file = join(abspath(dirname(__file__)), 'timerBeep.wav')
-        try:
-            self.eyes_fill = self.enclosure.eyes_fill
-        except:
-            self.eyes_fill = enclosure_eyes_fill
+        platform = self.config_core.get('enclosure', {}).get('platform')
+        if platform in PLATFORMS_WITH_EYES:
+            try:
+                self.eyes_fill = self.enclosure.eyes_fill
+            except:
+                self.eyes_fill = enclosure_eyes_fill
+        else:
+            self.eyes_fill = None
         self.displaying_timer = None
         self.beep_process = None
         self.display_text = None
@@ -337,7 +343,8 @@ class TimerSkill(MycroftSkill):
 
     def show_timer(self, pct1):
         # Fill across two eyes.  A little awkward, but works.
-        self.eyes_fill(pct1)
+        if self.eyes_fill:
+            self.eyes_fill(pct1)
 
         # This approach would allow each eye to show a different timer,
         # but it looks bad without the display manager -- miscolored pixels.
