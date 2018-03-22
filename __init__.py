@@ -141,10 +141,6 @@ class TimerSkill(MycroftSkill):
         super(TimerSkill, self).__init__("TimerSkill")
         self.active_timers = []
         self.sound_file = join(abspath(dirname(__file__)), 'timerBeep.wav')
-        try:
-            self.eyes_fill = self.enclosure.eyes_fill
-        except:
-            self.eyes_fill = enclosure_eyes_fill
         self.displaying_timer = None
         self.beep_process = None
         self.display_text = None
@@ -152,6 +148,11 @@ class TimerSkill(MycroftSkill):
         self.timer_index = 0
 
     def initialize(self):
+        try:
+            self.eyes_fill = self.enclosure.eyes_fill
+        except Exception as e:
+            self.eyes_fill = enclosure_eyes_fill
+
         self.register_entity_file('duration.entity')
         self.register_entity_file('timervalue.entity')
         self.register_entity_file('all.entity')
