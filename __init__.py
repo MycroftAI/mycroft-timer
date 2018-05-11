@@ -27,7 +27,7 @@ from mycroft.messagebus.message import Message
 from mycroft.util.parse import extractnumber, fuzzy_match
 from mycroft.util.format import pronounce_number
 
-from mycroft.skills.skill_data import to_letters
+from mycroft.skills.skill_data import to_alnum
 
 
 # TEST SCRIPT:
@@ -233,7 +233,7 @@ class TimerSkill(MycroftSkill):
                 intent.name = name
 
                 # Hackery - clean up the name of intent pieces
-                munged = to_letters(self.skill_id)
+                munged = to_alnum(self.skill_id)
                 req = []
                 for i in intent.requires:
                     if munged in i[0]:
