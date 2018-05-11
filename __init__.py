@@ -27,7 +27,10 @@ from mycroft.messagebus.message import Message
 from mycroft.util.parse import extractnumber, fuzzy_match
 from mycroft.util.format import pronounce_number
 
-from mycroft.skills.skill_data import to_alnum
+try:
+    from mycroft.skills.skill_data import to_alnum
+except ImportError:
+    from mycroft.skills.skill_data import to_letters as to_alnum
 
 
 # TEST SCRIPT:
