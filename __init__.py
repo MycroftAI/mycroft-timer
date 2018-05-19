@@ -461,11 +461,18 @@ class TimerSkill(MycroftSkill):
             name = timer["name"]
             if not name:
                 name = nice_duration(timer["duration"])
-            remaining = (timer["expires"] - now).seconds
+            remaining = int((timer["expires"] - now).total_seconds())
 
-            self.speak_dialog("time.remaining",
-                              data={"name": name,
-                                    "remaining": nice_duration(remaining)})
+            expired = True if remaining <= 0 else False
+
+            if expired is False:
+                self.speak_dialog("time.remaining",
+                                  data={"name": name,
+                                        "remaining": nice_duration(remaining)})
+            else:
+                self.speak_dialog("timer.expired",
+                                  data={"name": name,
+                                        "ago": nice_duration(-1 * remaining)})
 
     def cancel_timer(self, timer):
         # Cancel given timer
