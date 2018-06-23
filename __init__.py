@@ -109,7 +109,6 @@ def nice_duration(self, duration, lang="en-us", speech=True):
     if speech:
         out = ""
         if days > 0:
-            out += " "
             if days == 1:   # number 1 has to be adapted to the genus of the
                             #  following noun in some languages
                 out += self.translate("say.day")
@@ -126,7 +125,6 @@ def nice_duration(self, duration, lang="en-us", speech=True):
                     "say.hours")
             out += " "
         if minutes > 0:
-            out += " "
             if minutes == 1:
                 out += self.translate("say.minute")
             else:
@@ -134,7 +132,6 @@ def nice_duration(self, duration, lang="en-us", speech=True):
                     "say.minutes")
             out += " "
         if seconds > 0:
-            out += " "
             if seconds == 1:
                 out += self.translate("say.second")
             else:
