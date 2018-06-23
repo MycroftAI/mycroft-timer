@@ -1,2 +1,2 @@
-ich stoppe den {{name}} timer für {{duration}}
-der timer  {{name}} wird für {{duration}} gestoppt
+ich stoppe den {{name}} timer über {{duration}}
+der timer {{name}} für {{duration}} wird gestoppt
