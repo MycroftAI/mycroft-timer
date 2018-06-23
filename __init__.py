@@ -69,7 +69,7 @@ except ImportError:
 #  all
 #
 #  set a 5 minute timer called lasagna
-#  set a 7 minute timer called brocolli
+#  set a 7 minute timer called broccoli
 #  cancel the timer
 #       asks which...
 #  lasagna
@@ -89,7 +89,7 @@ def enclosure_eyes_fill(percentage):
 
 
 # TODO: Move to mycroft.util.format
-def nice_duration(duration, lang="en-us", speech=True):
+def nice_duration(self, duration, lang="en-us", speech=True):
     """ Convert duration in seconds to a nice spoken timespan
 
     Examples:
@@ -109,17 +109,37 @@ def nice_duration(duration, lang="en-us", speech=True):
     if speech:
         out = ""
         if days > 0:
-            out += pronounce_number(days)
-            out += " days " if days == 1 else " day "
+            out += " "
+            if days == 1:   # number 1 has to be adapted to the genus of the
+                            #  following noun in some languages
+                out += self.translate("say.day")
+            else:
+                out += pronounce_number(days, lang) + " " + self.translate(
+                    "say.days")
+            out += " "
         if hours > 0:
-            out += pronounce_number(hours)
-            out += " hour " if hours == 1 else " hours "
+            out += " "
+            if hours == 1:
+                out += self.translate("say.hour")
+            else:
+                out += pronounce_number(hours, lang) + " " + self.translate(
+                    "say.hours")
+            out += " "
         if minutes > 0:
-            out += pronounce_number(minutes)
-            out += " minute " if minutes == 1 else " minutes "
+            out += " "
+            if minutes == 1:
+                out += self.translate("say.minute")
+            else:
+                out += pronounce_number(minutes, lang) + " " + self.translate(
+                    "say.minutes")
+            out += " "
         if seconds > 0:
-            out += pronounce_number(seconds)
-            out += " second" if seconds == 1 else " seconds"
+            out += " "
+            if seconds == 1:
+                out += self.translate("say.second")
+            else:
+                out += pronounce_number(seconds, lang) + " " + self.translate(
+                    "say.seconds")
         return out
     else:
         # M:SS, MM:SS, H:MM:SS, Dd H:MM:SS format
@@ -149,6 +169,7 @@ class TimerSkill(MycroftSkill):
         self.display_text = None
         self.mute = False
         self.timer_index = 0
+        lang = self.lang
 
     def initialize(self):
         try:
@@ -167,7 +188,7 @@ class TimerSkill(MycroftSkill):
 
     def _extract_duration(self, text):
         # return the duration in seconds
-        num = extractnumber(text.replace("-", " "))
+        num = extractnumber(text.replace("-", " "), self.lang)
         if not num:
             return None
 
@@ -187,7 +208,7 @@ class TimerSkill(MycroftSkill):
         # Extract the requested timer duration
         if 'duration' not in message.data:
             secs = self._extract_duration(message.data["utterance"])
-            if secs:
+            if secs > 1: # set one timer should not yield a 1 sec timer
                 duration = message.data["utterance"]
             else:
                 duration = self.get_response('ask.how.long')
@@ -195,7 +216,7 @@ class TimerSkill(MycroftSkill):
             duration = message.data["duration"]
         secs = self._extract_duration(duration)
         if not secs:
-            self.speak("you gotta tell me how long!")
+            self.speak_dialog("tell.me.how.long", lang = self.lang)
             return
 
         # Name the timer
@@ -216,7 +237,9 @@ class TimerSkill(MycroftSkill):
         self.active_timers.append(timer)
 
         self.speak_dialog("started.timer",
-                          data={"duration": nice_duration(timer["duration"])})
+                          data={"duration": nice_duration(self, timer[
+                                                              "duration"],
+                                                          lang=self.lang)})
 
         self.hack_enable_intent("handle_cancel_timer")
         self.hack_enable_intent("handle_mute_timer")
@@ -337,7 +360,8 @@ class TimerSkill(MycroftSkill):
                 self._play_beep()
 
             # Show the expired time.  This naturally "flashes"
-            self._show(nice_duration(overtime, speech=False))
+            self._show(nice_duration(self, overtime, lang = self.lang,
+                                     speech=False))
 
     def show_timer(self, pct1):
         # Fill across two eyes.  A little awkward, but works.
@@ -412,7 +436,7 @@ class TimerSkill(MycroftSkill):
             # E.g. "Cancel the 5 minute timer" when it's a 7 minute timer
             timer = self._get_next_timer()
             self.cancel_timer(timer)
-            duration = nice_duration(timer["duration"])
+            duration = nice_duration(self, timer["duration"], lang = self.lang)
             self.speak_dialog("cancelled.single.timer",
                               data={"name": timer["name"],
                                     "duration": duration})
@@ -433,7 +457,8 @@ class TimerSkill(MycroftSkill):
             timer = self._get_timer(which)
             if timer:
                 self.cancel_timer(timer)
-                duration = nice_duration(timer["duration"])
+                duration = nice_duration(self, timer["duration"], lang =
+                self.lang)
                 self.speak_dialog("cancelled.single.timer",
                                   data={"name": timer["name"],
                                         "duration": duration})
@@ -460,12 +485,14 @@ class TimerSkill(MycroftSkill):
             now = datetime.now()
             name = timer["name"]
             if not name:
-                name = nice_duration(timer["duration"])
+                name = nice_duration(self, timer["duration"], lang = self.lang)
             remaining = (timer["expires"] - now).seconds
 
             self.speak_dialog("time.remaining",
                               data={"name": name,
-                                    "remaining": nice_duration(remaining)})
+                                    "remaining": nice_duration(self,
+                                                               remaining,
+                                                            lang = self.lang)})
 
     def cancel_timer(self, timer):
         # Cancel given timer
