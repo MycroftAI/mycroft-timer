@@ -1,10 +1,10 @@
 beende den {duration} timer
-Schalte den timer aus
-Schalte den timmer um {duration} aus
+schalte den timer aus
+schalte den timer {duration} aus
 breche den timer ab
-(cancel|remove|delete|abort) (the|a|) {duration} (timer|)
-deaktiviere den Timer
+(entferne|beende|lösche) (den|einen|) {duration} (timer|)
+deaktiviere den timer
 deaktiviere den {duration} timer
-bereche den {all} timer ab
-losche {all} timer
+breche {all} timer ab
+lösche {all} timer
 deaktiviere {all} timer
