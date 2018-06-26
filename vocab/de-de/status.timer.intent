@@ -1,13 +1,16 @@
-Wie viel (Zeit|) bleibt noch übrig von ({duration} timer| timers)
-Wie viel Zeit bleibt noch auf den Timern?
-Wie viel Zeit bleibt noch
+wieviel (zeit|) bleibt (noch|) (von|vom|bei|beim|im) ({duration}timer|timers)
+wieviel (zeit|) bleibt übrig (von|vom|bei|beim|im) ({duration}timer|timers)
+wieviel zeit bleibt noch auf den timern?
+wieviel zeit bleibt noch
 status der timer
 status des timers
+welche timer (gibt es|sind aktiv)
 timer status
-status des ({duration} timer| timer})
+status timer
+status des ({duration} timers| timer| timers})
 wie lange noch
-bleibt noch Zeit
 verbleibende zeit von ({duration} timer| timer)
-verbleibende Zeit von (timer|{duration} timer|)?
-Timer auflisten
-Liste timer auf
+(wieviel|) zeit (verbleibend|noch|übrig|) (auf|) (timer|{duration} timer|)?
+timer auflisten
+liste timer auf
+timer liste
