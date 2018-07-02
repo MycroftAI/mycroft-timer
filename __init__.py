@@ -477,7 +477,7 @@ class TimerSkill(MycroftSkill):
             elif ch == " ":
                 png = "/opt/mycroft/skills/mycroft-timer/blank.png"
             elif ch == "-":
-                png = "/opt/mycroft/skills/mycroft-timer/dash.png"
+                png = "/opt/mycroft/skills/mycroft-timer/negative.png"
             else:
                 png = "/opt/mycroft/skills/mycroft-timer/"+ch+".png"
 
