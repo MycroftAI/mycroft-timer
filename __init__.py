@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import time
+import pickle
 
 from adapt.intent import IntentBuilder
 from mycroft.skills.core import (
@@ -20,12 +21,14 @@ from mycroft.skills.core import (
     intent_handler,
     intent_file_handler)
 from mycroft.util.log import LOG
+from mycroft.audio import wait_while_speaking, is_speaking
 from datetime import datetime, timedelta
 from os.path import join, isfile, abspath, dirname
 from mycroft.util import play_wav
 from mycroft.messagebus.message import Message
 from mycroft.util.parse import extractnumber, fuzzy_match
 from mycroft.util.format import pronounce_number
+import mycroft.client.enclosure.display_manager as DisplayManager
 
 try:
     from mycroft.skills.skill_data import to_alnum
@@ -38,13 +41,13 @@ except ImportError:
 #  stop (confirms)
 #  set a timer for 5 minutes
 #  cancel timer
-#  set a 10 second timer
+#  set a 10 seconds timer
 #  set a timer for 5 minutes
 #       wait 10 secs.  first timer fires
 #  stop
 #       second timer should continue
 #  stop
-#       should get confirmation
+#       should get confirmationy
 #  set a timer for 5 minutes
 #  how much is left on the timer
 #  set a 7 minute timer
@@ -79,13 +82,6 @@ except ImportError:
 # FAILS:
 #  set a 1 and a half minute timer
 #  set a timer for 3 hours 45 minutes
-
-# TODO: Temporary while EnclosureAPI.eyes_fill() gets implemented
-def enclosure_eyes_fill(percentage):
-    import subprocess
-    amount = int(round(23.0 * percentage / 100.0))
-    subprocess.call('echo "eyes.fill=' + str(amount) + '" > /dev/ttyAMA0',
-                    shell=True)
 
 
 # TODO: Move to mycroft.util.format
@@ -160,30 +156,89 @@ class TimerSkill(MycroftSkill):
     def __init__(self):
         super(TimerSkill, self).__init__("TimerSkill")
         self.active_timers = []
-        self.sound_file = join(abspath(dirname(__file__)), 'timerBeep.wav')
+        # self.sound_file = join(abspath(dirname(__file__)), 'timerBeep.wav')
+        self.beep_repeat_period = 10
+        self.sound_file = join(abspath(dirname(__file__)), 'twoBeep.wav')
+        self.beep_repeat_period = 5
+
         self.displaying_timer = None
         self.beep_process = None
-        self.display_text = None
         self.mute = False
         self.timer_index = 0
-        lang = self.lang
+        self.display_idx = None
+
+    # TODO: Move to MycroftSkill
+    def ask_yesno(self, prompt):
+        """
+        Read prompt and wait for a yes/no answer
+
+        This automatically deals with translation and common variants,
+        such as 'yeah', 'sure', etc.
+
+        Args:
+              prompt (str): a dialog id or string to read
+        Returns:
+              string:  'yes', 'no' or whatever the user response if not
+                       one of those, including None
+        """
+        resp = self.get_response(prompt)
+        yes_words = self.translate_list('yes')
+        if (resp and any(i.strip() in resp for i in yes_words)):
+            return 'yes'
+
+        no_words = self.translate_list('no')
+        if (resp and any(i.strip() in resp for i in no_words)):
+            return 'no'
+
+        return resp
+
 
     def initialize(self):
-        try:
-            self.eyes_fill = self.enclosure.eyes_fill
-        except Exception as e:
-            self.eyes_fill = enclosure_eyes_fill
-
         self.register_entity_file('duration.entity')
         self.register_entity_file('timervalue.entity')
         self.register_entity_file('all.entity')
+
+        self.unpickle()
 
         # Invoke update_display in one second to allow it to disable the
         # cancel intent, since there are no timers to cancel yet!
         self.schedule_repeating_event(self.update_display,
                                       None, 1, name='ShowTimer')
 
+        # To prevent beeping while listening
+        self.is_listening = False
+        self.add_event('recognizer_loop:record_begin',
+                           self.handle_listener_started)
+        self.add_event('recognizer_loop:record_end',
+                           self.handle_listener_ended)
+
+    def pickle(self):
+        # Save the timers for reload
+        with self.file_system.open('save_timers', 'wb') as f:
+            pickle.dump(self.active_timers, f, pickle.HIGHEST_PROTOCOL)
+
+    def unpickle(self):
+        # Reload any saved timers
+        try:
+            with self.file_system.open('save_timers', 'rb') as f:
+                self.active_timers = pickle.load(f)
+            for timer in self.active_timers:
+                if timer["index"] > self.timer_index:
+                    self.timer_index = timer["index"]
+        except:
+            self.active_timers = []
+
+    # TODO: Implement util.is_listening() to replace this
+    def handle_listener_started(self, message):
+        self.is_listening = True
+
+    def handle_listener_ended(self, message):
+        self.is_listening = False
+
     def _extract_duration(self, text):
+        if not text:
+            return None
+
         # return the duration in seconds
         num = extractnumber(text.replace("-", " "), self.lang)
         if not num:
@@ -205,69 +260,56 @@ class TimerSkill(MycroftSkill):
         # Extract the requested timer duration
         if 'duration' not in message.data:
             secs = self._extract_duration(message.data["utterance"])
-            if secs > 1: # set one timer should not yield a 1 sec timer
+            if secs and secs > 1: # set one timer should not yield a 1 sec timer
                 duration = message.data["utterance"]
             else:
                 duration = self.get_response('ask.how.long')
+                if duration == None:
+                    return  # user cancelled
         else:
             duration = message.data["duration"]
         secs = self._extract_duration(duration)
         if not secs:
-            self.speak_dialog("tell.me.how.long", lang = self.lang)
+            self.speak_dialog("tell.me.how.long")
             return
 
-        # Name the timer
-        # TODO: Get a name from request
-        # ????: Name sequentially, e.g. "Timer 1", "Timer 2"?
         self.timer_index += 1
 
+        # Name the timer
         timer_name = ""
         if 'name' in message.data:
+            # Get a name from request
             timer_name = message.data["name"]
+        if not timer_name:
+            # Name after the duration, e.g. "30 second timer"
+            timer_name = nice_duration(self, secs, lang = self.lang)
 
         now = datetime.now()
         time_expires = now + timedelta(seconds=secs)
         timer = {"name": timer_name,
                  "index": self.timer_index,
                  "duration": secs,
-                 "expires": time_expires}
+                 "expires": time_expires,
+                 "announced": False}
         self.active_timers.append(timer)
 
-        self.speak_dialog("started.timer",
+        prompt = "started.timer" if len(self.active_timers) == 1 else "started.another.timer"
+        self.speak_dialog(prompt,
                           data={"duration": nice_duration(self, timer[
                                                               "duration"],
                                                           lang=self.lang)})
+        self.pickle()
+        wait_while_speaking()
 
-        self.hack_enable_intent("handle_cancel_timer")
-        self.hack_enable_intent("handle_mute_timer")
-        self.hack_enable_intent("handle_status_timer")
+        self.enable_intent("handle_cancel_timer")
+        self.enable_intent("handle_mute_timer")
+        self.enable_intent("handle_status_timer")
 
         # Start showing the remaining time on the faceplate
         self.update_display(None)
 
         # reset the mute flag with a new timer
         self.mute = False
-
-    def hack_enable_intent(self, intent_name):
-        # THIS IS HACKING AROUND A BUG IN 0.9.17's enable_intent()
-        for (name, intent) in self.registered_intents:
-            if name == intent_name:
-                self.registered_intents.remove((name, intent))
-                intent.name = name
-
-                # Hackery - clean up the name of intent pieces
-                munged = to_alnum(self.skill_id)
-                req = []
-                for i in intent.requires:
-                    if munged in i[0]:
-                        req.append((i[0].replace(munged, ""),
-                                    i[1].replace(munged, "")))
-                    else:
-                        req.append(i)
-                intent.requires = req
-
-                self.register_intent(intent, None)
-                break
 
     def _get_next_timer(self):
         # Retrieve the next timer set to trigger
@@ -278,8 +320,6 @@ class TimerSkill(MycroftSkill):
         return next
 
     def _get_timer(self, name):
-        # Retrieve the next timer set to trigger
-
         # Referenced it by duration? "the 5 minute timer"
         secs = self._extract_duration(name)
         if secs:
@@ -289,7 +329,7 @@ class TimerSkill(MycroftSkill):
 
         # Referenced by index?  "The first", "number three"
         num = extractnumber(name)
-        if num and num-1 < self.timer_index:
+        if num:
             for timer in self.active_timers:
                 if timer["index"] == num:
                     return timer
@@ -318,68 +358,135 @@ class TimerSkill(MycroftSkill):
             self.disable_intent("handle_mute_timer")
             # self.disable_intent("handle_status_timer")  # TODO: needs Adapt
             self.timer_index = 0  # back to zero timers
-            self.enclosure.eyes_reset()
             self._stop_beep()
-            self._clear_display()
+            self.enclosure.eyes_reset()
+            self.enclosure.mouth_reset()
             return
+
+        # Check if there is an expired timer
+        now = datetime.now()
+        flash = False
+        for timer in self.active_timers:
+            if timer["expires"] < now:
+                flash = True
+                break
+        if flash:
+            if now.second % 2 == 1:
+                self.enclosure.eyes_on()
+            else:
+                self.enclosure.eyes_off()
+
+        if is_speaking():
+            # Don't overwrite mouth visemes
+            return
+
+        if len(self.active_timers) > 1:
+            if not self.display_idx:
+                self.display_idx = 1.0
+            else:
+                self.display_idx += 0.2
+            if self.display_idx-1 > len(self.active_timers):
+                self.display_idx = 1.0
+
+            timer = self.active_timers[int(self.display_idx)-1]
+            idx = timer["index"]
+        else:
+            if self.display_idx:
+                self.enclosure.mouth_reset()
+            self.display_idx = None
+            idx = None
 
         # Check if the display frequency is set correctly for the
         # closest timer...
         if timer != self.displaying_timer:
             self.cancel_scheduled_event('ShowTimer')
-            # Create a callback with appropriate frequency
-            freq = timer["duration"]/100.0
-            if freq < 1:
-                freq = 1
             self.schedule_repeating_event(self.update_display,
-                                          None, freq,
+                                          None, 1,
                                           name='ShowTimer')
             self.displaying_timer = timer
 
         # Calc remaining time and show using faceplate
-        now = datetime.now()
-
         if (timer["expires"] > now):
             # Timer still running
             remaining = (timer["expires"] - now).seconds
-            dur = timer["duration"]
-            self.show_timer(int(remaining*100.0/dur))
+            self.render_timer(idx, remaining)
         else:
             # Timer has expired but not been cleared, flash eyes
             overtime = (now - timer["expires"]).seconds
-            if overtime % 2 == 0:
-                self.enclosure.eyes_off()
+            self.render_timer(idx, -overtime)
+
+            if timer["announced"]:
+                # beep again every 10 seconds
+                if overtime % self.beep_repeat_period == 0 and not self.mute:
+                    self._play_beep()
             else:
-                self.enclosure.eyes_on()
+                # if only timer, just beep
+                if len(self.active_timers) == 1:
+                    self._play_beep()
+                else:
+                    self.speak_dialog("timer.expired",
+                                data={"name": timer["name"]})
 
-            # beep every 10 seconds
-            if overtime % 10 == 0 and not self.mute:
-                self._play_beep()
+                timer["announced"] = True
 
-            # Show the expired time.  This naturally "flashes"
-            self._show(nice_duration(self, overtime, lang = self.lang,
-                                     speech=False))
 
-    def show_timer(self, pct1):
-        # Fill across two eyes.  A little awkward, but works.
-        self.eyes_fill(pct1)
+    def render_timer(self, idx, seconds):
+        display_owner = DisplayManager.get_active()
+        if display_owner == "":
+            self.enclosure.mouth_reset()  # clear any leftover bits
+        elif display_owner != "TimerSkill":
+            return
 
-        # This approach would allow each eye to show a different timer,
-        # but it looks bad without the display manager -- miscolored pixels.
-        #
-        # top = int(round(pct1*12.0/100.0))
-        # for i in range(0, 12):
-        #    idx = 11-i
-        #    if top < idx:
-        #        self.enclosure.eyes_setpixel(idx+12, 0,0,0)
-        #    else:
-        #        self.enclosure.eyes_setpixel(idx+12, 255,55,55)
-        #    time.sleep(0.05)
-        #    if top < idx:
-        #        self.enclosure.eyes_setpixel(idx, 0,0,0)
-        #    else:
-        #        self.enclosure.eyes_setpixel(idx, 255,55,55)
-        #    time.sleep(0.05)
+        # convert seconds to m:ss or h:mm:ss
+        if seconds <= 0:
+            expired = True
+            seconds *= -1
+        else:
+            expired = False
+
+        hours = seconds // (60*60)  # hours
+        rem = seconds % (60*60)
+        minutes = rem // 60  # minutes
+        seconds = rem % 60
+        if hours > 0:
+            # convert to h:mm:ss
+            time = str(hours)+":"+str(minutes).zfill(2)+":"+str(seconds).zfill(2)
+            pixel_width = len(time)*4 - 2*2 + 6 # account of colons being smaller
+        else:
+            # convert to m:ss
+            time = str(minutes).zfill(2)+":"+str(seconds).zfill(2)
+            pixel_width = len(time)*4 - 2 + 6 # account of colons being smaller
+
+        x = (4*8 - pixel_width) // 2  # centers on display
+        if expired:
+            time = "-"+time
+        else:
+            time = " "+time
+
+        if idx:
+            # If there is an index to show, display at the left
+            png = "/opt/mycroft/skills/mycroft-timer/"+str(int(idx))+".png"
+            self.enclosure.mouth_display_png(png, x=3, y=2, refresh=False)
+            x += 6
+
+        # draw on the display
+        for ch in time:
+            # deal with some odd characters that can break filesystems
+            if ch == ":":
+                png = "/opt/mycroft/skills/mycroft-timer/colon.png"
+            elif ch == " ":
+                png = "/opt/mycroft/skills/mycroft-timer/blank.png"
+            elif ch == "-":
+                png = "/opt/mycroft/skills/mycroft-timer/dash.png"
+            else:
+                png = "/opt/mycroft/skills/mycroft-timer/"+ch+".png"
+
+            self.enclosure.mouth_display_png(png, x=x, y=2, refresh=False)
+            if ch == ':':
+                x += 2
+            else:
+                x += 4
+
 
     # Handles 'How much time left'
     @intent_file_handler('status.timer.intent')
@@ -388,21 +495,28 @@ class TimerSkill(MycroftSkill):
         if not self.active_timers:
             self.speak_dialog("no.active.timer")
         elif len(self.active_timers) == 1:
-            self._speak_timer_status(self.active_timers[0]["name"])
+            self._speak_timer_status(None)
         else:
             self._multiple_timer_status(intent)
 
     def _multiple_timer_status(self, intent):
-        """ determines which timer to speak the status of
+        """ Determines which timer to speak about
 
             Args:
                 intent (dict): data from Message object
         """
         if 'duration' not in intent.keys():
-            which = self.get_response('ask.which.timer',
-                                      data={"count": len(self.active_timers)})
-            if not which:
-                return  # cancelled inquiry
+            if len(self.active_timers) < 3:
+                which = None  # indicates ALL
+            else:
+                names = ""
+                for timer in self.active_timers:
+                    names += ". " + timer["name"]
+                which = self.get_response('ask.which.timer',
+                                      data={"count": len(self.active_timers),
+                                            "names": names})
+                if not which:
+                    return  # cancelled inquiry
         else:
             which = intent['duration']
 
@@ -412,21 +526,37 @@ class TimerSkill(MycroftSkill):
     def handle_mute_timer(self, message):
         self.mute = True
 
+    @intent_handler(IntentBuilder("").require("VerifyCancel").require("Timer"))
+    def handle_verify_stop_timer(self, message):
+        # Confirm cancel of live timers...
+        prompt = 'ask.cancel.running' if len(self.active_timers) == 1 else 'ask.cancel.running.plural'
+        if self.ask_yesno(prompt) == 'yes':
+            self.handle_cancel_timer()
+
     @intent_handler(IntentBuilder("").require("Cancel").require("Timer").
                     optionally("All"))
-    def handle_cancel_timer(self, message):
+    def handle_cancel_timer(self, message=None):
         num_timers = len(self.active_timers)
         if num_timers == 0:
             self.speak_dialog("no.active.timer")
             return
 
-        intent = message.data
-        if 'All' in intent:
-            self.speak_dialog('cancel.all')
+        if not message or 'All' in message.data:
+            # Either "cancel all" or from Stop button
+            if num_timers == 1:
+                timer = self._get_next_timer()
+                self.speak_dialog("cancelled.single.timer",
+                                data={"name": timer["name"]})
+            else:
+                self.speak_dialog('cancel.all',
+                                data={"count": num_timers})
+
             # get duplicate so we can walk the list
             active_timers = list(self.active_timers)
             for timer in active_timers:
                 self.cancel_timer(timer)
+            self.pickle()   # save to disk
+
 
         elif num_timers == 1:
             # TODO: Cancel if there is a spoken name and it is a mismatch?
@@ -437,6 +567,7 @@ class TimerSkill(MycroftSkill):
             self.speak_dialog("cancelled.single.timer",
                               data={"name": timer["name"],
                                     "duration": duration})
+            self.pickle()   # save to disk
 
         elif num_timers > 1:
             which = self.get_response('ask.which.timer.cancel',
@@ -454,11 +585,12 @@ class TimerSkill(MycroftSkill):
             timer = self._get_timer(which)
             if timer:
                 self.cancel_timer(timer)
-                duration = nice_duration(self, timer["duration"], lang =
-                self.lang)
+                duration = nice_duration(self, timer["duration"],
+                                         lang = self.lang)
                 self.speak_dialog("cancelled.single.timer",
                                   data={"name": timer["name"],
                                         "duration": duration})
+                self.pickle()   # save to disk
 
         # NOTE: This allows 'ShowTimer' to continue running, it will clean up
         #       after itself nicely.
@@ -466,7 +598,8 @@ class TimerSkill(MycroftSkill):
     def _speak_timer_status(self, timer_name):
         # Look for "All"
         all_words = self.translate_list('all')
-        if (timer_name and any(i.strip() in timer_name for i in all_words)):
+        if (timer_name == None or
+                (any(i.strip() in timer_name for i in all_words))):
             for timer in self.active_timers:
                 self._speak_timer(timer)
             return
@@ -478,28 +611,54 @@ class TimerSkill(MycroftSkill):
     def _speak_timer(self, timer):
         if timer is None:
             self.speak_dialog("no.active.timer")
-        else:
-            now = datetime.now()
-            name = timer["name"]
-            if not name:
-                name = nice_duration(self, timer["duration"], lang = self.lang)
-            remaining = (timer["expires"] - now).seconds
+            return
 
+        # TODO: speak_dialog should have option to not show mouth
+        # For now, just deactiveate.  The sleep() is to allow the
+        # message to make it across the bus first.
+        self.enclosure.deactivate_mouth_events()
+        time.sleep(0.25)
+
+        now = datetime.now()
+        name = timer["name"]
+
+        if timer and timer["expires"] < now:
+            # expired, speak how long since it triggered
+            passed = (now - timer["expires"]).seconds
+            self.speak_dialog("time.elapsed",
+                              data={"name": name,
+                                    "passed_time": nice_duration(self,
+                                                                 passed,
+                                                                 lang = self.lang)})
+        else:
+            # speak remaining time
+            remaining = (timer["expires"] - now).seconds
             self.speak_dialog("time.remaining",
                               data={"name": name,
                                     "remaining": nice_duration(self,
                                                                remaining,
                                                             lang = self.lang)})
+        wait_while_speaking()
+        self.enclosure.activate_mouth_events()
 
     def cancel_timer(self, timer):
         # Cancel given timer
         if timer:
             self.active_timers.remove(timer)
+            self.enclosure.eyes_on()  # reset just in case
 
-    @intent_file_handler('stop.intent')
-    def _stop(self, message):
+    @intent_file_handler('stop.timer.intent')
+    def handle_stop_timer(self, message):
         """ Wrapper for stop method """
         self.stop()
+
+    def shutdown(self):
+        # Clear the timer list, this fixes issues when stop() gets called
+        # on shutdown.
+        if len(self.active_timers) > 0:
+            active_timers = list(self.active_timers)
+            for timer in active_timers:
+                self.cancel_timer(timer)
 
     def stop(self):
         timer = self._get_next_timer()
@@ -509,39 +668,29 @@ class TimerSkill(MycroftSkill):
             while timer and timer["expires"] < now:
                 self.cancel_timer(timer)
                 timer = self._get_next_timer()
+            self.pickle()   # save to disk
             return True
 
         elif self.active_timers:
-            # Confirm cancel of live timers...
-            if len(self.active_timers) > 1:
-                confirm = self.get_response('ask.cancel.running.plural')
-            else:
-                confirm = self.get_response('ask.cancel.running')
-            yes_words = self.translate_list('yes')
-            if (confirm and any(i.strip() in confirm for i in yes_words)):
-                # Cancel all timers
-                while timer:
-                    self.cancel_timer(timer)
-                    timer = self._get_next_timer()
-                self.speak_dialog("cancel.all")
-                return True
+            # This is a little tricky.  We shouldn't initiate
+            # dialog during Stop handling (there is confusion
+            # between stopping speech and starting new conversations).
+            # Instead, we'll just consider this Stop consumed and
+            # post a message that will immediately be handled to
+            # ask the user if they want to cancel.
+            self.emitter.emit(Message("recognizer_loop:utterance",
+                            {'utterances': ["verify_cancel timer"],
+                                'lang': 'en-us'}))
+            return True
 
         return False
 
-    def _clear_display(self):
-        self.enclosure.mouth_reset()
-        self.display_text = None
-
-    def _show(self, str, force=False):
-        # NOTE: On the Mark 1, the display clears before writing.
-        #       This make it look like it 'flashes', which is OK
-        if str != self.display_text:
-            self.enclosure.mouth_text(str)
-            self.display_text = str
+    ######################################################################
+    ## Audio feedback
 
     def _play_beep(self):
         # Play the beep sound
-        if not self._is_playing_beep():
+        if not self._is_playing_beep() and not self.is_listening:
             self.beep_process = play_wav(self.sound_file)
 
     def _is_playing_beep(self):
