@@ -471,14 +471,13 @@ class TimerSkill(MycroftSkill):
 
         # draw on the display
         for ch in time:
-            # if expired and seconds % 2 == 1 and (ch == ':'):
-            #    # for blinking
-            #    png = "/opt/mycroft/skills/mycroft-timer/blank.png"
-            # el
+            # deal with some odd characters that can break filesystems
             if ch == ":":
                 png = "/opt/mycroft/skills/mycroft-timer/colon.png"
             elif ch == " ":
                 png = "/opt/mycroft/skills/mycroft-timer/blank.png"
+            elif ch == "-":
+                png = "/opt/mycroft/skills/mycroft-timer/dash.png"
             else:
                 png = "/opt/mycroft/skills/mycroft-timer/"+ch+".png"
 
