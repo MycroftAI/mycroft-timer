@@ -1,0 +1,6 @@
+{
+    "utterance": "delete timer",
+    "intent_type": "handle_cancel_timer",
+    "expected_dialog": "cancelled.single.timer",
+    "evaluation_timeout": 10
+}
