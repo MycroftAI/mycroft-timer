@@ -120,6 +120,12 @@ class TimerSkill(MycroftSkill):
         if not text:
             return None
 
+        # HACK: Temporary!  This fixes an issue introduced in
+        # extractnumber() where it pulls out the "second" as 
+        # 2 for "a 30 second timer" instead of pulling out 30
+        # This should be fixed in mycroft-core 18.02.11
+        text = text.replace("second", "seconds")
+
         # return the duration in seconds
         num = extractnumber(text.replace("-", " "), self.lang)
         if not num:
@@ -347,7 +353,7 @@ class TimerSkill(MycroftSkill):
 
         if idx:
             # If there is an index to show, display at the left
-            png = "/opt/mycroft/skills/mycroft-timer/"+str(int(idx))+".png"
+            png = join(abspath(dirname(__file__)), str(int(idx))+".png")
             self.enclosure.mouth_display_png(png, x=3, y=2, refresh=False)
             x += 6
 
@@ -355,14 +361,15 @@ class TimerSkill(MycroftSkill):
         for ch in time:
             # deal with some odd characters that can break filesystems
             if ch == ":":
-                png = "/opt/mycroft/skills/mycroft-timer/colon.png"
+                png = "colon.png"
             elif ch == " ":
-                png = "/opt/mycroft/skills/mycroft-timer/blank.png"
+                png = "blank.png"
             elif ch == "-":
-                png = "/opt/mycroft/skills/mycroft-timer/negative.png"
+                png = "negative.png"
             else:
-                png = "/opt/mycroft/skills/mycroft-timer/"+ch+".png"
+                png = ch+".png"
 
+            png = join(abspath(dirname(__file__)), png)
             self.enclosure.mouth_display_png(png, x=x, y=2, refresh=False)
             if ch == ':':
                 x += 2
