@@ -124,7 +124,7 @@ class TimerSkill(MycroftSkill):
         # extractnumber() where it pulls out the "second" as 
         # 2 for "a 30 second timer" instead of pulling out 30
         # This should be fixed in mycroft-core 18.02.11
-        text = text.replace("second", "seconds")
+        # text = text.replace("second", "seconds")
 
         # return the duration in seconds
         num = extractnumber(text.replace("-", " "), self.lang)
