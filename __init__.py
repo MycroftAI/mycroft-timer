@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 from os.path import join, isfile, abspath, dirname
 from mycroft.util import play_wav
 from mycroft.messagebus.message import Message
-from mycroft.util.parse import extractnumber, fuzzy_match
+from mycroft.util.parse import extract_number, fuzzy_match
 from mycroft.util.format import pronounce_number
 import mycroft.client.enclosure.display_manager as DisplayManager
 
@@ -120,14 +120,8 @@ class TimerSkill(MycroftSkill):
         if not text:
             return None
 
-        # HACK: Temporary!  This fixes an issue introduced in
-        # extractnumber() where it pulls out the "second" as 
-        # 2 for "a 30 second timer" instead of pulling out 30
-        # This should be fixed in mycroft-core 18.02.11
-        # text = text.replace("second", "seconds")
-
         # return the duration in seconds
-        num = extractnumber(text.replace("-", " "), self.lang)
+        num = extract_number(text.replace("-", " "), self.lang)
         if not num:
             return None
 
@@ -215,7 +209,7 @@ class TimerSkill(MycroftSkill):
                     return timer
 
         # Referenced by index?  "The first", "number three"
-        num = extractnumber(name)
+        num = extract_number(name)
         if num:
             for timer in self.active_timers:
                 if timer["index"] == num:
@@ -626,30 +620,6 @@ class TimerSkill(MycroftSkill):
                 return pickle.load(f)
         except:
             return default
-
-    def ask_yesno(self, prompt):
-        """
-        Read prompt and wait for a yes/no answer
-
-        This automatically deals with translation and common variants,
-        such as 'yeah', 'sure', etc.
-
-        Args:
-              prompt (str): a dialog id or string to read
-        Returns:
-              string:  'yes', 'no' or whatever the user response if not
-                       one of those, including None
-        """
-        resp = self.get_response(prompt)
-        yes_words = self.translate_list('yes')
-        if (resp and any(i.strip() in resp for i in yes_words)):
-            return 'yes'
-
-        no_words = self.translate_list('no')
-        if (resp and any(i.strip() in resp for i in no_words)):
-            return 'no'
-
-        return resp
 
 
 # TODO: Move to mycroft.util.format
