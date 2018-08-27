@@ -28,7 +28,6 @@ from mycroft.util import play_wav
 from mycroft.messagebus.message import Message
 from mycroft.util.parse import extract_number, fuzzy_match
 from mycroft.util.format import pronounce_number
-import mycroft.client.enclosure.display_manager as DisplayManager
 
 try:
     from mycroft.skills.skill_data import to_alnum
@@ -310,7 +309,7 @@ class TimerSkill(MycroftSkill):
                 timer["announced"] = True
 
     def render_timer(self, idx, seconds):
-        display_owner = DisplayManager.get_active()
+        display_owner = self.enclosure.display_manager.get_active()
         if display_owner == "":
             self.enclosure.mouth_reset()  # clear any leftover bits
         elif display_owner != "TimerSkill":
@@ -565,7 +564,7 @@ class TimerSkill(MycroftSkill):
             # Instead, we'll just consider this Stop consumed and
             # post a message that will immediately be handled to
             # ask the user if they want to cancel.
-            self.emitter.emit(Message("skill.mycrofttimer.verify.cancel"))
+            self.bus.emit(Message("skill.mycrofttimer.verify.cancel"))
             return True
 
         return False
