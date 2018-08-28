@@ -181,9 +181,7 @@ class TimerSkill(MycroftSkill):
         self.pickle()
         wait_while_speaking()
 
-        self.enable_intent("handle_cancel_timer")
         self.enable_intent("handle_mute_timer")
-        self.enable_intent("handle_status_timer")
 
         # Start showing the remaining time on the faceplate
         self.update_display(None)
@@ -234,9 +232,7 @@ class TimerSkill(MycroftSkill):
             # No active timers, clean up
             self.cancel_scheduled_event('ShowTimer')
             self.displaying_timer = None
-            self.disable_intent("handle_cancel_timer")
             self.disable_intent("handle_mute_timer")
-            # self.disable_intent("handle_status_timer")  # TODO: needs Adapt
             self._stop_beep()
             self.enclosure.eyes_reset()
             self.enclosure.mouth_reset()
