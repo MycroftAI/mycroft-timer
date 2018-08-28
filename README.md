@@ -11,11 +11,11 @@ the top button to stop the beeping once a timer expires.
 * "Start a timer for 30 seconds"
 * "Set a timer for 1 minute"
 * "Set a timer for 3 hours called turkey"
-* "Start a timer (will be prompted)"
+* "Start a timer" (will be prompted)
 * "Cancel the timer"
 * "How long is left on the timer?"
 * "How long is left on the turkey timer?"
-* "Mute the timer (once triggered)"
+* "Mute the timer" (once triggered)
 
 ## Credits 
 Mycroft AI (@MycroftAI)
