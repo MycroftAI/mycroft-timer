@@ -7,7 +7,7 @@ status des timers
 welche timer (gibt es|sind aktiv)
 timer status
 status timer
-status des ({duration} timers| timer| timers})
+status des ({duration} timers| timer| timers)
 wie lange noch
 verbleibende zeit von ({duration} timer| timer)
 (wieviel|) zeit (verbleibend|noch|übrig|) (auf|) (timer|{duration} timer|)?

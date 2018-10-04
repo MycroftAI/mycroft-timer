@@ -6,7 +6,7 @@
 status of the timers
 (tell me|) timer status
 (tell me|) timer statuses
-(tell me|) status of the ({duration} timer| timer})
+(tell me|) status of the ({duration} timer| timer)
 timer left?
 time remaining on the ({duration} timer| timer)
 time remaining for (timer|{duration} timer|)?
