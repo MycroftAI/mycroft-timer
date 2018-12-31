@@ -1,22 +1,18 @@
-Starte einen timer.
-Starte timer.
-Starte einen (##-stunden|##-minuten|##-sekunden) timer
-Starte (##-stunden|##-minuten|##-sekunden) timer (genannt|namens|für) {name}.
-(Starte|Setze) (einen|ein|) {duration} timer.
-(Starte|Setze) (einen|ein|) timer für {duration} (genannt|namens|für) {name}.
-(Starte|Setze) einen timer für {duration}.
+Starte einen Timer.
+Setze einen Timer.
+Starte einen (##-second|##-hour|##-minute) Timer.
+Starte einen (##-sekunden|##-stunden|##-minuten) Timer (mit Namen|genannt|für) {name}.
+(Starte|Setze) (einen|) {duration} Timer.
+(Starte|Setze) (einen|) {duration} Timer (genannt|mit Namen|für) {name}.
+(Starte|Setze) einen Timer für {duration}.
 Timer {duration}.
 Timer für {duration}.
-Timer für {duration} (mit name|genannt|namens|für) {name}.
-{duration} timer.
-{duration} timer (mit name|genannt|namens|für) {name}.
-Gib mir einen {duration} timer.
-Setze einen Timer (für|über) {duration}.
-Setze einen {duration} timer.
-Gib mir einen {duration} timer bitte.
+Timer für {duration} (genannt|mit Namen|für) {name}.
+{duration} Timer.
+{duration} Timer (genannt|mit Namenn|für) {name}.
+Gib mir einen {duration} Timer.
 Zähle {duration} für mich.
 Stoppe {duration} für mich.
-ich brauche einen {duration} timer.
-ich brauche einen timer (für|mit) {duration}.
-erstelle einen timer für {duration}.
-erstelle einen timer für {duration} (mit name|genannt|namens|für) {name}.
+Ich brauche einen {duration} Timer.
+Erstelle einen Timer für {duration}.
+(Erstelle|Starte) (einen|) Timer für {duration} (genannt|mit Namen|für) {name}.

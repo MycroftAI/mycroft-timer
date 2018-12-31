@@ -1,16 +1,17 @@
-wieviel (zeit|) bleibt (noch|) (von|vom|bei|beim|im) ({duration}timer|timers)
-wieviel (zeit|) bleibt übrig (von|vom|bei|beim|im) ({duration}timer|timers)
-wieviel zeit bleibt noch auf den timern?
-wieviel zeit bleibt noch
-status der timer
-status des timers
-welche timer (gibt es|sind aktiv)
-timer status
-status timer
-status des ({duration} timers| timer| timers)
-wie lange noch
-verbleibende zeit von ({duration} timer| timer)
-(wieviel|) zeit (verbleibend|noch|übrig|) (auf|) (timer|{duration} timer|)?
-timer auflisten
-liste timer auf
-timer liste
+(Sage mir,|) wie viel (Zeit|) (ist|) auf (dem|den) ({duration} Timer| Timern) übrig (ist|)
+(Sage mir|) wie viel Zeit ist auf den Timern übrig?
+(Sage mir|) wie viel Zeit ist übrig?
+(Sage mir|) (den|) Status des Timers
+(Sage mir|) (den|) Status der Timer
+Status der Timer
+(Sage mir|) (den|) Timer-Status
+(Sag mir|Sage mir|) (die|) Timer (Status|Stati)
+(Sage mir|) (den|) Status des ({duration} timer| timer})
+Timer (übrig|über|Rest)?
+(Übrige |Verbleibende |Rest-|Restliche )Zeit (auf dem|des) ({duration} Timer|{duration} Timers|Timer|Timers)
+(Übrige |Verbleibende |Verbliebene |Rest-|Restliche ) Zeit für (den|) ({duration} Timer| Timer)?
+Liste (die|) Timer auf
+Liste (die|) Timer auf
+gibt es (irgendwelche|) (aktive|aktiven|) Timer
+habe ich (irgendwelche|) (aktive|aktiven|) Timer
+hast du (irgendwelche|) (aktive|aktiven|) Timer
