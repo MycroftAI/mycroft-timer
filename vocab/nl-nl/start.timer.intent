@@ -1,0 +1,18 @@
+Start een timer
+Zet een timer
+Start een (##-second|##-hour|##-minute) timer.
+Start een (##-seconden|##-uur|##-minuten) timer (genaamd|met naam|voor) {name}.
+(Start|Stel) timer (|in )voor {duration}.
+(Start|Zet) (een|) timer voor {duration} (genaamd|met naam|voor) {name}.
+(Start|Zet) een timer voor {duration}.
+Timer {duration}.
+Timer voor {duration}.
+Timer voor {duration} (genaamd|met naam|voor) {name}.
+{duration} timer.
+{duration} timer (genaamd|met naam|voor) {name}.
+Geef me een {duration} timer.
+Tel {duration} voor (mij|me) af.
+Meet {duration} voor (mij|me).
+Ik heb een {duration} timer nodig.
+Maak een timer aan van {duration}.
+Maak een timer aan van {duration} (genaamd|met naam|voor) {name}.
