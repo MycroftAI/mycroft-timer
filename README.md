@@ -1,4 +1,4 @@
-# <img src='https://rawgithub.com/FortAwesome/Font-Awesome/master/advanced-options/raw-svg/solid/stopwatch.svg' card_color='#40DBB0' width='50' height='50' style='vertical-align:bottom'/> Timer
+# <img src='https://raw.githack.com/FortAwesome/Font-Awesome/master/svgs/solid/stopwatch.svg' card_color='#40DBB0' width='50' height='50' style='vertical-align:bottom'/> Timer
 Set named timers for cooking, watering plants, brewing tea and more. 
 
 ## About 
