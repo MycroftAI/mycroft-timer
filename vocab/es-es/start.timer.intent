@@ -1,0 +1,18 @@
+Iniciar un temporizador.
+Configurar un temporizador.
+Pon un temporizador de (##-segundos|##-horas|##-minutos).
+Pon un temporizador de (##-second|##-hour|##-minute) (llamado|de nombre|con nombre|para) {name}.
+(Empieza|Pon) (un|) temporizador de {duration}.
+(Empieza|Pon) (un|) temporizador de {duration} (llamado|de nombre|con nombre|para) {name}.
+(Empieza|Pon) un temporizador de {duration}.
+Temporizador {duration}.
+Temporizador de {duration}.
+Temporizador de {duration} (llamado|de nombre|con nombre|para) {name}.
+Temporizador de {duration}.
+temporizador de {duration} (llamado|de nombre|con nombre|para) {name}.
+Ponme un temporizador de {duration}.
+Cuenta {duration}.
+Avisame en {duration}.
+Necesito un temporizador de {duration}.
+Crea un temporizador de {duration}.
+Crea un temporizador de {duration} (llamado|de nombre|con nombre|para) {name}.
