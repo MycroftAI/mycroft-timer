@@ -1,0 +1,18 @@
+Crea un timer.
+Imposta un timer.
+Avvia un timer da (##-secondi|##-ore|##-minuti) .
+Avvia un timer da (##-secondi|##-ore|##-minuti) (chiamato|per) {name}.
+(Avvisa|Imposta) (un|) timer da {duration} .
+(Avvia|Imposta) (un|) timer da {duration} (chimato|per) {name}.
+(Avvia|Imposta) un timer per {duration}.
+Timer {duration}.
+Timer da {duration}.
+Timer da {duration} (chiamato|per) {name}.
+{duration} timer.
+{duration} timer (chiamato|per) {name}.
+Dammi un timer da {duration}.
+Conta {duration} per me.
+Dammi {duration} di tempo per me.
+Mi serve un timer da {duration}.
+Crea un timer da {duration}.
+Crea un timer da {duration} (chiamato|per) {name}.
