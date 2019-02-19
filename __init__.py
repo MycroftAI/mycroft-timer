@@ -562,6 +562,15 @@ class TimerSkill(MycroftSkill):
             for timer in active_timers:
                 self.cancel_timer(timer)
 
+    def converse(self, utterances, lang="en-us"):
+        timer = self._get_next_timer()
+        if timer and timer["expires"] < datetime.now():
+            # A timer is going off
+            if self.voc_match(utterances[0], "StopBeeping"):
+                # Stop the timer
+                self.stop()
+                return True  # and consume this phrase
+
     def stop(self):
         timer = self._get_next_timer()
         now = datetime.now()
