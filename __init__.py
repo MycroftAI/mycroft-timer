@@ -276,11 +276,14 @@ class TimerSkill(MycroftSkill):
             return
 
         if len(self.active_timers) > 1:
+            # This code will display each timer for 5 passes
+            # of this screen update (5 seconds), then move on
+            # to display the next timer.
             if not self.display_idx:
                 self.display_idx = 1.0
             else:
                 self.display_idx += 0.2
-            if self.display_idx-1 > len(self.active_timers):
+            if int(self.display_idx-1) >= len(self.active_timers):
                 self.display_idx = 1.0
 
             timer = self.active_timers[int(self.display_idx)-1]
@@ -434,6 +437,21 @@ class TimerSkill(MycroftSkill):
         if self.ask_yesno(prompt) == 'yes':
             self.handle_cancel_timer()
 
+    @intent_file_handler('stop.timer.intent')
+    def handle_stop_timer(self, message):
+        self.log.info("handle_stop_timer")
+        timer = self._get_next_timer()
+        if timer and timer["expires"] < datetime.now():
+            # Timer is beeping requiring no confirmation reaction,
+            # treat it like a stop button press
+            self.stop()
+        else:
+            utt = message.data["utterance"]
+            all_words = self.translate_list('all')
+            if (any(i.strip() in utt for i in all_words)):
+                message.data["All"] = all_words[0]
+            self.handle_cancel_timer(message)
+
     @intent_handler(IntentBuilder("").require("Cancel").require("Timer").
                     optionally("All"))
     def handle_cancel_timer(self, message=None):
@@ -478,7 +496,7 @@ class TimerSkill(MycroftSkill):
             # Check if they replied "all", "all timers", "both", etc.
             all_words = self.translate_list('all')
             if (which and any(i.strip() in which for i in all_words)):
-                message.data["All"] = "all"
+                message.data["All"] = all_words[0]
                 self.handle_cancel_timer(message)
                 return
 
@@ -548,11 +566,6 @@ class TimerSkill(MycroftSkill):
             if len(self.active_timers) == 0:
                 self.timer_index = 0  # back to zero timers
             self.enclosure.eyes_on()  # reset just in case
-
-    @intent_file_handler('stop.timer.intent')
-    def handle_stop_timer(self, message):
-        """ Wrapper for stop method """
-        self.stop()
 
     def shutdown(self):
         # Clear the timer list, this fixes issues when stop() gets called

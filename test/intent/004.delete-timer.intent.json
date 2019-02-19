@@ -1,6 +1,6 @@
 {
     "utterance": "kill timer",
-    "intent_type": "handle_cancel_timer",
+    "intent_type": "stop.timer.intent",
     "expected_dialog": "cancelled.single.timer",
     "evaluation_timeout": 10
 }
