@@ -1,10 +1,4 @@
-stop all timers
-stop timer
-delete all timers
-delete timers
-delete timer
-turn off timer.
-kill the timer.
+(stop|end|cancel|abort|delete|kill|turn off) {all|the|} (timer|timers)
 turn it off
 turn off
 cancel

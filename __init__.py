@@ -34,6 +34,12 @@ try:
 except ImportError:
     from mycroft.skills.skill_data import to_letters as to_alnum
 
+# TODO: 19.02+ We can remove this compatibility layer
+try:
+    from mycroft.util.parse import extract_duration
+except ImportError:
+    extract_duration = None
+
 # TESTS
 #  0: cancel all timers
 #  1: start a timer > 1 minute
@@ -50,10 +56,8 @@ except ImportError:
 # 12: how much is left on the five minute timer
 # 13: start a 7 minute timer called lasagna
 # 14: how much is left on the lasagna timer
-
-# TODO: Add support for mixed times
-#  set a 1 and a half minute timer
-#  set a timer for 3 hours 45 minutes
+# 15: set a 1 and a half minute timer
+# 16: set a timer for 3 hours 45 minutes
 
 #####################################################################
 
@@ -116,6 +120,22 @@ class TimerSkill(MycroftSkill):
         self.is_listening = False
 
     def _extract_duration(self, text):
+        """ Extract duration in seconds
+        Args:
+            text (str): Full request, e.g. "set a 30 second timer"
+        Returns:
+            (int): Seconds requested, or None
+        """
+
+        if extract_duration:
+            dur_remainder = extract_duration(text, self.lang)
+            if dur_remainder and dur_remainder[0]:
+                return dur_remainder[0].total_seconds()
+            else:
+                return 0
+
+        # TODO: 19.02+ - We can remove this compatability layer and rely on extract_duration()
+
         if not text:
             return None
 
@@ -617,7 +637,7 @@ class TimerSkill(MycroftSkill):
             return default
 
 
-# TODO: Move to mycroft.util.format
+# TODO:19.02+ Moved to mycroft.util.format
 def nice_duration(self, duration, lang="en-us", speech=True):
     """ Convert duration in seconds to a nice spoken timespan
 

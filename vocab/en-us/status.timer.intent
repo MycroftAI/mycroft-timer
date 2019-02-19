@@ -1,17 +1,12 @@
-(tell me|) how much (time|) is left on the ({duration} timer| timers)
-(tell me|) how much time left on the timers?
-(tell me|) how much time left?
-(tell me|) status of the timer
-(tell me|) status of timers
-status of the timers
-(tell me|) timer status
-(tell me|) timer statuses
-(tell me|) status of the ({duration} timer| timer)
-timer left?
-time remaining on the ({duration} timer| timer)
-time remaining for (timer|{duration} timer|)?
-list out timers
-list timers
-are there any timers
-do i have any timers
-do you have any timers
+(tell me|) how much (time|) is left on (all|all of|each of|)(the|) ({duration} timer|timer|timers)
+(tell me|) how much time (is|) left on the timers?
+(tell me|) how much time (is|) left?
+(tell me|) (status|statuses) of (the|) (timer|timers)
+(tell me|) (the|) timer (status|statuses)
+(tell me|) (status|statuses) of (all|all of) (the|) ({duration} timer|timer|timers)
+(what is|) (the|) time remaining (for|on) (the|) ({duration} timer|timer|timers)
+(what is|) (the|) time remaining
+list (out|) (all|) (the|) timers
+are there any (active|running|) timers
+do (I|you) have (a|any) (active|running|) (timer|timers)
+when (do|does) (the|my|your|) (timer|timers) end
