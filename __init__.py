@@ -126,9 +126,17 @@ class TimerSkill(MycroftSkill):
         Returns:
             (int): Seconds requested, or None
         """
+        if not text:
+            return None
+
+        # Some STT engines return "30-second timer" instead of
+        # "30 second timer".  Deal with that before calling
+        # extract_duration().
+        # TODO: Fix inside parsers
+        utt = text.replace("-", " ")
 
         if extract_duration:
-            dur_remainder = extract_duration(text, self.lang)
+            dur_remainder = extract_duration(utt, self.lang)
             if dur_remainder and dur_remainder[0]:
                 return dur_remainder[0].total_seconds()
             else:
@@ -136,20 +144,17 @@ class TimerSkill(MycroftSkill):
 
         # TODO: 19.02+ - We can remove this compatability layer and rely on extract_duration()
 
-        if not text:
-            return None
-
         # return the duration in seconds
-        num = extract_number(text.replace("-", " "), self.lang)
+        num = extract_number(utt, self.lang)
         if not num:
             return None
 
         unit = 1  # default to secs
-        if any(i.strip() in text for i in self.translate_list('second')):
+        if any(i.strip() in utt for i in self.translate_list('second')):
             unit = 1
-        elif any(i.strip() in text for i in self.translate_list('minute')):
+        elif any(i.strip() in utt for i in self.translate_list('minute')):
             unit = 60
-        elif any(i.strip() in text for i in self.translate_list('hour')):
+        elif any(i.strip() in utt for i in self.translate_list('hour')):
             unit = 60*60
         return num*unit
 
