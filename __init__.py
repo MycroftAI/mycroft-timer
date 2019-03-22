@@ -26,19 +26,13 @@ from datetime import datetime, timedelta
 from os.path import join, isfile, abspath, dirname
 from mycroft.util import play_wav
 from mycroft.messagebus.message import Message
-from mycroft.util.parse import extract_number, fuzzy_match
-from mycroft.util.format import pronounce_number
+from mycroft.util.parse import extract_number, fuzzy_match, extract_duration
+from mycroft.util.format import pronounce_number, nice_duration
 
 try:
     from mycroft.skills.skill_data import to_alnum
 except ImportError:
     from mycroft.skills.skill_data import to_letters as to_alnum
-
-# TODO: 19.02+ We can remove this compatibility layer
-try:
-    from mycroft.util.parse import extract_duration
-except ImportError:
-    extract_duration = None
 
 # TESTS
 #  0: cancel all timers
@@ -135,28 +129,10 @@ class TimerSkill(MycroftSkill):
         # TODO: Fix inside parsers
         utt = text.replace("-", " ")
 
-        if extract_duration:
-            dur_remainder = extract_duration(utt, self.lang)
-            if dur_remainder and dur_remainder[0]:
-                return dur_remainder[0].total_seconds()
-            else:
-                return 0
-
-        # TODO: 19.02+ - We can remove this compatability layer and rely on extract_duration()
-
-        # return the duration in seconds
-        num = extract_number(utt, self.lang)
-        if not num:
-            return None
-
-        unit = 1  # default to secs
-        if any(i.strip() in utt for i in self.translate_list('second')):
-            unit = 1
-        elif any(i.strip() in utt for i in self.translate_list('minute')):
-            unit = 60
-        elif any(i.strip() in utt for i in self.translate_list('hour')):
-            unit = 60*60
-        return num*unit
+        dur_remainder = extract_duration(utt, self.lang)
+        if dur_remainder and dur_remainder[0]:
+            return dur_remainder[0].total_seconds()
+        return None
 
     # Handles 'Start a 30 second timer'
     @intent_file_handler('start.timer.intent')
@@ -186,7 +162,7 @@ class TimerSkill(MycroftSkill):
             timer_name = message.data["name"]
         if not timer_name:
             # Name after the duration, e.g. "30 second timer"
-            timer_name = nice_duration(self, secs, lang=self.lang)
+            timer_name = nice_duration(secs)
 
         now = datetime.now()
         time_expires = now + timedelta(seconds=secs)
@@ -200,9 +176,7 @@ class TimerSkill(MycroftSkill):
         prompt = ("started.timer" if len(self.active_timers) == 1
                   else "started.another.timer")
         self.speak_dialog(prompt,
-                          data={"duration": nice_duration(self, timer[
-                                                              "duration"],
-                                                          lang=self.lang)})
+                          data={"duration": nice_duration(timer["duration"])})
         self.pickle()
         wait_while_speaking()
 
@@ -486,7 +460,7 @@ class TimerSkill(MycroftSkill):
             # E.g. "Cancel the 5 minute timer" when it's a 7 minute timer
             timer = self._get_next_timer()
             self.cancel_timer(timer)
-            duration = nice_duration(self, timer["duration"], lang=self.lang)
+            duration = nice_duration(timer["duration"])
             self.speak_dialog("cancelled.single.timer",
                               data={"name": timer["name"],
                                     "duration": duration})
@@ -508,8 +482,7 @@ class TimerSkill(MycroftSkill):
             timer = self._get_timer(which)
             if timer:
                 self.cancel_timer(timer)
-                duration = nice_duration(self, timer["duration"],
-                                         lang=self.lang)
+                duration = nice_duration(timer["duration"])
                 self.speak_dialog("cancelled.single.timer",
                                   data={"name": timer["name"],
                                         "duration": duration})
@@ -547,17 +520,13 @@ class TimerSkill(MycroftSkill):
 
         if timer and timer["expires"] < now:
             # expired, speak how long since it triggered
-            passed = nice_duration(self,
-                                   (now - timer["expires"]).seconds,
-                                   lang=self.lang)
+            passed = nice_duration((now - timer["expires"]).seconds)
             self.speak_dialog("time.elapsed",
                               data={"name": name,
                                     "passed_time": passed})
         else:
             # speak remaining time
-            remaining = nice_duration(self,
-                                      (timer["expires"] - now).seconds,
-                                      lang=self.lang)
+            remaining = nice_duration((timer["expires"] - now).seconds)
             self.speak_dialog("time.remaining",
                               data={"name": name,
                                     "remaining": remaining})
@@ -662,75 +631,6 @@ class TimerSkill(MycroftSkill):
                 return pickle.load(f)
         except:
             return default
-
-
-# TODO:19.02+ Moved to mycroft.util.format
-def nice_duration(self, duration, lang="en-us", speech=True):
-    """ Convert duration in seconds to a nice spoken timespan
-
-    Examples:
-       duration = 60  ->  "1:00" or "one minute"
-       duration = 163  ->  "2:43" or "two minutes forty three seconds"
-
-    Args:
-        duration: time, in seconds
-        speech (bool): format for speech (True) or display (False)
-    Returns:
-        str: timespan as a string
-    """
-    days = duration // 86400
-    hours = duration // 3600 % 24
-    minutes = duration // 60 % 60
-    seconds = duration % 60
-    if speech:
-        out = ""
-        if days > 0:
-            if days == 1:   # number 1 has to be adapted to the genus of the
-                            #  following noun in some languages
-                out += self.translate("say.day")
-            else:
-                out += pronounce_number(days, lang) + " " + self.translate(
-                    "say.days")
-            out += " "
-        if hours > 0:
-            if out:
-                out += " "
-            if hours == 1:
-                out += self.translate("say.hour")
-            else:
-                out += pronounce_number(hours, lang) + " " + self.translate(
-                    "say.hours")
-        if minutes > 0:
-            if out:
-                out += " "
-            if minutes == 1:
-                out += self.translate("say.minute")
-            else:
-                out += pronounce_number(minutes, lang) + " " + self.translate(
-                    "say.minutes")
-        if seconds > 0:
-            if out:
-                out += " "
-            if seconds == 1:
-                out += self.translate("say.second")
-            else:
-                out += pronounce_number(seconds, lang) + " " + self.translate(
-                    "say.seconds")
-        return out
-    else:
-        # M:SS, MM:SS, H:MM:SS, Dd H:MM:SS format
-        out = ""
-        if days > 0:
-            out = str(days) + "d "
-        if hours > 0 or days > 0:
-            out += str(hours) + ":"
-        if minutes < 10 and (hours > 0 or days > 0):
-            out += "0"
-        out += str(minutes)+":"
-        if seconds < 10:
-            out += "0"
-        out += str(seconds)
-        return out
 
 
 def create_skill():
