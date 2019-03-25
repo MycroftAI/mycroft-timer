@@ -28,6 +28,7 @@ from mycroft.util import play_wav
 from mycroft.messagebus.message import Message
 from mycroft.util.parse import extract_number, fuzzy_match, extract_duration
 from mycroft.util.format import pronounce_number, nice_duration
+from mycroft.util.time import now_local
 
 try:
     from mycroft.skills.skill_data import to_alnum
@@ -151,6 +152,15 @@ class TimerSkill(MycroftSkill):
         secs = self._extract_duration(duration)
         if not secs:
             self.speak_dialog("tell.me.how.long")
+            return
+        if secs >= 60*60*24:  # 24 hours in seconds
+            if self.ask_yesno("timer.too.long.alarm.instead") == 'yes':
+                alarm_time = now_local() + timedelta(seconds=secs)
+
+                # TODO: Test this under another language.  I think this will work...
+                phrase = "set an alarm for " + alarm_time.strftime("%B %d %Y at %I:%M%p")
+                self.bus.emit(Message("recognizer_loop:utterance",
+                                      {"utterances": [phrase], "lang": "en-us"}))
             return
 
         self.timer_index += 1
