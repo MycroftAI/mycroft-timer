@@ -4,9 +4,11 @@
 (Start|Set|Create|Begin|I need|Give me) (a|another|a second|) {duration} timer.
 (Start|Set|Create|Begin|I need|Give me) (a|another|a second|) {duration} timer (called|named|for) {name}.
 (Start|Set|Create|Begin|I need|Give me) (a|another|a second|) timer for {duration}.
+(Start|Set|Create|Begin|I need|Give me) (a|another|a second|) timer for {duration} (called|named|for) {name}.
 Timer (for|) {duration}.
 Timer for {duration} (called|named|for) {name}.
 {duration} timer.
 {duration} timer (called|named|for) {name}.
 Count {duration} for me.
 Time {duration} for me.
+
