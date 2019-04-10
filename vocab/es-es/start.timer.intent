@@ -1,18 +1,12 @@
-Iniciar un temporizador.
-Configurar un temporizador.
-Pon un temporizador de (##-segundos|##-horas|##-minutos).
-Pon un temporizador de (##-second|##-hour|##-minute) (llamado|de nombre|con nombre|para) {name}.
-(Empieza|Pon) (un|) temporizador de {duration}.
-(Empieza|Pon) (un|) temporizador de {duration} (llamado|de nombre|con nombre|para) {name}.
-(Empieza|Pon) un temporizador de {duration}.
-Temporizador {duration}.
-Temporizador de {duration}.
+(Empieza|Establece|Crea|Comienza|Necesito|Dame) (un|otro|un segundo) temporizador
+(Empieza|Establece|Crea|Comienza|Necesito|Dame) (un|otro|un segundo) temporizador en (##-segundo|##-hora|##-minuto)
+(Empieza|Establece|Crea|Comienza|Necesito|Dame) (un|otro|un segundo) temporizador en (##-segundo|##-hora|##-minuto) (llamado|con nombre|de nombre) {name}.
+(Empieza|Establece|Crea|Comienza|Necesito|Dame) (un|otro|un segundo) temporizador de {duration}
+(Empieza|Establece|Crea|Comienza|Necesito|Dame) (un|otro|un segundo) temporizador de {duration} (llamado|con nombre|de nombre) {name}.
+(Empieza|Establece|Crea|Comienza|Necesito|Dame) (un|otro|un segundo) temporizador de {duration}
+Temporizador de {duration} (de duración|).
 Temporizador de {duration} (llamado|de nombre|con nombre|para) {name}.
 Temporizador de {duration}.
 temporizador de {duration} (llamado|de nombre|con nombre|para) {name}.
-Ponme un temporizador de {duration}.
 Cuenta {duration}.
 Avisame en {duration}.
-Necesito un temporizador de {duration}.
-Crea un temporizador de {duration}.
-Crea un temporizador de {duration} (llamado|de nombre|con nombre|para) {name}.

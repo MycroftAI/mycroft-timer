@@ -1,17 +1,13 @@
-(dime|) cuánto (tiempo|) queda (del temporizador de {duration}|de los temporizadores)
-¿(dime|) cuánto (tiempo|) falta en los temporizadores?
-¿(dime|) cuánto (tiempo|) falta?
-(dime el|) estado del temporizador
-(dime el |) estado de los temporizadores
-(cuál es el|) estado de los temporizadores
-(dime el|) estado del temporizador
-(dime el|) estado de los temporizadores
-(dime el|) estado del (temporizador de {duration}|temporizador)
-¿temporizador restante?
-tiempo restante en el (temporizador de {duration}| temporizador)
-¿tiempo restante del (temporizador|temporizador de {duration})?
-lista de temporizadores
-lista los temporizadores
-hay (algún temporizador|temporizadores)
-tengo (algún temporizador|temporizadores)
-tienes (algún temporizador|temporizadores)
+(dime|) cuánto (tiempo|) falta en (todos|cada uno de|) (el|los|) (temporizador|temporizadores de {duration})
+¿(dime|) cuánto (tiempo|) (falta|queda) en los temporizadores?
+¿(dime|) cuánto (tiempo|queda|) falta?
+(dime|) (el estado|los estados) (del|de los) (temporizador|temporizadores)
+(dime|) (el estado|los estados) (del|de los) (temporizador|temporizadores)
+(dime|) (el estado|los estados) (del|de los) (temporizador|temporizadores) de {duration}
+(cuál es|) (el|) tiempo restante (de|del) (temporizador de {duration}|temporizadores de {duration})
+(cuál es|) (el|) tiempo restante
+lista (todos los|) temporizadores
+¿hay algún temporizador (activo|ejecutándose|)?
+¿(tengo|tienes) algún temporizador (activo|ejecutándose)?
+cuándo (acaba|acaban) (los|mis|tus|el|mi|tu|) (temporizador|temporizadores)
+cuántos temporizadores

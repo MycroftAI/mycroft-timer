@@ -1,17 +1,13 @@
-(dimmi|) quanto (tempo|) è rimasto sul ({duration} timer)
-(dimmi |) quanto tempo rimane nei timer?
+(dimmi| ) quanto (tempo| ) manca per (tutti|ogni|)(i|) ({duration} timer|timer|timers)
+(dimmi |) quanto tempo rimane nei timers?
 (dimmi |) quanto tempo rimane?
-(dimmi |) stato del timer
-(dimmi |) stato dei timer
-stato dei timer
-(dimmi|) timer stato
-(dimmi|) situazione timer
-(dimmi|) lo stato (del timer da {duration} | del timer})
-timer rimasto?
-tempo rimanente sul timer ({duration})
-tempo rimanente per il timer (|{duration} timer|)?
-elenca i timer
-lista timer
-ci sono dei timer
-ho dei timer
-hai dei timer
+(dimmi|) (lo stato) (di|dei) (timer|timers)
+(dimmi|) (lo|) (stato|) (del|dei) (timer|timers)
+(dimmi|) (lo|gli) (stato|stati) (di|del|dei) ({duration} timer|timers)
+(quanto|) tempo resta (per|al) (i|il) ({duration} timer|timers)
+(quanto|) tempo rimane
+elenca (tutti|) (i|) timers
+ci sono dei timers (attivi|)
+ho (Io|tu) (un|qualche|dei) (timer|timers) (attivi|)
+quando (i|il|i miei|il mio|i tuoi|il tuo|) (timer|timers) (finisce|finiscono)
+quanti timer
