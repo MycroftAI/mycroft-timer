@@ -1,10 +1,1 @@
-cancella
-spegni
-ferma tutti i timer
-ferma timer
-cancella tutti i timer
-cancella i timer
-cancella timer
-spegni timer.
-termina il timer
-spegnilo
+(stop|cancella|rimuovi|spegni) (tutti|) (i|il|) (timer|timers)

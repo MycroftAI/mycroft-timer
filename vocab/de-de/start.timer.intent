@@ -1,18 +1,12 @@
-Starte einen Timer.
-Setze einen Timer.
-Starte einen (##-second|##-hour|##-minute) Timer.
-Starte einen (##-sekunden|##-stunden|##-minuten) Timer (mit Namen|genannt|für) {name}.
-(Starte|Setze) (einen|) {duration} Timer.
-(Starte|Setze) (einen|) {duration} Timer (genannt|mit Namen|für) {name}.
-(Starte|Setze) einen Timer für {duration}.
-Timer {duration}.
+(Starte|Setze|Erstelle|Beginne|Ich benötige|Gib mir) (einen|noch einen|einen zweiten) Timer
+(Starte|Setze|Erstelle|Beginne|Ich brauche|Gib mir) (einen|noch einen|einen zweiten) (##-sekunden|##-stunden|##-minuten) Timer.
+(Starte|Setze|Erstelle|Beginne|Ich brauche|Gib mir) (einen|noch einen|einen zweiten) (##-sekunden|##-stunden|##-minuten) Timer (namens|für) {name}.
+(Starte|Setze|Erstelle|Beginne|Ich brauche|Gib mir) (einen|noch einen|einen zweiten) {duration} Timer.
+(Starte|Setze|Erstelle|Beginne|Ich brauche|Gib mir) (einen|noch einen|einen zweiten) {duration} Timer (namens|für) {name}.
+(Starte|Setze|Erstelle|Beginne|Ich brauche|Gib mir) (einen|noch einen|einen zweiten) Timer für {duration}.
 Timer für {duration}.
 Timer für {duration} (genannt|mit Namen|für) {name}.
 {duration} Timer.
 {duration} Timer (genannt|mit Namenn|für) {name}.
-Gib mir einen {duration} Timer.
 Zähle {duration} für mich.
 Stoppe {duration} für mich.
-Ich brauche einen {duration} Timer.
-Erstelle einen Timer für {duration}.
-(Erstelle|Starte) (einen|) Timer für {duration} (genannt|mit Namen|für) {name}.

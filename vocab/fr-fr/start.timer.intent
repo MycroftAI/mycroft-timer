@@ -1,18 +1,12 @@
-Démarre un minuteur
-Règle un minuteur.
-Lance un minuteur pour (##-seconde|##-heure|##-minute)
-Lance un minuteur pour (##-seconde|##-heure|##-minute) (nommé|appelé|pour) {name}.
-(Démarre|Règle) un minuteur pour {duration}.
-(Démarre|règle) un minuteur pour {duration} (nomme-le|nommé) {name}.
-(Démarre|Règle) un minuteur pour {duration}.
-Minuteur {duration}.
+(Démarre|Met|Crée|Commence|Je veux|J'ai besoin|Donne-moi) (un|d'un) (second|deuxième|autre|) minuteur.
+(Démarre|Met|Crée|Commence|Je veux|J'ai besoin|Donne-moi) (un|d'un) (second|deuxième|autre|) minuteur (de|d'une durée de|) (##-seconde|##-heure|##-minute).
+(Démarre|Met|Crée|Commence|Je veux|J'ai besoin|Donne-moi) (un|d'un) (second|deuxième|autre|) minuteur (de|d'une durée de|) (##-seconde|##-heure|##-minute) (pour|appelé|nommé) {name}.
+(Démarre|Met|Crée|Commence|Je veux|J'ai besoin|Donne-moi) (un|d'un) (second|deuxième|autre|) minuteur (de|d'une durée de|) {duration}.
+(Démarre|Met|Crée|Commence|Je veux|J'ai besoin|Donne-moi) (un|d'un) (second|deuxième|autre|) minuteur (de|d'une durée de|) {duration} (pour|appelé|nommé) {name}.
+(Démarre|Met|Crée|Commence|Je veux|J'ai besoin|Donne-moi) (un|d'un) (second|deuxième|autre|) minuteur pour {duration}.
 Minuteur pour {duration}.
 Minuteur pour {duration} (nommé|appelé|pour) {name}.
 minuteur {duration}.
 minuteur de {duration} (nommé|appelé|pour) {name}.
-Donne moi un minuteur de {duration}.
 Compte {duration} pour moi.
 (Compte|Temporise) {duration} pour moi.
-J'ai besoin d'un minuteur pour {duration}
-Crée un minuteur pour {duration}.
-Crée un minuteur pour {duration} (nommé|appelé|pour) {name}.

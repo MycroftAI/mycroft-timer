@@ -1,17 +1,13 @@
-(vertel me|) hoeveel (tijd) er over is bij de ({duration} timer| timers)
-(vertel me|) hoeveel tijd er over is bij de timers
+(zeg eens|) (hoeveel tijd| hoe lang) er over is op (alle|elke|) (de|)({duration} timer|timer)
+(vertel me|zeg eens) hoeveel tijd er over is bij de timers
 (vertel me) hoeveel tijd (is er over|er over is)?
-(wat is de|) status van de timer
-(wat is de|) status van de timers
-status van de timers
-(wat is de|) timer status
-(wat zijn de|) timer statussen
-(wat is de|) status van de ({duration} timer|timer)
-hoe lang nog?
-resterende tijd voor de ({duration} timer| timer)
-(wat is de|) resterende tijd voor (timer|{duration} timer)?
-maak een timer lijst
-(vertoon|toon) timer lijst
-zijn er timers
-heb ik timers
-heb jij timers
+(zeg eens|) (de status|status) van (de|)(timer|timers)
+(zeg eens|vertel me|)(de|)timer(status|statussen)
+(vertel me|) (de)? status van (alle|al de|de) ({duration} timer|timer|timers)
+(hoeveel|) tijd is er over (voor|op)(de|)({duration}timer|timer|timers)
+(wat is|) (de|) resterende tijd
+noem (alle|al de|) timers (op)?
+zijn er (enige)? (actieve|lopende) timers
+heb (ik|jij|je) (een|enige|) (actieve|lopende) (timer|timers)
+wanneer loopt (de|mijn|jouw) (timer|timers) af
+hoeveel timers
