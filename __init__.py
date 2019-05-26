@@ -129,7 +129,7 @@ class TimerSkill(MycroftSkill):
         # extract_duration().
         # TODO: Fix inside parsers
         utt = text.replace("-", " ")
-
+ 
         dur_remainder = extract_duration(utt, self.lang)
         if dur_remainder and dur_remainder[0]:
             return dur_remainder[0].total_seconds()
@@ -154,11 +154,11 @@ class TimerSkill(MycroftSkill):
             self.speak_dialog("tell.me.how.long")
             return
         if secs >= 60*60*24:  # 24 hours in seconds
-            if self.ask_yesno("timer.too.long.alarm.instead") == 'yes':
+            if self.ask_yesno("timer.too.long.alarm.instead") == 'نعم':
                 alarm_time = now_local() + timedelta(seconds=secs)
 
                 # TODO: Test this under another language.  I think this will work...
-                phrase = "set an alarm for " + alarm_time.strftime("%B %d %Y at %I:%M%p")
+                phrase = "وضع منبه " + alarm_time.strftime("%B %d %Y at %I:%M%p")
                 self.bus.emit(Message("recognizer_loop:utterance",
                                       {"utterances": [phrase], "lang": "en-us"}))
             return
@@ -412,9 +412,10 @@ class TimerSkill(MycroftSkill):
 
         self._speak_timer_status(which)
 
-    @intent_handler(IntentBuilder("").require("Mute").require("Timer"))
+    @intent_handler(IntentBuilder("").require("Mute"))
     def handle_mute_timer(self, message):
         self.mute = True
+        self.speak("تم كتم صوت المؤقت")
 
     # This is a little odd. This actually does the work for the Stop button,
     # which prevents blocking during the Stop handler when input from the
@@ -423,7 +424,7 @@ class TimerSkill(MycroftSkill):
         # Confirm cancel of live timers...
         prompt = ('ask.cancel.running' if len(self.active_timers) == 1
                   else 'ask.cancel.running.plural')
-        if self.ask_yesno(prompt) == 'yes':
+        if self.ask_yesno(prompt) == 'نعم':
             self.handle_cancel_timer()
 
     @intent_file_handler('stop.timer.intent')
@@ -434,6 +435,7 @@ class TimerSkill(MycroftSkill):
             # Timer is beeping requiring no confirmation reaction,
             # treat it like a stop button press
             self.stop()
+            self.speak("تم إيقاف المؤقت")
         else:
             utt = message.data["utterance"]
             all_words = self.translate_list('all')
