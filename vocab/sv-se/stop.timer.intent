@@ -1,10 +1,1 @@
-avbryt
-stäng av
-stoppa alla (timers|tidtagare)
-stoppa (timer|timern|tidtagare|tidtagaren)
-ta bort alla timrar
-ta bort (timers|tidtagare)
-radera (timer|timern|tidtagare|tidtagaren)
-stäng av (timer|tidtagare|timern|tidtagaren)
-döda (timern|tidtagaren)
-stäng av den
+(stoppa|avsluta|stäng av|avbryt|döda) (alla|) (timer|timern|timers|timrar|timrarna|tidtagaren|tidtagarna)
