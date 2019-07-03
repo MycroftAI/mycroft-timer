@@ -1,0 +1,6 @@
+{
+    "utterance": "cancel all timers",
+    "intent_type": "stop.timer.intent",
+    "responses": ["yes"],
+    "evaluation_timeout": 10
+}
