@@ -403,7 +403,7 @@ class TimerSkill(MycroftSkill):
                     names += ". " + timer["name"]
                 cnt = len(self.active_timers)
                 which = self.get_response('ask.which.timer',
-                                          data={"count": cnt,
+                                          data={"count": pronounce_number(cnt, self.lang),
                                                 "names": names})
                 if not which:
                     return  # cancelled inquiry
@@ -415,7 +415,7 @@ class TimerSkill(MycroftSkill):
     @intent_handler(IntentBuilder("").require("Mute"))
     def handle_mute_timer(self, message):
         self.mute = True
-        self.speak("تم كتم صوت المؤقت")
+        self.speak("تم كتم صوت الموقت")
 
     # This is a little odd. This actually does the work for the Stop button,
     # which prevents blocking during the Stop handler when input from the
@@ -435,7 +435,7 @@ class TimerSkill(MycroftSkill):
             # Timer is beeping requiring no confirmation reaction,
             # treat it like a stop button press
             self.stop()
-            self.speak("تم إيقاف المؤقت")
+            self.speak("تم إيقاف الموقت")
         else:
             utt = message.data["utterance"]
             all_words = self.translate_list('all')
@@ -459,7 +459,7 @@ class TimerSkill(MycroftSkill):
                                   data={"name": timer["name"]})
             else:
                 self.speak_dialog('cancel.all',
-                                  data={"count": num_timers})
+                                  data={"count": pronounce_number(num_timers, self.lang)})
 
             # get duplicate so we can walk the list
             active_timers = list(self.active_timers)
@@ -480,7 +480,7 @@ class TimerSkill(MycroftSkill):
 
         elif num_timers > 1:
             which = self.get_response('ask.which.timer.cancel',
-                                      data={"count": len(self.active_timers)})
+                                      data={"count": pronounce_number(len(self.active_timers), self.lang)})
             if not which:
                 return  # user Cancelled the Cancel
 
