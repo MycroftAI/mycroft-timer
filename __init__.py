@@ -182,6 +182,9 @@ class TimerSkill(MycroftSkill):
                  "expires": time_expires,
                  "announced": False}
         self.active_timers.append(timer)
+        
+        for timer in self.active_timers:
+            self.log.info(f'{timer["name"]}')
 
         prompt = ("started.timer" if len(self.active_timers) == 1
                   else "started.another.timer")
