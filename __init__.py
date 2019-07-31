@@ -29,6 +29,7 @@ from mycroft.messagebus.message import Message
 from mycroft.util.parse import extract_number, fuzzy_match, extract_duration
 from mycroft.util.format import pronounce_number, nice_duration
 from mycroft.util.time import now_local
+from num2words import num2words
 
 try:
     from mycroft.skills.skill_data import to_alnum
@@ -176,20 +177,19 @@ class TimerSkill(MycroftSkill):
 
         now = datetime.now()
         time_expires = now + timedelta(seconds=secs)
-        timer = {"name": timer_name,
+        timer = {"name": self._name_timer(timer_name),
+                 "original_name": timer_name,
                  "index": self.timer_index,
                  "duration": secs,
                  "expires": time_expires,
                  "announced": False}
         self.active_timers.append(timer)
-        
-        for timer in self.active_timers:
-            self.log.info(f'{timer["name"]}')
 
         prompt = ("started.timer" if len(self.active_timers) == 1
                   else "started.another.timer")
         self.speak_dialog(prompt,
-                          data={"duration": nice_duration(timer["duration"])})
+                          data={"duration": nice_duration(timer["duration"]),
+                                "name": timer["name"]})
         self.pickle()
         wait_while_speaking()
 
@@ -200,6 +200,22 @@ class TimerSkill(MycroftSkill):
 
         # reset the mute flag with a new timer
         self.mute = False
+        
+    def _get_same_name_from_active_timers(self, timers, name):
+        if timers["original_name"] == name and timers["announced"] == False:
+            return 1
+        else:
+            return 0
+    
+    def _name_timer(self, name):
+        # Name the timer such that we add a "Second" or "Third" if you timers
+        # with the same name.
+        timer_count = sum(map(self._get_same_name_from_active_timers,
+                              self.active_timers, [name] * len(self.active_timers)))
+        if timer_count > 0:
+            return num2words(timer_count + 1, to="ordinal", lang=self.lang) + " " + name
+        else:
+            return name
 
     def _get_next_timer(self):
         # Retrieve the next timer set to trigger
