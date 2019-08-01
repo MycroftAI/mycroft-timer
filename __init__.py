@@ -177,19 +177,25 @@ class TimerSkill(MycroftSkill):
 
         now = datetime.now()
         time_expires = now + timedelta(seconds=secs)
-        timer = {"name": self._name_timer(timer_name),
-                 "original_name": timer_name,
+        timer = {"name": timer_name,
+                 "ordinal": self._get_ordinal_of_timer(timer_name),
                  "index": self.timer_index,
                  "duration": secs,
                  "expires": time_expires,
                  "announced": False}
         self.active_timers.append(timer)
 
-        prompt = ("started.timer" if len(self.active_timers) == 1
-                  else "started.another.timer")
+        if 'name' in message.data:
+            prompt = ("started.timer.with.name" if len(self.active_timers) == 1
+                    else "started.another.timer.with.name")
+        else:
+            prompt = ("started.timer" if len(self.active_timers) == 1
+                    else "started.another.timer")
+            
         self.speak_dialog(prompt,
-                          data={"duration": nice_duration(timer["duration"]),
-                                "name": timer["name"]})
+                        data={"duration": nice_duration(timer["duration"]),
+                              "name": timer["name"],
+                              "ordinal": self._get_ordinal_string(timer["ordinal"])})
         self.pickle()
         wait_while_speaking()
 
@@ -200,22 +206,32 @@ class TimerSkill(MycroftSkill):
 
         # reset the mute flag with a new timer
         self.mute = False
+        #create timer for 10 seconds for Banana
+        #set timer for 10 seconds
+        #start timer for 10 seconds of Chicken
+    
+    def _get_ordinal_string(self, ordinal):
+        return num2words(ordinal, to="ordinal", lang=self.lang)
         
     def _get_same_name_from_active_timers(self, timers, name):
-        if timers["original_name"] == name and timers["announced"] == False:
-            return 1
+        self.log.info(f'_get_same_name_from_active_timers: {timers["name"]}')
+        if timers["name"] == name:
+            self.log.info(f'_get_same_name_from_active_timers: Went inside here. {timers["ordinal"]}')
+            return timers["ordinal"]
         else:
             return 0
     
-    def _name_timer(self, name):
+    def _get_ordinal_of_timer(self, name):
         # Name the timer such that we add a "Second" or "Third" if you timers
         # with the same name.
-        timer_count = sum(map(self._get_same_name_from_active_timers,
-                              self.active_timers, [name] * len(self.active_timers)))
-        if timer_count > 0:
-            return num2words(timer_count + 1, to="ordinal", lang=self.lang) + " " + name
-        else:
-            return name
+        timer_map = list(map(self._get_same_name_from_active_timers,
+                            self.active_timers, [name] * len(self.active_timers)))
+        self.log.info(f'_get_ordinal_of_timer: {str(timer_map)}')
+        timer_count = 0
+        if len(timer_map) > 0:
+            self.log.info(f'_get_ordinal_of_timer: {max(timer_map)}')
+            timer_count = max(timer_map)
+        return timer_count + 1
 
     def _get_next_timer(self):
         # Retrieve the next timer set to trigger
@@ -331,7 +347,8 @@ class TimerSkill(MycroftSkill):
                     self._play_beep()
                 else:
                     self.speak_dialog("timer.expired",
-                                      data={"name": timer["name"]})
+                                      data={"name": timer["name"],
+                                            "ordinal": self._get_ordinal_string(timer["ordinal"])})
 
                 timer["announced"] = True
 
@@ -400,6 +417,12 @@ class TimerSkill(MycroftSkill):
     @intent_file_handler('status.timer.intent')
     def handle_status_timer(self, message):
         intent = message.data
+        
+        self.log.info("-----------------------")
+        for timer in self.active_timers:
+            self.log.info(f'handle_status_timer: {timer["index"]}: Timer: {timer["name"]} Ordinal: {timer["ordinal"]}')
+        self.log.info("-----------------------")
+        
         if not self.active_timers:
             self.speak_dialog("no.active.timer")
         elif len(self.active_timers) == 1:
@@ -419,7 +442,8 @@ class TimerSkill(MycroftSkill):
             else:
                 names = ""
                 for timer in self.active_timers:
-                    names += ". " + timer["name"]
+                    names += ". " + self._get_ordinal_string(timer["ordinal"]) + \
+                             " " + timer["name"]
                 cnt = len(self.active_timers)
                 which = self.get_response('ask.which.timer',
                                           data={"count": cnt,
@@ -546,19 +570,22 @@ class TimerSkill(MycroftSkill):
 
         now = datetime.now()
         name = timer["name"]
+        ordinal = timer["ordinal"]
 
         if timer and timer["expires"] < now:
             # expired, speak how long since it triggered
             passed = nice_duration((now - timer["expires"]).seconds)
             self.speak_dialog("time.elapsed",
                               data={"name": name,
-                                    "passed_time": passed})
+                                    "passed_time": passed,
+                                    "ordinal": self._get_ordinal_string(ordinal)})
         else:
             # speak remaining time
             remaining = nice_duration((timer["expires"] - now).seconds)
             self.speak_dialog("time.remaining",
                               data={"name": name,
-                                    "remaining": remaining})
+                                    "remaining": remaining,
+                                    "ordinal": self._get_ordinal_string(ordinal)})
         wait_while_speaking()
         self.enclosure.activate_mouth_events()
 

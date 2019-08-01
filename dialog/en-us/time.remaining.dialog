@@ -1,1 +1,1 @@
-The timer for {{name}} has {{remaining}} remaining
+The {{ordinal}} timer for {{name}} has {{remaining}} remaining

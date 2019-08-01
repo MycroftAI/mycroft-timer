@@ -1,3 +1,3 @@
-Another timer started for {{duration}} for {{name}}
-Alright, I've set another timer for {{duration}} for {{name}}
-I'm starting another timer for {{duration}} for {{name}}
+{{ordinal}} timer started for {{duration}}
+Alright, I've set a {{ordinal}} timer for {{duration}}
+I'm starting a {{ordinal}} timer for {{duration}}
