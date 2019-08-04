@@ -141,6 +141,7 @@ class TimerSkill(MycroftSkill):
         # Extract the requested timer duration
         if 'duration' not in message.data:
             secs = self._extract_duration(message.data["utterance"])
+            
             if secs and secs > 1:  # prevent "set one timer" doing 1 sec timer
                 duration = message.data["utterance"]
             else:
