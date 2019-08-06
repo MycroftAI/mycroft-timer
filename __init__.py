@@ -30,6 +30,7 @@ from mycroft.util.parse import extract_number, fuzzy_match, extract_duration
 from mycroft.util.format import pronounce_number, nice_duration
 from mycroft.util.time import now_local
 from num2words import num2words
+from regex import search
 
 try:
     from mycroft.skills.skill_data import to_alnum
@@ -195,7 +196,9 @@ class TimerSkill(MycroftSkill):
         self.speak_dialog(prompt,
                         data={"duration": nice_duration(timer["duration"]),
                               "name": timer["name"],
-                              "ordinal": self._get_ordinal_string(timer["ordinal"])})
+                              "ordinal": self._get_ordinal_string(
+                                  timer["ordinal"],
+                                  timer["name"])})
         self.pickle()
         wait_while_speaking()
 
@@ -206,32 +209,45 @@ class TimerSkill(MycroftSkill):
 
         # reset the mute flag with a new timer
         self.mute = False
-        #create timer for 10 seconds for Banana
-        #set timer for 10 seconds
-        #start timer for 10 seconds of Chicken
-    
-    def _get_ordinal_string(self, ordinal):
-        return num2words(ordinal, to="ordinal", lang=self.lang)
         
     def _get_same_name_from_active_timers(self, timers, name):
-        self.log.info(f'_get_same_name_from_active_timers: {timers["name"]}')
+        #self.log.info(f'_get_same_name_from_active_timers: {timers["name"]}')
         if timers["name"] == name:
-            self.log.info(f'_get_same_name_from_active_timers: Went inside here. {timers["ordinal"]}')
+            #self.log.info(f'_get_same_name_from_active_timers: Went inside here. {timers["ordinal"]}')
             return timers["ordinal"]
         else:
             return 0
+        
+    def _get_ordinal_string(self, ordinal, name):
+        timer_map = list(map(self._get_same_name_from_active_timers,
+                    self.active_timers, [name] * len(self.active_timers)))
+        #self.log.info(f"_get_ordinal_string: {ordinal}: {name} multiple? {sum(timer_map)}")
+        if sum(timer_map) > 1:
+            return num2words(ordinal, to="ordinal", lang=self.lang)
+        else:
+            return ""
     
     def _get_ordinal_of_timer(self, name):
         # Name the timer such that we add a "Second" or "Third" if you timers
         # with the same name.
         timer_map = list(map(self._get_same_name_from_active_timers,
                             self.active_timers, [name] * len(self.active_timers)))
-        self.log.info(f'_get_ordinal_of_timer: {str(timer_map)}')
+        #self.log.info(f'_get_ordinal_of_timer: {str(timer_map)}')
         timer_count = 0
         if len(timer_map) > 0:
-            self.log.info(f'_get_ordinal_of_timer: {max(timer_map)}')
+            #self.log.info(f'_get_ordinal_of_timer: {max(timer_map)}')
             timer_count = max(timer_map)
         return timer_count + 1
+    
+    def _read_ordinal_from_text(self, text):           
+        # Check if it's just a number with a suffix, e.g. 1st, 3rd, 69th
+        results = search(r'(?b)\b((?P<Numeral>\d+)(st|nd|rd|th))\b', text)
+        self.log.info(f'_read_ordinal_from_text: {results}')
+        if (results) and (results['Numeral']):
+            return int(results['Numeral'])
+        
+        # Return None if text is not an ordinal number string
+        return None
 
     def _get_next_timer(self):
         # Retrieve the next timer set to trigger
@@ -241,33 +257,134 @@ class TimerSkill(MycroftSkill):
                 next = timer
         return next
 
-    def _get_timer(self, name):
+    def _get_timer(self, name, active_timers=None, search_for=None):
+        if active_timers == None:
+            active_timers = self.active_timers
+        self.log.info(f'_get_timer: Name: {name}')
+        num = None
+        # Referenced by cardinal/ordinal index?
+        # e.g "1", "number three", "first", third timer"
+        try:
+            num = int(extract_number(name, ordinals=True))
+        except:
+            self.log.info(f'_get_timer: Error in extract_number process')
+        
+        if num:
+            self.log.info(f'_get_timer: Index - Numeral: {num}')
+            
+            for i in range(len(active_timers)):
+                self.log.info(f'_get_timer: {str(active_timers[i])}')
+            
+            try:
+                return active_timers[num - 1]
+            except:
+                self.log.info(f'_get_timer: No timer #{num}')
+        
+        # Referenced by ordinal (number) index?  "1st", "3rd timer", "69th"     
+        try:
+            num = self._read_ordinal_from_text(name)
+        except:
+            self.log.info(f'_get_timer: Error in _read_ordinal_from_text process')
+            
+        if num:
+            self.log.info(f'_get_timer: Index - Ordinal: {num}')
+            try:
+                return active_timers[num - 1]
+            except:
+                self.log.info(f'_get_timer: No timer #{num}')
+        
         # Referenced it by duration? "the 5 minute timer"
         secs = self._extract_duration(name)
-        if secs:
-            for timer in self.active_timers:
+        # Will not also pass through this block of code if the function
+        # already inside this block on the previous recursion
+        if secs and search_for != 'duration':
+            active_timer_temp = []
+            for timer in active_timers:
                 if timer["duration"] == secs:
-                    return timer
-
-        # Referenced by index?  "The first", "number three"
-        num = extract_number(name)
-        if num:
-            for timer in self.active_timers:
-                if timer["index"] == num:
-                    return timer
+                    active_timer_temp.append(timer)
+            count = len(active_timer_temp)
+            # Return if there is only one instance.
+            if count == 1:
+                self.log.info(f'_get_timer: Duration - Got {active_timer_temp[0]}')
+                return active_timer_temp[0]
+            # If there are multiple results, eliminate the active timers
+            # list to the ones that only match, ask the user which, then
+            # do recursion
+            else:
+                self.log.info(f'_get_timer: Duration - Get another query')
+                additional = "for " + name
+                names = ''
+                for timer in active_timer_temp:
+                    names += ". " + self._get_ordinal_string(
+                            timer["ordinal"], timer["name"]) + \
+                            " " + timer["name"]
+                get_reply = self.get_response('ask.which.timer',
+                                          data={"count": count,
+                                                "names": names,
+                                                "additional": additional})
+                return self._get_timer(get_reply, active_timer_temp,
+                                       'duration')
 
         # Referenced by name (fuzzy matched)?
-        timer = None
-        best = 0.5  # minimum threshold for a match
-        for t in self.active_timers:
-            score = fuzzy_match(name, t["name"])
-            if score > best:
-                best = score
-                timer = t
-        if timer:
-            return timer
+        if search_for != 'name':
+            active_timer_temp = []
+            best = 0.7  # minimum threshold for a match
+            
+            # Create a matrix of Fuzzy Match (score greater than the
+            # threshold) between the Active Timers and the given name
+            match_results = list(map(self._get_name_of_active_timers,
+                    active_timers, [name] * len(active_timers),
+                    [best] * len(active_timers)))
+            
+            # Get all Active Timers that have the highest fuzzy_match
+            # scores
+            self.log.info(f'_get_timer: Name - Got {match_results}')
+            
+            for i in range(len(match_results)):
+                if match_results[i] >= max(match_results):
+                    self.log.info(f'_get_timer: Name - Matched with {max(match_results)}')
+                    active_timer_temp.append(active_timers[i])
+            count = len(active_timer_temp)
+            
+            self.log.info(f'_get_timer: Name - Got {active_timer_temp}')
+            
+            # Return if there is only one instance.
+            if count == 1:
+                self.log.info(f'_get_timer: Name - Got {active_timer_temp[0]}')
+                return active_timer_temp[0]
+            # If there are multiple results, eliminate the active timers
+            # list to the ones that only match, ask the user which, then
+            # do recursion
+            else:
+                self.log.info(f'_get_timer: Name - Get another query')
+                additional = "for " + name
+                names = ''
+                for timer in active_timer_temp:
+                    names += ". " + self._get_ordinal_string(
+                            timer["ordinal"], timer["name"]) + \
+                            " " + timer["name"]
+                get_reply = self.get_response('ask.which.timer',
+                                          data={"count": count,
+                                                "names": names,
+                                                "additional": additional})
+                return self._get_timer(get_reply, active_timer_temp,
+                                       'name')
+                
+        # start timer for 10 minutes named Batman
+        # create timer for 15 minutes
+        # set timer for 15 minutes named Superman
+        # start timer for 10 minutes named Batman
+        # create timer for 20 minutes named Wonder Woman
+        # start timer for 20 minutes named Batman
 
         return None
+    
+    def _get_name_of_active_timers(self, active_timers, name, best):
+        score = fuzzy_match(active_timers["name"], name)
+        if score >= best:
+            return score
+        else:
+            return 0
 
     def update_display(self, message):
         # Get the next triggering timer
@@ -348,7 +465,9 @@ class TimerSkill(MycroftSkill):
                 else:
                     self.speak_dialog("timer.expired",
                                       data={"name": timer["name"],
-                                            "ordinal": self._get_ordinal_string(timer["ordinal"])})
+                                            "ordinal": self._get_ordinal_string(
+                                                timer["ordinal"],
+                                                timer["name"])})
 
                 timer["announced"] = True
 
@@ -417,6 +536,7 @@ class TimerSkill(MycroftSkill):
     @intent_file_handler('status.timer.intent')
     def handle_status_timer(self, message):
         intent = message.data
+        self.log.info(f'handle_status_timer: Goes here. I said {intent}')
         
         self.log.info("-----------------------")
         for timer in self.active_timers:
@@ -442,12 +562,14 @@ class TimerSkill(MycroftSkill):
             else:
                 names = ""
                 for timer in self.active_timers:
-                    names += ". " + self._get_ordinal_string(timer["ordinal"]) + \
+                    names += ". " + self._get_ordinal_string(
+                                timer["ordinal"], timer["name"]) + \
                              " " + timer["name"]
                 cnt = len(self.active_timers)
                 which = self.get_response('ask.which.timer',
                                           data={"count": cnt,
-                                                "names": names})
+                                                "names": names,
+                                                "additional": ''})
                 if not which:
                     return  # cancelled inquiry
         else:
@@ -517,7 +639,7 @@ class TimerSkill(MycroftSkill):
             self.speak_dialog("cancelled.single.timer",
                               data={"name": timer["name"],
                                     "duration": duration})
-            self.pickle()   # save to disk
+            self.pickle()   # save to disk  
 
         elif num_timers > 1:
             which = self.get_response('ask.which.timer.cancel',
@@ -578,14 +700,16 @@ class TimerSkill(MycroftSkill):
             self.speak_dialog("time.elapsed",
                               data={"name": name,
                                     "passed_time": passed,
-                                    "ordinal": self._get_ordinal_string(ordinal)})
+                                    "ordinal": self._get_ordinal_string(
+                                        ordinal, name)})
         else:
             # speak remaining time
             remaining = nice_duration((timer["expires"] - now).seconds)
             self.speak_dialog("time.remaining",
                               data={"name": name,
                                     "remaining": remaining,
-                                    "ordinal": self._get_ordinal_string(ordinal)})
+                                    "ordinal": self._get_ordinal_string(
+                                        ordinal, name)})
         wait_while_speaking()
         self.enclosure.activate_mouth_events()
 
