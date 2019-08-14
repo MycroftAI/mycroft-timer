@@ -1,4 +1,0 @@
-^(the\s|)(?P<Ordinal>\b[0-9a-zA-Z\-]+\b){1}(\s(?P<Name>(\w+\s*)+)|)\stimer(\sfor\s(?P<Duration>((\b\d+|[a-zA-Z]+\b)\s(\b(second(s|)|minute(s|)|hour(s|))\b)(\s\b(and)\b|)\s*){1,3})|)$
-^(the\s|)(?P<Ordinal>\b[0-9a-zA-Z\-]+\b){1}(\s(?P<Name>(\w+\s*)+)|)\stimer(\s(?P<Duration>((\b\d+|[a-zA-Z]+\b)\s(\b(second(s|)|minute(s|)|hour(s|))\b)(\s\b(and)\b|)\s*){1,3})\slong|)$ 
-^(the\s|)(?P<Ordinal>\b[0-9a-zA-Z\-]+\b){1}(\s(?P<Duration>((\b\d+|[a-zA-Z]+\b)\s(\b(second(s|)|minute(s|)|hour(s|))\b)(\s\b(and)\b|)\s*){1,3})|)(\s(?P<Name>(\w+\s*)+)|)\stimer$
-^(the\s|)(?P<Ordinal>\b[0-9a-zA-Z\-]+\b){1}(\s(?P<Duration>((\b\d+|[a-zA-Z]+\b)\s(\b(second(s|)|minute(s|)|hour(s|))\b)(\s\b(and)\b|)\s*){1,3})|)\stimer(\s(for|named)\s(?P<Name>(\w+\s*)+)|)$
