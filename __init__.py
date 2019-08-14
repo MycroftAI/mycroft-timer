@@ -297,7 +297,7 @@ class TimerSkill(MycroftSkill):
             # duration.
             num = self._read_number_from_text(string)
             if num:        
-                if num < len(indices):
+                if num <= len(indices):
                     return active_timers[indices[num - 1]]
                 else:
                     return None
@@ -329,16 +329,14 @@ class TimerSkill(MycroftSkill):
                                                        self.THRESHOLD)
         except:
             pass
-
         if name_matches and sum(name_matches):
-
             indices = [i for i, x in enumerate(name_matches) if x == 1]
             
             # Check if there is an Ordinal/Cardinal Number referring
             # to the nth instance of the Timer of that name.
             num = self._read_number_from_text(utt)
             if num:
-                if num < len(indices):
+                if num <= len(indices):
                     return active_timers[indices[num - 1]]
                 else:
                     return None
@@ -368,8 +366,8 @@ class TimerSkill(MycroftSkill):
         # Referenced by cardinal/ordinal index?
         # e.g "1", "number three", "first", third timer". "timer one"
         num = self._read_number_from_text(utt)
-        if num:            
-            if num < len(active_timers):
+        if num:
+            if num <= len(active_timers):
                 return active_timers[num - 1]
             else:
                 return None
@@ -445,33 +443,7 @@ class TimerSkill(MycroftSkill):
                 score_best = score_curr
             
         return score_best
-        
-                                              
-        # start a 5 hour 30 minute timer named batman
-        # create timer for 5 hours 35 minutes
-        # set a 5 hour 30 minute timer for superman
-        # start a 5 hour 30 minute timer named batman
-        # create 5 hour 40 minute timer for wonder woman
-        # start 5 hour 40 minute timer named batman
-        
-        # the first 5 hours and 30 minutes timer named batman
-        # second 5 hours and 30 minutes timer named batman
-        # 6th 5 hours and 30 minutes timer named batman # Fix this one. Dialogue should be "I can't find this timer"
-        # 2nd 5 hours and 30 minutes timer named batman
-        # the sixth timer for 5 hours and 30 minutes
-        # the third 5 hours 30 minute timer
-        # 5 hour 35 minute timer
-        # 5 hour 40 minutes timer for wonder woman
-        # five hours 30 minutes timer >> superman
-        # five hours 30 minutes timer >> batman >> 2nd timer
-        # superman
-        # third batman timer
-        # batman timer >> second timer
-        # first
-        # third timer
-        # timer 3
-        # timer number 3
-                    
+          
     def update_display(self, message):
         # Get the next triggering timer
         timer = self._get_next_timer()
