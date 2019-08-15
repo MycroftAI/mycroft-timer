@@ -1,2 +1,1 @@
-(#|##|###) (minutes|seconds|hours) (and|)
-(#|##|###) (minute|second|hour) (and|)
+(#|##|###|:0)( |-)(minute(|s)|second(|s)|hour(|s)) (and|)
