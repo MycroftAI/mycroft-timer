@@ -598,7 +598,7 @@ class TimerSkill(MycroftSkill):
             else:
                 x += 4
 
-    # Handles 'How much time left'\
+    # Handles 'How much time left'
     @intent_handler(IntentBuilder("").optionally("Query").require("Status").
                 require("Timer").optionally("All"))
     def handle_status_timer(self, message):
