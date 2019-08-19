@@ -317,8 +317,10 @@ class TimerSkill(MycroftSkill):
             # list to the ones that only match, ask the user which, then
             # do recursion
             else:
-                active_timer_temp = list(map(active_timers.__getitem__, indices))
-                additional = "for " + utt
+                active_timer_temp = list(map(active_timers.__getitem__,
+                                             indices))
+                dur_string = nice_duration(active_timer_temp[0]['duration'])
+                additional = "for " + dur_string
                 names = ''
                 for timer in active_timer_temp:
                     names += self._get_ordinal_string(timer["ordinal"],
@@ -358,7 +360,7 @@ class TimerSkill(MycroftSkill):
             else:
                 active_timer_temp = list(map(active_timers.__getitem__, indices))
                 
-                additional = "for " + utt
+                additional = "for " + active_timer_temp[0]['name']
                 names = ''
                 for timer in active_timer_temp:
                     names += self._get_ordinal_string(timer["ordinal"],
@@ -441,9 +443,8 @@ class TimerSkill(MycroftSkill):
         timer_name_len = len(timers["name"].split())
         score_best = 0
         
-        for i in range(len(name_split) - timer_name_len,
-                       -1, -timer_name_len):
-            name_comp = ' '.join(name_split[i:i+timer_name_len])
+        for i in range(len(name_split) - timer_name_len, -1, -1):
+            name_comp = ' '.join(name_split[i:i + timer_name_len])
             score_curr = fuzzy_match(name_comp, timers["name"])
             
             if score_curr > score_best and score_curr >= threshold:
@@ -605,8 +606,6 @@ class TimerSkill(MycroftSkill):
         utt = message.data["utterance"]
         has_all = 'All' in message.data
         
-        self.log.info(f'handle_status_timer: {has_all}')
-        
         #self.log.info("-----------------------")
         #self.log.info("handle_status_timer: List of Active Timers")
         #for timer in self.active_timers:
@@ -690,12 +689,14 @@ class TimerSkill(MycroftSkill):
     @intent_handler(IntentBuilder("").require("Cancel").require("Timer").
                     optionally("All"))
     def handle_cancel_timer(self, message=None):
+        utt = message.data['utterance']
+        has_all = 'All' in message.data
         num_timers = len(self.active_timers)
         if num_timers == 0:
             self.speak_dialog("no.active.timer")
             return
 
-        if not message or 'All' in message.data:
+        if not message or has_all:
             # Either "cancel all" or from Stop button
             if num_timers == 1:
                 timer = self._get_next_timer()
@@ -721,27 +722,8 @@ class TimerSkill(MycroftSkill):
 
         elif num_timers > 1:
             dialog = 'ask.which.timer.cancel'
-            additional = ''
-            names = ''
-            for timer in self.active_timers:
-                names += self._get_ordinal_string(timer["ordinal"],
-                                                  timer["name"]) + \
-                         " " + timer["name"] + ", "
-            which = self.get_response(dialog,
-                                        data={"count": num_timers,
-                                              "names": names,
-                                              "additional": additional})
-            if not which:
-                return  # user Cancelled the Cancel
-
-            # Check if they replied "all", "all timers", "both", etc.
-            all_words = self.translate_list('all')
-            if (which and any(i.strip() in which for i in all_words)):
-                message.data["All"] = all_words[0]
-                self.handle_cancel_timer(message)
-                return
-
-            timer = self._get_timer(which, dialog)
+            
+            timer = self._get_timer(utt, dialog)
             if timer:
                 self.cancel_timer(timer)
                 duration = nice_duration(timer["duration"])
@@ -752,7 +734,38 @@ class TimerSkill(MycroftSkill):
                                             timer["name"])})
                 self.pickle()   # save to disk
             else:
-                self.speak_dialog("timer.not.found")
+                additional = ''
+                names = ''
+                for timer in self.active_timers:
+                    names += self._get_ordinal_string(timer["ordinal"],
+                                                    timer["name"]) + \
+                            " " + timer["name"] + ", "
+                which = self.get_response(dialog,
+                                            data={"count": num_timers,
+                                                "names": names,
+                                                "additional": additional})
+                if not which:
+                    return  # user Cancelled the Cancel
+
+                # Check if they replied "all", "all timers", "both", etc.
+                all_words = self.translate_list('all')
+                if (which and any(i.strip() in which for i in all_words)):
+                    message.data["All"] = all_words[0]
+                    self.handle_cancel_timer(message)
+                    return
+
+                timer = self._get_timer(which, dialog)
+                if timer:
+                    self.cancel_timer(timer)
+                    duration = nice_duration(timer["duration"])
+                    self.speak_dialog("cancelled.named.timer",
+                                    data={"name": timer["name"],
+                                            "ordinal": self._get_ordinal_string(
+                                                timer["ordinal"],
+                                                timer["name"])})
+                    self.pickle()   # save to disk
+                else:
+                    self.speak_dialog("timer.not.found")
                 
 
         # NOTE: This allows 'ShowTimer' to continue running, it will clean up
