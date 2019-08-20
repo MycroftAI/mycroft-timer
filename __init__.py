@@ -320,12 +320,9 @@ class TimerSkill(MycroftSkill):
                 active_timer_temp = list(map(active_timers.__getitem__,
                                              indices))
                 dur_string = nice_duration(active_timer_temp[0]['duration'])
-                additional = "for " + dur_string
-                names = ''
-                for timer in active_timer_temp:
-                    names += self._get_ordinal_string(timer["ordinal"],
-                                                      timer["name"]) + \
-                             " " + timer["name"] + ", "
+                additional = self.translate('for') + " " + dur_string
+                names = self._create_timer_list_string(active_timer_temp)
+                        
                 reply = self.get_response(dialog,
                                           data={"count": count,
                                                 "names": names,
@@ -360,12 +357,9 @@ class TimerSkill(MycroftSkill):
             else:
                 active_timer_temp = list(map(active_timers.__getitem__, indices))
                 
-                additional = "for " + active_timer_temp[0]['name']
-                names = ''
-                for timer in active_timer_temp:
-                    names += self._get_ordinal_string(timer["ordinal"],
-                                                      timer["name"]) + \
-                             " " + timer["name"] + ", "
+                additional = self.translate('for') + " " + \
+                             active_timer_temp[0]['name']
+                names = self._create_timer_list_string(active_timer_temp)
                 reply = self.get_response(dialog,
                                           data={"count": count,
                                                 "names": names,
@@ -636,11 +630,7 @@ class TimerSkill(MycroftSkill):
             # If there are more than 3 timers, ask the user about
             # the details of the timer
             if len(self.active_timers) >= 3 and not has_all:
-                names = ""
-                for timer in self.active_timers:
-                    names += self._get_ordinal_string(timer["ordinal"],
-                                                        timer["name"]) + \
-                                " " + timer["name"] + ", "
+                names = self._create_timer_list_string(self.active_timers)
                 cnt = len(self.active_timers)
                 which = self.get_response(dialog,
                                             data={"count": cnt,
@@ -735,11 +725,7 @@ class TimerSkill(MycroftSkill):
                 self.pickle()   # save to disk
             else:
                 additional = ''
-                names = ''
-                for timer in self.active_timers:
-                    names += self._get_ordinal_string(timer["ordinal"],
-                                                    timer["name"]) + \
-                            " " + timer["name"] + ", "
+                names = self._create_timer_list_string(self.active_timers)
                 which = self.get_response(dialog,
                                             data={"count": num_timers,
                                                 "names": names,
@@ -770,6 +756,21 @@ class TimerSkill(MycroftSkill):
 
         # NOTE: This allows 'ShowTimer' to continue running, it will clean up
         #       after itself nicely.
+
+    def _create_timer_list_string(self, timer_list):
+        names = ''
+        for i, timer in enumerate(timer_list):
+            if i == len(timer_list) - 1:
+                names += self.translate('and') + " " + \
+                        self._get_ordinal_string(timer["ordinal"],
+                                                timer["name"]) + \
+                        " " + timer["name"]
+            else:
+                names += self._get_ordinal_string(timer["ordinal"],
+                                                timer["name"]) + \
+                        " " + timer["name"] + ", "
+                        
+        return names
 
     def _speak_timer_status(self, timer_name, has_all):
         # Check if utterance has "All"
