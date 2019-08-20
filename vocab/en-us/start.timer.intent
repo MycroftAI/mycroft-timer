@@ -1,6 +1,4 @@
 (Start|Set|Create|Begin|I need|Give me) (a|another|a second|) timer
-(Start|Set|Create|Begin|I need|Give me) (a|another|a second|) (##-second|##-hour|##-minute) timer.
-(Start|Set|Create|Begin|I need|Give me) (a|another|a second|) (##-second|##-hour|##-minute) timer (called|named|for) {name}.
 (Start|Set|Create|Begin|I need|Give me) (a|another|a second|) {duration} timer.
 (Start|Set|Create|Begin|I need|Give me) (a|another|a second|) {duration} timer (called|named|for) {name}.
 (Start|Set|Create|Begin|I need|Give me) (a|another|a second|) timer for {name}.
