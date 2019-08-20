@@ -178,8 +178,13 @@ class TimerSkill(MycroftSkill):
         # Name the timer
         timer_name = ""
         if 'name' in message.data:
-            # Get a name from request
-            timer_name = message.data["name"]
+            # Check if the name from request is not a Duration string
+            duration, string = self._extract_duration(message.data["name"])
+            
+            if string.strip() == "":
+                # Get a name from request
+                timer_name = message.data["name"]
+            
         if not timer_name:
             # Name after the duration, e.g. "30 second timer"
             timer_name = nice_duration(secs)
