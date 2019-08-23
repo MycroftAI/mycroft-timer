@@ -1,0 +1,1 @@
+.*\b(?P<Duration>((\d+|[a-zA-Z\-\s]+)(\-|\s)(\b(second(s|)|minute(s|)|hour(s|))\b)(\s\b(and)\b|)\s*){1,3})

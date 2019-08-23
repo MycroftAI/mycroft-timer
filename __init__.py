@@ -28,7 +28,7 @@ from os.path import join, isfile, abspath, dirname
 from mycroft.util import play_wav
 from mycroft.messagebus.message import Message
 from mycroft.util.parse import extract_number, fuzzy_match, extract_duration
-from mycroft.util.format import pronounce_number, nice_duration
+from mycroft.util.format import pronounce_number, nice_duration, join_list
 from mycroft.util.time import now_local
 from num2words import num2words
 
@@ -78,11 +78,8 @@ class TimerSkill(MycroftSkill):
         self.THRESHOLD = 0.7
 
     def initialize(self):
-        self.register_entity_file('duration.entity')
-        self.register_entity_file('timervalue.entity')
-        self.register_entity_file('all.entity')
-        #self.register_entity_file('number.entity')
-        #self.register_entity_file('name.entity')
+        #self.register_entity_file('duration.entity')
+        #self.register_entity_file('timervalue.entity')
 
         self.unpickle()
 
@@ -144,10 +141,25 @@ class TimerSkill(MycroftSkill):
         if dur_remainder:
             return dur_remainder.total_seconds(), str_remainder
         return None, None
+    
+    # Adapt version of handle_start_timer
+    @intent_handler(IntentBuilder("").optionally("Start").
+                    optionally("Connector").require("Timer").
+                    optionally("Duration").optionally("Name"))
+    def handle_start_timer_adapt(self, message):
+        self.log.info("--------------------------------------")
+        for key in message.data:
+            self.log.info(f'handle_start_timer_adapt: {key}: {message.data[key]}')
+        self.handle_start_timer(message)
+        self.log.info("--------------------------------------")
 
     # Handles 'Start a 30 second timer'
     @intent_file_handler('start.timer.intent')
     def handle_start_timer(self, message):
+        self.log.info("--------------------------------------")
+        for key in message.data:
+            self.log.info(f'handle_start_timer: {key}: {message.data[key]}')
+        self.log.info("--------------------------------------")
         # Extract the requested timer duration
         if 'duration' not in message.data:
             secs, string = self._extract_duration(message.data["utterance"])
@@ -158,6 +170,7 @@ class TimerSkill(MycroftSkill):
                 if duration is None:
                     return  # user cancelled
         else:
+            self.log.info(f'handle_start_timer:Will there be a Duration component')
             duration = message.data["duration"]
         secs, string = self._extract_duration(duration)
         if not secs:
@@ -177,14 +190,15 @@ class TimerSkill(MycroftSkill):
 
         # Name the timer
         timer_name = ""
+        has_name = False
         if 'name' in message.data:
             # Check if the name from request is not a Duration string
             duration, string = self._extract_duration(message.data["name"])
-            
-            if string.strip() == "":
+            if duration == None:
                 # Get a name from request
                 timer_name = message.data["name"]
-            
+                has_name = True
+        
         if not timer_name:
             # Name after the duration, e.g. "30 second timer"
             timer_name = nice_duration(secs)
@@ -199,7 +213,7 @@ class TimerSkill(MycroftSkill):
                  "announced": False}
         self.active_timers.append(timer)
 
-        if 'name' in message.data:
+        if has_name:
             prompt = ("started.timer.with.name" if len(self.active_timers) == 1
                     else "started.another.timer.with.name")
         else:
@@ -600,8 +614,14 @@ class TimerSkill(MycroftSkill):
 
     # Handles 'How much time left'
     @intent_handler(IntentBuilder("").optionally("Query").require("Status").
-                require("Timer").optionally("All"))
+                require("Timer").optionally("All").optionally("Duration").
+                    optionally("Name"))
     def handle_status_timer(self, message):
+        self.log.info("--------------------------------------")
+        for key in message.data:
+            self.log.info(f'handle_status_timer: {key}: {message.data[key]}')
+        self.log.info("--------------------------------------")
+        
         utt = message.data["utterance"]
         has_all = 'All' in message.data
         
@@ -655,6 +675,10 @@ class TimerSkill(MycroftSkill):
 
     @intent_handler(IntentBuilder("").require("Mute").require("Timer"))
     def handle_mute_timer(self, message):
+        self.log.info("--------------------------------------")
+        for key in message.data:
+            self.log.info(f'handle_mute_timer: {key}: {message.data[key]}')
+        self.log.info("--------------------------------------")
         self.mute = True
 
     # This is a little odd. This actually does the work for the Stop button,
@@ -669,6 +693,10 @@ class TimerSkill(MycroftSkill):
 
     @intent_file_handler('stop.timer.intent')
     def handle_stop_timer(self, message):
+        self.log.info("--------------------------------------")
+        for key in message.data:
+            self.log.info(f'handle_stop_timer: {key}: {message.data[key]}')
+        self.log.info("--------------------------------------")
         timer = self._get_next_timer()
         if timer and timer["expires"] < datetime.now():
             # Timer is beeping requiring no confirmation reaction,
@@ -682,9 +710,16 @@ class TimerSkill(MycroftSkill):
             self.handle_cancel_timer(message)
 
     @intent_handler(IntentBuilder("").require("Cancel").require("Timer").
-                    optionally("All"))
+                    optionally("All").optionally("Duration").
+                    optionally("Name"))
     def handle_cancel_timer(self, message=None):
+        self.log.info("--------------------------------------")
+        for key in message.data:
+            self.log.info(f'handle_cancel_timer: {key}: {message.data[key]}')
+        self.log.info("--------------------------------------")
+        
         utt = message.data['utterance']
+        self.log.info(f'handle_cancel_timer: {utt}')
         has_all = 'All' in message.data
         num_timers = len(self.active_timers)
         if num_timers == 0:
@@ -763,18 +798,13 @@ class TimerSkill(MycroftSkill):
         #       after itself nicely.
 
     def _create_timer_list_string(self, timer_list):
-        names = ''
-        for i, timer in enumerate(timer_list):
-            if i == len(timer_list) - 1:
-                names += self.translate('and') + " " + \
+        _get_timer_name_with_ordinal = lambda timer : \
                         self._get_ordinal_string(timer["ordinal"],
-                                                timer["name"]) + \
-                        " " + timer["name"]
-            else:
-                names += self._get_ordinal_string(timer["ordinal"],
-                                                timer["name"]) + \
-                        " " + timer["name"] + ", "
-                        
+                        timer["name"]) + " " + timer["name"]
+        timer_name_with_ordinal_list = list(map(
+                                    _get_timer_name_with_ordinal,
+                                    timer_list))
+        names = join_list(timer_name_with_ordinal_list, self.translate("and"))             
         return names
 
     def _speak_timer_status(self, timer_name, has_all):

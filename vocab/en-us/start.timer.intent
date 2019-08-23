@@ -1,12 +1,6 @@
-(Start|Set|Create|Begin|I need|Give me) (a|another|a second|) timer
-(Start|Set|Create|Begin|I need|Give me) (a|another|a second|) {duration} timer.
-(Start|Set|Create|Begin|I need|Give me) (a|another|a second|) {duration} timer (called|named|for) {name}.
-(Start|Set|Create|Begin|I need|Give me) (a|another|a second|) timer for {name}.
-(Start|Set|Create|Begin|I need|Give me) (a|another|a second|) timer for {duration}.
-(Start|Set|Create|Begin|I need|Give me) (a|another|a second|) timer for {duration} (called|named|for) {name}.
-Timer (for|) {duration}.
-Timer for {duration} (called|named|for) {name}.
-{duration} timer.
-{duration} timer (called|named|for) {name}.
-Count {duration} for me.
-Time {duration} for me.
+({start} )({connector} |)timer for {duration} (called|named|for) {name}
+({start} )({connector} |)timer for {name}
+({start} )({connector} |){duration} timer (called|named|for) {name}
+({start} )({connector} |)timer (called|named|for) {name}
+({start} )({connector} |){duration} {name} timer
+({start} )({connector} |){name} timer
