@@ -146,32 +146,47 @@ class TimerSkill(MycroftSkill):
     @intent_handler(IntentBuilder("").optionally("Start").
                     optionally("Connector").require("Timer").
                     optionally("Duration").optionally("Name"))
-    def handle_start_timer_adapt(self, message):
-        self.log.info("--------------------------------------")
-        for key in message.data:
-            self.log.info(f'handle_start_timer_adapt: {key}: {message.data[key]}')
-        self.handle_start_timer(message)
-        self.log.info("--------------------------------------")
-
+    #def handle_start_timer_adapt(self, message):
+    #    self.log.info("--------------------------------------")
+    #    for key in message.data:
+    #        self.log.info(f'handle_start_timer_adapt: {key}: {message.data[key]}')
+    #    self.handle_start_timer(message)
+    #    self.log.info("--------------------------------------")
+    #    self.handle_start_timer(message)        
+        
     # Handles 'Start a 30 second timer'
-    @intent_file_handler('start.timer.intent')
+    #@intent_file_handler('start.timer.intent')
     def handle_start_timer(self, message):
         self.log.info("--------------------------------------")
         for key in message.data:
             self.log.info(f'handle_start_timer: {key}: {message.data[key]}')
         self.log.info("--------------------------------------")
+        utt = message.data["utterance"]
+        # Remove the Adapt detected words:
+        utt = utt.replace(message.data['Timer'], '',)
+        if 'Start' in message.data:
+            utt = utt.replace(message.data['Start'], '')
+        if 'Connector' in message.data:
+            utt = utt.replace(message.data['Connector'] + ' ', '')
+        utt = " ".join(utt.split())
+            
+        self.log.info(f'handle_start_timer: Utterance: {utt}')
+        
         # Extract the requested timer duration
-        if 'duration' not in message.data:
-            secs, string = self._extract_duration(message.data["utterance"])
-            if secs and secs > 1:  # prevent "set one timer" doing 1 sec timer
-                duration = message.data["utterance"]
-            else:
+        duration = None
+        if 'Duration' not in message.data:
+            if utt:
+                secs, string = self._extract_duration(utt)
+                if secs and secs > 1:  # prevent "set one timer" doing 1 sec timer
+                    duration = message.data["utterance"]
+                
+            if duration == None:
                 duration = self.get_response('ask.how.long')
                 if duration is None:
                     return  # user cancelled
         else:
-            self.log.info(f'handle_start_timer:Will there be a Duration component')
-            duration = message.data["duration"]
+            self.log.info(f'handle_start_timer: Will there be a Duration component')
+            duration = message.data["Duration"]
         secs, string = self._extract_duration(duration)
         if not secs:
             self.speak_dialog("tell.me.how.long")
@@ -191,12 +206,13 @@ class TimerSkill(MycroftSkill):
         # Name the timer
         timer_name = ""
         has_name = False
-        if 'name' in message.data:
+        if 'Name' in message.data:
+            self.log.info(f'handle_start_timer: I got the name: {message.data["Name"]}')
             # Check if the name from request is not a Duration string
-            duration, string = self._extract_duration(message.data["name"])
+            duration, string = self._extract_duration(message.data["Name"])
             if duration == None:
                 # Get a name from request
-                timer_name = message.data["name"]
+                timer_name = message.data["Name"]
                 has_name = True
         
         if not timer_name:
@@ -714,8 +730,9 @@ class TimerSkill(MycroftSkill):
                     optionally("Name"))
     def handle_cancel_timer(self, message=None):
         self.log.info("--------------------------------------")
-        for key in message.data:
-            self.log.info(f'handle_cancel_timer: {key}: {message.data[key]}')
+        if message:
+            for key in message.data:
+                self.log.info(f'handle_cancel_timer: {key}: {message.data[key]}')
         self.log.info("--------------------------------------")
         
         utt = message.data['utterance']

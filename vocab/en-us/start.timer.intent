@@ -1,6 +1,4 @@
-({start} )({connector} |)timer for {duration} (called|named|for) {name}
-({start} )({connector} |)timer for {name}
-({start} )({connector} |){duration} timer (called|named|for) {name}
-({start} )({connector} |)timer (called|named|for) {name}
-({start} )({connector} |){duration} {name} timer
-({start} )({connector} |){name} timer
+({start} )({connector} |)timer( for {duration}|)( (called|named|for) {name}|)
+({start} )({connector} |)timer( for {name}|)( {duration} long|)
+({start} )({connector} |)({duration} |)timer( (called|named|for) {name}|)
+({start} )({connector} |)({duration} |)({name} |)timer

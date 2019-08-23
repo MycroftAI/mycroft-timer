@@ -1,0 +1,7 @@
+(for |)(#|##|###|:0) hour(s|)( long|)
+(for |)(#|##|###|:0) minute(s|)( long|)
+(for |)(#|##|###|:0) second(s|)( long|)
+(for |)(#|##|###|:0) hour(s|)( and|) (#|##|###|:0) minute(s|)( long|)
+(for |)(#|##|###|:0) hour(s|)( and|) (#|##|###|:0) second(s|)( long|)
+(for |)(#|##|###|:0) minute(s|)( and|) (#|##|###|:0) second(s|)( long|)
+(for |)(#|##|###|:0) hour(s|)( and|) (#|##|###|:0) minute(s|)( and|) (#|##|###|:0) second(s|)( long|)
