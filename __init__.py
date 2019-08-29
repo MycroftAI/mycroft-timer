@@ -14,7 +14,7 @@
 
 import time
 import pickle
-import regex
+import re
 
 from adapt.intent import IntentBuilder
 from mycroft.skills.core import (
@@ -78,7 +78,7 @@ class TimerSkill(MycroftSkill):
         self.THRESHOLD = 0.7
 
     def initialize(self):
-        #self.register_entity_file('duration.entity')
+        self.register_entity_file('duration.entity')
         #self.register_entity_file('timervalue.entity')
 
         self.unpickle()
@@ -144,18 +144,16 @@ class TimerSkill(MycroftSkill):
     
     # Adapt version of handle_start_timer
     @intent_handler(IntentBuilder("").optionally("Start").
-                    optionally("Connector").require("Timer").
-                    optionally("Duration").optionally("Name"))
-    #def handle_start_timer_adapt(self, message):
-    #    self.log.info("--------------------------------------")
-    #    for key in message.data:
-    #        self.log.info(f'handle_start_timer_adapt: {key}: {message.data[key]}')
-    #    self.handle_start_timer(message)
-    #    self.log.info("--------------------------------------")
-    #    self.handle_start_timer(message)        
-        
-    # Handles 'Start a 30 second timer'
-    #@intent_file_handler('start.timer.intent')
+                optionally("Connector").require("Timer").
+                optionally("DurationConnector").optionally("Duration").
+                optionally("NameConnector").optionally("Name"))
+    def handle_start_timer_simple(self, message):
+        self.handle_start_timer(message)
+    
+    @intent_handler(IntentBuilder("").require("Start").
+                optionally("Connector").require("Timer").
+                optionally("DurationConnector").optionally("Duration").
+                optionally("NameConnector").optionally("Name"))
     def handle_start_timer(self, message):
         self.log.info("--------------------------------------")
         for key in message.data:
@@ -163,11 +161,20 @@ class TimerSkill(MycroftSkill):
         self.log.info("--------------------------------------")
         utt = message.data["utterance"]
         # Remove the Adapt detected words:
-        utt = utt.replace(message.data['Timer'], '',)
+        utt = self._remove_phrase_from_string(message.data['Timer'], utt)
         if 'Start' in message.data:
-            utt = utt.replace(message.data['Start'], '')
+            utt = self._remove_phrase_from_string(message.data['Start'], utt)
         if 'Connector' in message.data:
-            utt = utt.replace(message.data['Connector'] + ' ', '')
+            utt = self._remove_phrase_from_string(message.data['Connector'],
+                                                  utt)
+        if 'DurationConnector' in message.data:
+            utt = self._remove_phrase_from_string(
+                        message.data['DurationConnector'],
+                        utt)
+        if 'NameConnector' in message.data:
+            utt = self._remove_phrase_from_string(
+                        message.data['NameConnector'],
+                        utt)
         utt = " ".join(utt.split())
             
         self.log.info(f'handle_start_timer: Utterance: {utt}')
@@ -185,8 +192,10 @@ class TimerSkill(MycroftSkill):
                 if duration is None:
                     return  # user cancelled
         else:
-            self.log.info(f'handle_start_timer: Will there be a Duration component')
+            utt = utt.replace(message.data['Duration'] + ' ', '')
+            self.log.info(f'handle_start_timer: Duration: message.data["Duration"]')
             duration = message.data["Duration"]
+            
         secs, string = self._extract_duration(duration)
         if not secs:
             self.speak_dialog("tell.me.how.long")
@@ -204,20 +213,38 @@ class TimerSkill(MycroftSkill):
         self.timer_index += 1
 
         # Name the timer
-        timer_name = ""
+        timer_name = None
         has_name = False
+        # Try if Adapt got a Name that is not a Duration string
         if 'Name' in message.data:
-            self.log.info(f'handle_start_timer: I got the name: {message.data["Name"]}')
-            # Check if the name from request is not a Duration string
+            self.log.info(f'handle_start_timer: (1) Trying to get name from: "{message.data["Name"]}"')
             duration, string = self._extract_duration(message.data["Name"])
+            string = self._remove_phrase_from_string('(hours?|minutes?|seconds?)',string)
+            self.log.info(f'handle_start_timer: (2) Trying to get name from: "{string}"')
             if duration == None:
                 # Get a name from request
                 timer_name = message.data["Name"]
+                self.log.info(f'handle_start_timer: Name from Adapt: "{timer_name}"')
                 has_name = True
-        
+
+        # Try getting the Name from Duration leftover string
+        if not timer_name:
+            self.log.info(f'handle_start_timer: (3) Trying to get name from: "{utt}"')
+            utt = self._remove_phrase_from_string(self.translate('and'), utt)
+            utt = " ".join(utt.split())
+            self.log.info(f'handle_start_timer: (4) Trying to get name from: "{utt}"')
+            if utt:
+                timer_name_temp = self._get_name_from_utterance(utt)
+                if timer_name_temp:
+                    timer_name = timer_name_temp 
+                    self.log.info(f'handle_start_timer: Name from regex: "{timer_name}"')
+                    has_name = True
+            
         if not timer_name:
             # Name after the duration, e.g. "30 second timer"
             timer_name = nice_duration(secs)
+            
+        self.log.info(f'handle_start_timer: Timer Name: "{timer_name}"')
 
         now = datetime.now()
         time_expires = now + timedelta(seconds=secs)
@@ -252,6 +279,27 @@ class TimerSkill(MycroftSkill):
 
         # reset the mute flag with a new timer
         self.mute = False
+        
+    def _remove_phrase_from_string(self, phrase, string):
+        rx_string = r'\b' + re.escape(phrase) + r'\b'
+        string = re.sub(rx_string, '', string)
+        return string
+        
+    def _get_name_from_utterance(self, utt):
+        rx_file = self.find_resource('name.rx', 'regex')
+        if rx_file:
+            with open(rx_file) as f:
+                for pat in f.read().splitlines():
+                    pat = pat.strip()
+                    if pat and pat[0] == "#":
+                        continue
+                    res = re.search(pat, utt)
+                    if res:
+                        try:
+                            return res.group("Name")
+                        except IndexError:
+                            pass
+        return None
         
     def _get_ordinal_string(self, ordinal, name,):
         

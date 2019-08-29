@@ -1,2 +1,3 @@
-.*\b(for|named|called)\s(?P<Name>[A-Za-z\s]+)$
-.*\b(for|named|called)\s(?P<Name>[A-Za-z\s]+).*
+\b(?P<Name>.*)$
+.*\b(?P<Name>.*)$
+.*\b(?P<Name>.*).*
