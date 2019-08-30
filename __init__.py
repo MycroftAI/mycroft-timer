@@ -73,7 +73,7 @@ class TimerSkill(MycroftSkill):
         self.mute = False
         self.timer_index = 0
         self.display_idx = None
-        
+
         # Threshold score for Fuzzy Logic matching for Timer Name
         self.THRESHOLD = 0.7
 
@@ -141,151 +141,32 @@ class TimerSkill(MycroftSkill):
         if dur_remainder:
             return dur_remainder.total_seconds(), str_remainder
         return None, None
-    
-    # Adapt version of handle_start_timer
-    @intent_handler(IntentBuilder("").optionally("Start").
-                optionally("Connector").require("Timer").
-                optionally("DurationConnector").optionally("Duration").
-                optionally("NameConnector").optionally("Name"))
-    def handle_start_timer_simple(self, message):
-        self.handle_start_timer(message)
-    
-    @intent_handler(IntentBuilder("").require("Start").
-                optionally("Connector").require("Timer").
-                optionally("DurationConnector").optionally("Duration").
-                optionally("NameConnector").optionally("Name"))
-    def handle_start_timer(self, message):
-        self.log.info("--------------------------------------")
-        for key in message.data:
-            self.log.info(f'handle_start_timer: {key}: {message.data[key]}')
-        self.log.info("--------------------------------------")
-        utt = message.data["utterance"]
-        # Remove the Adapt detected words:
-        utt = self._remove_phrase_from_string(message.data['Timer'], utt)
-        if 'Start' in message.data:
-            utt = self._remove_phrase_from_string(message.data['Start'], utt)
-        if 'Connector' in message.data:
-            utt = self._remove_phrase_from_string(message.data['Connector'],
-                                                  utt)
-        if 'DurationConnector' in message.data:
-            utt = self._remove_phrase_from_string(
-                        message.data['DurationConnector'],
-                        utt)
-        if 'NameConnector' in message.data:
-            utt = self._remove_phrase_from_string(
-                        message.data['NameConnector'],
-                        utt)
-        utt = " ".join(utt.split())
-            
-        self.log.info(f'handle_start_timer: Utterance: {utt}')
-        
-        # Extract the requested timer duration
-        duration = None
-        if 'Duration' not in message.data:
-            if utt:
-                secs, string = self._extract_duration(utt)
-                if secs and secs > 1:  # prevent "set one timer" doing 1 sec timer
-                    duration = message.data["utterance"]
-                
-            if duration == None:
-                duration = self.get_response('ask.how.long')
-                if duration is None:
-                    return  # user cancelled
-        else:
-            utt = utt.replace(message.data['Duration'] + ' ', '')
-            self.log.info(f'handle_start_timer: Duration: message.data["Duration"]')
-            duration = message.data["Duration"]
-            
-        secs, string = self._extract_duration(duration)
-        if not secs:
-            self.speak_dialog("tell.me.how.long")
-            return
-        if secs >= 60*60*24:  # 24 hours in seconds
-            if self.ask_yesno("timer.too.long.alarm.instead") == 'yes':
-                alarm_time = now_local() + timedelta(seconds=secs)
 
-                # TODO: Test this under another language.  I think this will work...
-                phrase = "set an alarm for " + alarm_time.strftime("%B %d %Y at %I:%M%p")
-                self.bus.emit(Message("recognizer_loop:utterance",
-                                      {"utterances": [phrase], "lang": "en-us"}))
-            return
+    def _extract_ordinal(self, text):
+        num = None
+        if text is None or len(text) == 0:
+            return None
 
-        self.timer_index += 1
+        try:
+            num = int(extract_number(text, self.lang, ordinals=True))
+        except:
+            self.log.info(f'_extract_ordinal: ' +
+                          'Error in extract_number process')
+            pass
+        if not num:
+            try:
+                # Should be removed if the extract_number() function can parse ordinals
+                # already e.g. 1st, 3rd, 69th, etc.
+                results = regex.search(r'(?b)\b((?P<Numeral>\d+)(st|nd|rd|th))\b', text)
+                if (results) and (results['Numeral']):
+                    num = int(results['Numeral'])
+            except:
+                self.log.info('_extract_ordinal: ' +
+                              'Error in _read_ordinal_from_text process')
+                pass
+        return num
 
-        # Name the timer
-        timer_name = None
-        has_name = False
-        # Try if Adapt got a Name that is not a Duration string
-        if 'Name' in message.data:
-            self.log.info(f'handle_start_timer: (1) Trying to get name from: "{message.data["Name"]}"')
-            duration, string = self._extract_duration(message.data["Name"])
-            string = self._remove_phrase_from_string('(hours?|minutes?|seconds?)',string)
-            self.log.info(f'handle_start_timer: (2) Trying to get name from: "{string}"')
-            if duration == None:
-                # Get a name from request
-                timer_name = message.data["Name"]
-                self.log.info(f'handle_start_timer: Name from Adapt: "{timer_name}"')
-                has_name = True
-
-        # Try getting the Name from Duration leftover string
-        if not timer_name:
-            self.log.info(f'handle_start_timer: (3) Trying to get name from: "{utt}"')
-            utt = self._remove_phrase_from_string(self.translate('and'), utt)
-            utt = " ".join(utt.split())
-            self.log.info(f'handle_start_timer: (4) Trying to get name from: "{utt}"')
-            if utt:
-                timer_name_temp = self._get_name_from_utterance(utt)
-                if timer_name_temp:
-                    timer_name = timer_name_temp 
-                    self.log.info(f'handle_start_timer: Name from regex: "{timer_name}"')
-                    has_name = True
-            
-        if not timer_name:
-            # Name after the duration, e.g. "30 second timer"
-            timer_name = nice_duration(secs)
-            
-        self.log.info(f'handle_start_timer: Timer Name: "{timer_name}"')
-
-        now = datetime.now()
-        time_expires = now + timedelta(seconds=secs)
-        timer = {"name": timer_name,
-                 "ordinal": self._get_ordinal_of_timer(timer_name),
-                 "index": self.timer_index,
-                 "duration": secs,
-                 "expires": time_expires,
-                 "announced": False}
-        self.active_timers.append(timer)
-
-        if has_name:
-            prompt = ("started.timer.with.name" if len(self.active_timers) == 1
-                    else "started.another.timer.with.name")
-        else:
-            prompt = ("started.timer" if len(self.active_timers) == 1
-                    else "started.another.timer")
-            
-        self.speak_dialog(prompt,
-                        data={"duration": nice_duration(timer["duration"]),
-                              "name": timer["name"],
-                              "ordinal": self._get_ordinal_string(
-                                  timer["ordinal"],
-                                  timer["name"])})
-        self.pickle()
-        wait_while_speaking()
-
-        self.enable_intent("handle_mute_timer")
-
-        # Start showing the remaining time on the faceplate
-        self.update_display(None)
-
-        # reset the mute flag with a new timer
-        self.mute = False
-        
-    def _remove_phrase_from_string(self, phrase, string):
-        rx_string = r'\b' + re.escape(phrase) + r'\b'
-        string = re.sub(rx_string, '', string)
-        return string
-        
-    def _get_name_from_utterance(self, utt):
+    def _get_timer_name(self, utt):
         rx_file = self.find_resource('name.rx', 'regex')
         if rx_file:
             with open(rx_file) as f:
@@ -300,44 +181,6 @@ class TimerSkill(MycroftSkill):
                         except IndexError:
                             pass
         return None
-        
-    def _get_ordinal_string(self, ordinal, name,):
-        
-        # Check if the timer with the following name is the only one
-        # of its kind or has other timers with the same name
-        _get_same_name_from_active_timers = lambda timer, name : \
-                    timer["ordinal"] if timer["name"] == name else 0
-        timer_map = list(map(_get_same_name_from_active_timers,
-                             self.active_timers,
-                             [name] * len(self.active_timers)))
-        if sum(timer_map) > 1 or ordinal > 1:
-            return num2words(ordinal, to="ordinal", lang=self.lang)
-        else:
-            return ""
-    
-    def _get_ordinal_of_timer(self, name, active_timers = None):
-        # Name the timer such that we add a "Second" or "Third" if you timers
-        # with the same name. 
-            
-        _get_same_name_from_active_timers = lambda timer, name : \
-                        timer["ordinal"] if timer["name"] == name else 0
-        
-        timer_map = list(map(_get_same_name_from_active_timers,
-                             self.active_timers,
-                             [name] * len(self.active_timers)))
-        timer_count = 0
-        if len(timer_map) > 0:
-            timer_count = max(timer_map)
-        return timer_count + 1
-    
-    # Should be removed if the extract_number() function can parse ordinals
-    # already e.g. 1st, 3rd, 69th, etc.
-    def _read_ordinal_from_text(self, text):
-        results = regex.search(r'(?b)\b((?P<Numeral>\d+)(st|nd|rd|th))\b', text)
-        if (results) and (results['Numeral']):
-            return int(results['Numeral'])
-
-        return None
 
     def _get_next_timer(self):
         # Retrieve the next timer set to trigger
@@ -347,33 +190,87 @@ class TimerSkill(MycroftSkill):
                 next = timer
         return next
 
+    def _get_ordinal_of_timer(self, name, active_timers = None):
+        # Name the timer such that we add a "Second" or "Third" if you timers
+        # with the same name.
+        timer_map = [ t["ordinal"] if t["name"] == name else 0 for t in self.active_timers]
+        timer_count = 0
+        if len(timer_map) > 0:
+            timer_count = max(timer_map)
+        return timer_count + 1
+
+    def _get_speakable_ordinal(self, ordinal, name):
+        # Check if the timer with the following name is the only one
+        # of its kind or has other timers with the same name
+        timer_map = [ t["ordinal"] if t["name"] == name else 0 for t in self.active_timers ]
+        if sum(timer_map) > 1 or ordinal > 1:
+            return num2words(ordinal, to="ordinal", lang=self.lang)
+        else:
+            return ""
+
+    def _get_speakable_timer_list(self, timer_list):
+        # TODO why is t["name"] concatenated below?
+        timer_list_with_ord = [ self._get_speakable_ordinal(t["ordinal"],
+                                t["name"]) + " " + t["name"]
+                                for t in timer_list ]
+        names = join_list(timer_name_with_ordinal_list, self.translate("and"))
+        return names
+
+    def _get_timer(self, utt):
+        timers = self.active_timers
+        duration = _extract_duration(utt)
+        ordinal = _extract_ordinal(utt)
+        name = _get_timer_name(utt)
+
+        duration_matches = [t for t in timers if duration == t['duration']]
+        name_matches = [t for t in timers if name == t['name']]
+
+        if duration_matches and name_matches:
+            matches = [t for t in name_matches if duration == t['duration']]
+        elif duration_matches or name_matches:
+            matches = duration_matches if duration_matches else name_matches
+        else:
+            matches = timers
+
+        if len(matches) > 1:
+            for match in matches:
+                if ordinal == match['ordinal']:
+                    return match
+            else:
+                # TODO disambiguate here - probably still need recursion
+                return None
+        elif len(matches) == 1:
+            return matches[0]
+        else:
+            return None
+
+
     def _get_timer(self, utt, dialog, active_timers=None):
-        
         # If this is not from Recursion, default to the active timers
         if active_timers == None:
             active_timers = self.active_timers
-        
+
         num = None
         duration_matches = None
         name_matches = None
         indices = None
         string = None
-              
+
         #####################################################################
         # Find timers references by duration
-        
+
         try:
             duration_matches, string = self._get_duration_match_matrix(
                         utt, active_timers)
         except:
             pass
-        
+
         if duration_matches and sum(duration_matches):
             # Find name matches from the leftover string from Duration
             # matching
             name_matches = self._get_name_match_matrix(string, active_timers,
                                                        self.THRESHOLD)
-            
+
             if sum(name_matches):
                 match = [a * b for a, b in
                          zip(duration_matches, name_matches)]
@@ -381,17 +278,17 @@ class TimerSkill(MycroftSkill):
             else:
                 indices = [i for i, x in enumerate(duration_matches) \
                     if x == 1]
-            
+
             # Check if there is an Ordinal/Cardinal Number in the leftover
             # string referring to the nth instance of the Timer of that
             # duration.
-            num = self._read_number_from_text(string)
-            if num:        
+            num = self._extract_ordinal(string)
+            if num:
                 if num <= len(indices):
                     return active_timers[indices[num - 1]]
                 else:
                     return None
-            
+
             count = len(indices)
             # Return if there is only one instance.
             if count == 1:
@@ -404,8 +301,8 @@ class TimerSkill(MycroftSkill):
                                              indices))
                 dur_string = nice_duration(active_timer_temp[0]['duration'])
                 additional = self.translate('for') + " " + dur_string
-                names = self._create_timer_list_string(active_timer_temp)
-                        
+                names = self._get_speakable_timer_list(active_timer_temp)
+
                 reply = self.get_response(dialog,
                                           data={"count": count,
                                                 "names": names,
@@ -420,16 +317,16 @@ class TimerSkill(MycroftSkill):
             pass
         if name_matches and sum(name_matches):
             indices = [i for i, x in enumerate(name_matches) if x == 1]
-            
+
             # Check if there is an Ordinal/Cardinal Number referring
             # to the Ordinal number of the Timer of that name.
-            num = self._read_number_from_text(utt)
+            num = self._extract_ordinal(utt)
             if num:
                 for index in indices:
                     if active_timers[index]['ordinal'] == num:
                         return active_timers[index]
                 return None
-            
+
             count = len(indices)
             # Return if there is only one instance.
             if count == 1:
@@ -439,10 +336,10 @@ class TimerSkill(MycroftSkill):
             # do recursion
             else:
                 active_timer_temp = list(map(active_timers.__getitem__, indices))
-                
+
                 additional = self.translate('for') + " " + \
                              active_timer_temp[0]['name']
-                names = self._create_timer_list_string(active_timer_temp)
+                names = self._get_speakable_timer_list(active_timer_temp)
                 reply = self.get_response(dialog,
                                           data={"count": count,
                                                 "names": names,
@@ -451,7 +348,7 @@ class TimerSkill(MycroftSkill):
         #####################################################################
         # Referenced by cardinal/ordinal index?
         # e.g "1", "number three", "first", third timer". "timer one"
-        num = self._read_number_from_text(utt)
+        num = self._extract_ordinal(utt)
         if num:
             if num <= len(active_timers):
                 return active_timers[num - 1]
@@ -460,27 +357,7 @@ class TimerSkill(MycroftSkill):
         #####################################################################
         # Nothing matched
         return None
-    
-    def _read_number_from_text(self, text):
-        num = None
-        if text:
-            try:
-                num = int(extract_number(text, self.lang, ordinals=True))
-            except:
-                self.log.info(f'_read_number_from_text: ' +
-                              'Error in extract_number process')
-                pass
-            if not num:
-                try:
-                    num = self._read_ordinal_from_text(text)
-                except:
-                    self.log.info('_read_number_from_text: ' + 
-                                  'Error in _read_ordinal_from_text process')
-                    pass
-        return num
-    
-    # Get Matrix of the matching Durations from Utterance 
-    # with Timers
+
     def _get_duration_match_matrix(self, text, timers):
         leftover = None
         duration = None
@@ -488,47 +365,35 @@ class TimerSkill(MycroftSkill):
             if (text):
                 duration, leftover = self._extract_duration(text)
         except:
-            self.log.info('_get_duration_match_matrix: ' + 
+            self.log.info('_get_duration_match_matrix: ' +
                           'Error in _extract_duration process')
             pass
 
-        get_duration_from_active_timers = lambda timer, duration : \
-            1 if timer['duration'] == duration else 0
-            
-        duration_matches = list(map(get_duration_from_active_timers, 
-                                    timers, [duration] * len(timers)))
-        
+        duration_matches = [ 1 if t['duration'] == duration else 0 for t in timers]
+
         return (duration_matches, leftover)
-    
+
     def _get_name_match_matrix(self, text, timers, threshold):
-        name_scores = list(map(self._get_name_score_from_active_timers, \
-                        timers, [text] * len(timers),
-                        [threshold] * len(timers)))
-        
+        name_scores = [ self._get_name_score(t, text, threshold) for t in timers ]
         best = max(name_scores)
-        get_highest_match = lambda score, best : \
-            1 if score == best and score >= threshold else 0
-        
-        name_matches = list(map(get_highest_match, name_scores,
-                                [best] * len(name_scores)))
-        
+        name_matches = [ 1 if score == best and score >= threshold else 0 for score in name_scores ]
         return name_matches
-    
-    def _get_name_score_from_active_timers(self, timers, name, threshold):
-        
+
+    def _get_name_score(self, timers, name, threshold):
+
         name_split = name.split()
         timer_name_len = len(timers["name"].split())
         score_best = 0
-        
+
         for i in range(len(name_split) - timer_name_len, -1, -1):
             name_comp = ' '.join(name_split[i:i + timer_name_len])
             score_curr = fuzzy_match(name_comp, timers["name"])
-            
+
             if score_curr > score_best and score_curr >= threshold:
                 score_best = score_curr
-            
+
         return score_best
-          
+
     def update_display(self, message):
         # Get the next triggering timer
         timer = self._get_next_timer()
@@ -608,12 +473,17 @@ class TimerSkill(MycroftSkill):
                 else:
                     self.speak_dialog("timer.expired",
                                       data={"name": timer["name"],
-                                            "ordinal": 
-                                                self._get_ordinal_string(
+                                            "ordinal":
+                                                self._get_speakable_ordinal(
                                                     timer["ordinal"],
                                                     timer["name"])})
-
                 timer["announced"] = True
+
+    # TODO: Do we need this?
+    def _remove_phrase_from_string(self, phrase, string):
+        rx_string = r'\b' + re.escape(phrase) + r'\b'
+        string = re.sub(rx_string, '', string)
+        return string
 
     def render_timer(self, idx, seconds):
         display_owner = self.enclosure.display_manager.get_active()
@@ -676,6 +546,138 @@ class TimerSkill(MycroftSkill):
             else:
                 x += 4
 
+    def _speak_timer(self, timer):
+        # If _speak_timer receives timer = None, it assumes that timer
+        # wasn't found, and not there was no active timers
+        if timer is None:
+            self.speak_dialog("timer.not.found")
+            return
+
+        # TODO: speak_dialog should have option to not show mouth
+        # For now, just deactiveate.  The sleep() is to allow the
+        # message to make it across the bus first.
+        self.enclosure.deactivate_mouth_events()
+        time.sleep(0.25)
+
+        now = datetime.now()
+        name = timer["name"] if timer["name"] is not None \
+                             else nice_duration(timer["duration"])
+        ordinal = timer["ordinal"]
+
+        if timer and timer["expires"] < now:
+            # expired, speak how long since it triggered
+            passed = nice_duration((now - timer["expires"]).seconds)
+            self.speak_dialog("time.elapsed",
+                              data={"name": name,
+                                    "passed_time": passed,
+                                    "ordinal": self._get_speakable_ordinal(
+                                        ordinal, name)})
+        else:
+            # speak remaining time
+            remaining = nice_duration((timer["expires"] - now).seconds)
+            self.speak_dialog("time.remaining",
+                              data={"name": name,
+                                    "remaining": remaining,
+                                    "ordinal": self._get_speakable_ordinal(
+                                        ordinal, name)})
+        wait_while_speaking()
+        self.enclosure.activate_mouth_events()
+
+    def _speak_timer_status(self, timer_name, has_all):
+        # Check if utterance has "All"
+        if (timer_name is None or has_all):
+            for timer in self.active_timers:
+                self._speak_timer(timer)
+            return
+        # Just speak status of given timer
+        timer = self._get_timer(timer_name, "ask.which.timer")
+        return self._speak_timer(timer)
+
+    #################################
+    ####~~~~ INTENT HANDLERS ~~~~####
+    #################################
+    def handle_start_timer(self, message):
+        utt = message.data["utterance"]
+        #~~ GET TIMER DURATION
+        duration = None
+        secs, utt_remaining = self._extract_duration(utt)
+        if secs and secs == 1:  # prevent "set one timer" doing 1 sec timer
+            utt_remaining = message.data["utterance"]
+
+        if duration == None: # no duration found, request from user
+            req_duration = self.get_response('ask.how.long')
+            secs, _ = self._extract_duration(req_duration)
+            if secs is None:
+                return  # user cancelled
+
+        #~~ GET TIMER NAME
+        if utt_remaining is not None and len(utt_remaining) > 0:
+            timer_name = self._get_timer_name(utt_remaining)
+        else:
+            timer_name = None
+
+        #~~ SHOULD IT BE AN ALARM?
+        # TODO: add name of alarm if available?
+        if secs >= 60*60*24:  # 24 hours in seconds
+            if self.ask_yesno("timer.too.long.alarm.instead") == 'yes':
+                alarm_time = now_local() + timedelta(seconds=secs)
+                phrase = self.translate('set.alarm',
+                                        {'date': alarm_time.strftime('%B %d %Y'),
+                                         'time': alarm_time.strftime('%I:%M%p')})
+                self.bus.emit(Message("recognizer_loop:utterance",
+                                      {"utterances": [phrase], "lang": "en-us"}))
+            return
+
+        #~~ CREATE TIMER
+        self.timer_index += 1
+        time_expires = datetime.now() + timedelta(seconds=secs)
+        timer = {"name": timer_name,
+                 "index": self.timer_index,
+                 # keep track of ordinal until all timers of that name expire
+                 "ordinal": self._get_ordinal_of_timer(timer_name),
+                 "duration": secs,
+                 "expires": time_expires,
+                 "announced": False}
+        self.active_timers.append(timer)
+        self.log.info("-------------TIMER-CREATED-------------")
+        for key in timer:
+            self.log.info(f'creating timer: {key}: {timer[key]}')
+        self.log.info("---------------------------------------")
+
+        #~~ INFORM USER
+        if timer_name is not None:
+            prompt = ("started.timer.with.name" if len(self.active_timers) == 1
+                    else "started.another.timer.with.name")
+        else:
+            prompt = ("started.timer" if len(self.active_timers) == 1
+                    else "started.another.timer")
+        # TODO Just pass in the timer object?
+        self.speak_dialog(prompt,
+                        data={"duration": nice_duration(timer["duration"]),
+                              "name": timer["name"],
+                              "ordinal": self._get_speakable_ordinal(
+                                  timer["ordinal"],
+                                  timer["name"])})
+
+        #~~ CLEANUP
+        self.pickle()
+        wait_while_speaking()
+        self.enable_intent("handle_mute_timer")
+        # Start showing the remaining time on the faceplate
+        self.update_display(None)
+        # reset the mute flag with a new timer
+        self.mute = False
+
+    @intent_handler(IntentBuilder("").optionally("Start").
+                optionally("Connector").require("Timer"))
+    def handle_start_timer_simple(self, message):
+        self.handle_start_timer(message)
+
+    @intent_handler(IntentBuilder("").require("Start").
+                optionally("Connector").require("Timer"))
+    def handle_start_timer_required(self, message):
+        self.handle_start_timer(message)
+
     # Handles 'How much time left'
     @intent_handler(IntentBuilder("").optionally("Query").require("Status").
                 require("Timer").optionally("All").optionally("Duration").
@@ -685,16 +687,16 @@ class TimerSkill(MycroftSkill):
         for key in message.data:
             self.log.info(f'handle_status_timer: {key}: {message.data[key]}')
         self.log.info("--------------------------------------")
-        
+
         utt = message.data["utterance"]
         has_all = 'All' in message.data
-        
+
         #self.log.info("-----------------------")
         #self.log.info("handle_status_timer: List of Active Timers")
         #for timer in self.active_timers:
         #    self.log.info(f'{timer["index"]}: Timer: {timer["name"]} Ordinal: {timer["ordinal"]} Duration: {timer["duration"]}')
         #self.log.info("-----------------------")
-        
+
         if not self.active_timers:
             self.speak_dialog("no.active.timer")
         elif len(self.active_timers) == 1:
@@ -708,21 +710,20 @@ class TimerSkill(MycroftSkill):
             Args:
                 intent (dict): data from Message object
         """
-        
+
         dialog = 'ask.which.timer'
-        
+
         # Check if the Timer details are already in the utterance
         timer = self._get_timer(utt, dialog)
-        
+
         # If not in the first Utterance
         if timer == None:
             # If there are more than 3 timers, ask the user about
             # the details of the timer
             if len(self.active_timers) >= 3 and not has_all:
-                names = self._create_timer_list_string(self.active_timers)
-                cnt = len(self.active_timers)
+                names = self._get_speakable_timer_list(self.active_timers)
                 which = self.get_response(dialog,
-                                            data={"count": cnt,
+                                          data={"count": len(self.active_timers),
                                                 "names": names,
                                                 "additional": ''})
                 if not which:
@@ -730,30 +731,16 @@ class TimerSkill(MycroftSkill):
             # Else, speak all timer statuses
             else:
                 which = None
-            
+
             self._speak_timer_status(which, has_all)
-            
+
         # Speak Timer status if it's already there
         else:
             return self._speak_timer(timer)
 
     @intent_handler(IntentBuilder("").require("Mute").require("Timer"))
     def handle_mute_timer(self, message):
-        self.log.info("--------------------------------------")
-        for key in message.data:
-            self.log.info(f'handle_mute_timer: {key}: {message.data[key]}')
-        self.log.info("--------------------------------------")
         self.mute = True
-
-    # This is a little odd. This actually does the work for the Stop button,
-    # which prevents blocking during the Stop handler when input from the
-    # user is needed.
-    def handle_verify_stop_timer(self, message):
-        # Confirm cancel of live timers...
-        prompt = ('ask.cancel.running' if len(self.active_timers) == 1
-                  else 'ask.cancel.running.plural')
-        if self.ask_yesno(prompt) == 'yes':
-            self.handle_cancel_timer()
 
     @intent_file_handler('stop.timer.intent')
     def handle_stop_timer(self, message):
@@ -782,7 +769,7 @@ class TimerSkill(MycroftSkill):
             for key in message.data:
                 self.log.info(f'handle_cancel_timer: {key}: {message.data[key]}')
         self.log.info("--------------------------------------")
-        
+
         utt = message.data['utterance']
         self.log.info(f'handle_cancel_timer: {utt}')
         has_all = 'All' in message.data
@@ -813,24 +800,24 @@ class TimerSkill(MycroftSkill):
             self.cancel_timer(timer)
             duration = nice_duration(timer["duration"])
             self.speak_dialog("cancelled.single.timer")
-            self.pickle()   # save to disk  
+            self.pickle()   # save to disk
 
         elif num_timers > 1:
             dialog = 'ask.which.timer.cancel'
-            
+
             timer = self._get_timer(utt, dialog)
             if timer:
                 self.cancel_timer(timer)
                 duration = nice_duration(timer["duration"])
                 self.speak_dialog("cancelled.named.timer",
                                   data={"name": timer["name"],
-                                        "ordinal": self._get_ordinal_string(
+                                        "ordinal": self._get_speakable_ordinal(
                                             timer["ordinal"],
                                             timer["name"])})
                 self.pickle()   # save to disk
             else:
                 additional = ''
-                names = self._create_timer_list_string(self.active_timers)
+                names = self._get_speakable_timer_list(self.active_timers)
                 which = self.get_response(dialog,
                                             data={"count": num_timers,
                                                 "names": names,
@@ -851,74 +838,15 @@ class TimerSkill(MycroftSkill):
                     duration = nice_duration(timer["duration"])
                     self.speak_dialog("cancelled.named.timer",
                                     data={"name": timer["name"],
-                                            "ordinal": self._get_ordinal_string(
+                                            "ordinal": self._get_speakable_ordinal(
                                                 timer["ordinal"],
                                                 timer["name"])})
                     self.pickle()   # save to disk
                 else:
                     self.speak_dialog("timer.not.found")
-                
 
         # NOTE: This allows 'ShowTimer' to continue running, it will clean up
         #       after itself nicely.
-
-    def _create_timer_list_string(self, timer_list):
-        _get_timer_name_with_ordinal = lambda timer : \
-                        self._get_ordinal_string(timer["ordinal"],
-                        timer["name"]) + " " + timer["name"]
-        timer_name_with_ordinal_list = list(map(
-                                    _get_timer_name_with_ordinal,
-                                    timer_list))
-        names = join_list(timer_name_with_ordinal_list, self.translate("and"))             
-        return names
-
-    def _speak_timer_status(self, timer_name, has_all):
-        # Check if utterance has "All"
-        if (timer_name is None or has_all):
-            for timer in self.active_timers:
-                self._speak_timer(timer)
-            return
-        
-
-        # Just speak status of given timer
-        timer = self._get_timer(timer_name, "ask.which.timer")
-        return self._speak_timer(timer)
-
-    def _speak_timer(self, timer):
-        # If _speak_timer receives timer = None, it assumes that timer
-        # wasn't found, and not there was no active timers
-        if timer is None:
-            self.speak_dialog("timer.not.found")
-            return
-
-        # TODO: speak_dialog should have option to not show mouth
-        # For now, just deactiveate.  The sleep() is to allow the
-        # message to make it across the bus first.
-        self.enclosure.deactivate_mouth_events()
-        time.sleep(0.25)
-
-        now = datetime.now()
-        name = timer["name"]
-        ordinal = timer["ordinal"]
-
-        if timer and timer["expires"] < now:
-            # expired, speak how long since it triggered
-            passed = nice_duration((now - timer["expires"]).seconds)
-            self.speak_dialog("time.elapsed",
-                              data={"name": name,
-                                    "passed_time": passed,
-                                    "ordinal": self._get_ordinal_string(
-                                        ordinal, name)})
-        else:
-            # speak remaining time
-            remaining = nice_duration((timer["expires"] - now).seconds)
-            self.speak_dialog("time.remaining",
-                              data={"name": name,
-                                    "remaining": remaining,
-                                    "ordinal": self._get_ordinal_string(
-                                        ordinal, name)})
-        wait_while_speaking()
-        self.enclosure.activate_mouth_events()
 
     def cancel_timer(self, timer):
         # Cancel given timer
@@ -944,6 +872,16 @@ class TimerSkill(MycroftSkill):
                 # Stop the timer
                 self.stop()
                 return True  # and consume this phrase
+
+    # This is a little odd. This actually does the work for the Stop button,
+    # which prevents blocking during the Stop handler when input from the
+    # user is needed.
+    def handle_verify_stop_timer(self, message):
+        # Confirm cancel of live timers...
+        prompt = ('ask.cancel.running' if len(self.active_timers) == 1
+                  else 'ask.cancel.running.plural')
+        if self.ask_yesno(prompt) == 'yes':
+            self.handle_cancel_timer()
 
     def stop(self):
         timer = self._get_next_timer()

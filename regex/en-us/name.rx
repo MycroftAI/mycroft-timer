@@ -1,3 +1,1 @@
-\b(?P<Name>.*)$
-.*\b(?P<Name>.*)$
-.*\b(?P<Name>.*).*
+\b(called|for|named) (?P<Name>.*)
