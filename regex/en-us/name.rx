@@ -1,1 +1,2 @@
 \b(called|for|named) (?P<Name>.*)
+status of (?P<Name>.*) timer
