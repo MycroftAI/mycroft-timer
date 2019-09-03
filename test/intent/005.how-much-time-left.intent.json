@@ -1,6 +1,5 @@
 {
     "utterance": "how much time is left",
-    "intent_type": "status.timer.intent",
     "expected_dialog": "no.active.timer",
     "evaluation_timeout": 10
 }

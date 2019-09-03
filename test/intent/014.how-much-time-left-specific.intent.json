@@ -1,6 +1,5 @@
 {
     "utterance": "how much is left on the timer",
-    "intent_type": "status.timer.intent",
     "expected_dialog": "ask.which.timer",
     "responses": ["lasagna"],
     "expected_dialog": "time.remaining",
