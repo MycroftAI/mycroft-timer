@@ -1,6 +1,5 @@
 {
     "utterance": "start a 7 minute timer called lasagna",
-    "intent_type": "start.timer.intent",
-    "expected_dialog": "started.another.timer",
+    "expected_dialog": "started.another.timer.with.name",
     "evaluation_timeout": 10
 }
