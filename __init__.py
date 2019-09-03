@@ -200,27 +200,29 @@ class TimerSkill(MycroftSkill):
                 next = timer
         return next
 
-    def _get_ordinal_of_timer(self, duration, timers=None):
+    def _get_ordinal_of_new_timer(self, duration, timers=None):
         # add a "Second" or "Third" of timers of same duration exist
         timers = timers or self.active_timers
         timer_count = sum(1 for t in timers if t["duration"] == duration)
         return timer_count + 1
 
-    def _get_speakable_ordinal(self, ordinal, name):
-        # Check if the timer with the following name is the only one
-        # of its kind or has other timers with the same name
-        timer_count = sum(1 for t in self.active_timers if t["name"] == name)
+    def _get_speakable_ordinal(self, timer):
+        # Check if the timer with the following duration is the only one
+        # of its kind or has other timers with the same duration
+        timers = self.active_timers
+        ordinal = timer['ordinal']
+        duration = timer['duration']
+        timer_count = sum(1 for t in timers if t["duration"] == duration)
         if timer_count > 1 or ordinal > 1:
             return num2words(ordinal, to="ordinal", lang=self.lang)
         else:
             return ""
 
     def _get_speakable_timer_list(self, timer_list):
-        # TODO why is t["name"] concatenated below?
-        timer_list_with_ord = [ self._get_speakable_ordinal(t["ordinal"],
-                                t["name"]) + " " + t["name"]
+        # TODO handle speaking names if they exist
+        timer_list_with_ord = [ self._get_speakable_ordinal(t) + " " + nice_duration(t["duration"])
                                 for t in timer_list ]
-        names = join_list(timer_name_with_ordinal_list, self.translate("and"))
+        names = join_list(timer_list_with_ord, self.translate("and"))
         return names
 
     def _get_timer_matches(self, utt, timers=None, max_results=1,
@@ -239,41 +241,54 @@ class TimerSkill(MycroftSkill):
         # self.log.info("duration: " + str(duration))
         # self.log.info("Utt returned: " + utt)
         ordinal = self._extract_ordinal(utt)
-        # self.log.info("ordinal: " + str(ordinal))
+        self.log.info("ordinal: " + str(ordinal))
+        self.log.info("ordinal: " + str(type(ordinal)))
         name = self._get_timer_name(utt)
         # self.log.info("name: " + str(name))
 
         duration_matches, name_matches = None, None
         if duration:
             duration_matches = [t for t in timers if duration == t['duration']]
+            self.log.info("duration_matches:")
+            self.log.info(duration_matches)
         if name:
             name_matches = [t for t in timers if name == t['name']]
+            self.log.info("name_matches:")
+            self.log.info(name_matches)
 
         if duration_matches and name_matches:
             matches = [t for t in name_matches if duration == t['duration']]
+            self.log.info("and_matches:")
+            self.log.info(matches)
         elif duration_matches or name_matches:
             matches = duration_matches or name_matches
-        elif ordinal:
-            matches = timers
+            self.log.info("or_matches:")
+            self.log.info(matches)
         else:
-            return None
+            matches = timers
+            self.log.info("neither_matches:")
+        self.log.info("len(matches): " + str(len(matches)))
+        self.log.info("max_results: " + str(max_results))
 
         if ordinal and len(matches) > 1:
             for match in matches:
+                self.log.info(match)
                 if ordinal == match['ordinal']:
                     return [match]
-        elif len(matches) < max_results:
+        elif len(matches) <= max_results:
             return matches
         elif len(matches) > max_results:
             # TODO disambiguate here - probably still need recursion
-            # names = self._get_speakable_timer_list(active_timer_temp)
-            # reply = self.get_response(dialog,
-            #                           data={"count": count,
-            #                                 "names": names,
-            #                                 "additional": additional})
-            # return self._get_timer_matches(reply, timers=matches,
-            #                                 dialog=dialog,
-            #                                 max_results=max_results)
+            # TODO addition = the group currently spoken eg "5 minute timers" or "pasta timers"
+            additional = ""
+            speakable_matches = self._get_speakable_timer_list(matches)
+            reply = self.get_response(dialog,
+                                      data={"count": len(matches),
+                                            "names": speakable_matches,
+                                            "additional": additional})
+            return self._get_timer_matches(reply, timers=matches,
+                                            dialog=dialog,
+                                            max_results=max_results)
             return matches
         else:
             return None
@@ -355,19 +370,17 @@ class TimerSkill(MycroftSkill):
                 if len(self.active_timers) == 1:
                     self._play_beep()
                 else:
+                    name = timer['name'] or nice_duration(timer["duration"])
                     self.speak_dialog("timer.expired",
-                                      data={"name": timer["name"],
-                                            "ordinal":
-                                                self._get_speakable_ordinal(
-                                                    timer["ordinal"],
-                                                    timer["name"])})
+                                      data={"name": name,
+                                            "ordinal": self._get_speakable_ordinal(timer)})
                 timer["announced"] = True
 
     # TODO: Do we need this?
-    def _remove_phrase_from_string(self, phrase, string):
-        rx_string = r'\b' + re.escape(phrase) + r'\b'
-        string = re.sub(rx_string, '', string)
-        return string
+    # def _remove_phrase_from_string(self, phrase, string):
+    #     rx_string = r'\b' + re.escape(phrase) + r'\b'
+    #     string = re.sub(rx_string, '', string)
+    #     return string
 
     def render_timer(self, idx, seconds):
         display_owner = self.enclosure.display_manager.get_active()
@@ -444,26 +457,25 @@ class TimerSkill(MycroftSkill):
         time.sleep(0.25)
 
         now = datetime.now()
-        name = timer["name"] if timer["name"] is not None \
-                             else nice_duration(timer["duration"])
+        name = timer["name"] or nice_duration(timer["duration"])
         ordinal = timer["ordinal"]
 
         if timer and timer["expires"] < now:
             # expired, speak how long since it triggered
-            passed = nice_duration((now - timer["expires"]).seconds)
-            self.speak_dialog("time.elapsed",
-                              data={"name": name,
-                                    "passed_time": passed,
-                                    "ordinal": self._get_speakable_ordinal(
-                                        ordinal, name)})
+            time_diff = nice_duration((now - timer["expires"]).seconds)
+            dialog = 'time.elapsed'
         else:
             # speak remaining time
-            remaining = nice_duration((timer["expires"] - now).seconds)
-            self.speak_dialog("time.remaining",
-                              data={"name": name,
-                                    "remaining": remaining,
-                                    "ordinal": self._get_speakable_ordinal(
-                                        ordinal, name)})
+            time_diff = nice_duration((timer["expires"] - now).seconds)
+            dialog = 'time.remaining'
+
+        speakable_ord = self._get_speakable_ordinal(timer)
+        if speakable_ord != "":
+            dialog += '.ordinal'
+
+        self.speak_dialog(dialog, {"name": name,
+                                   "time_diff": time_diff,
+                                   "ordinal": speakable_ord})
         wait_while_speaking()
         self.enclosure.activate_mouth_events()
 
@@ -518,7 +530,7 @@ class TimerSkill(MycroftSkill):
         timer = {"name": timer_name,
                  "index": self.timer_index,
                  # keep track of ordinal until all timers of that name expire
-                 "ordinal": self._get_ordinal_of_timer(secs),
+                 "ordinal": self._get_ordinal_of_new_timer(secs),
                  "duration": secs,
                  "expires": time_expires,
                  "announced": False}
@@ -529,19 +541,19 @@ class TimerSkill(MycroftSkill):
         self.log.info("---------------------------------------")
 
         #~~ INFORM USER
-        if timer_name is not None:
-            prompt = ("started.timer.with.name" if len(self.active_timers) == 1
-                    else "started.another.timer.with.name")
+        if timer['ordinal'] > 1:
+            dialog = 'started.ordinal.timer'
+        elif len(self.active_timers) > 1:
+            dialog = 'started.another.timer'
         else:
-            prompt = ("started.timer" if len(self.active_timers) == 1
-                    else "started.another.timer")
-        # TODO Just pass in the timer object?
-        self.speak_dialog(prompt,
-                        data={"duration": nice_duration(timer["duration"]),
-                              "name": timer["name"],
-                              "ordinal": self._get_speakable_ordinal(
-                                  timer["ordinal"],
-                                  timer["name"])})
+            dialog = 'started.timer'
+        if timer['name'] is not None:
+            dialog += '.with.name'
+
+        self.speak_dialog(dialog,
+                          data={"duration": nice_duration(timer["duration"]),
+                                "name": timer["name"],
+                                "ordinal": self._get_speakable_ordinal(timer)})
 
         #~~ CLEANUP
         self.pickle()
@@ -563,6 +575,10 @@ class TimerSkill(MycroftSkill):
         self.handle_start_timer(message)
 
     # Handles 'How much time left'
+    @intent_file_handler('timer.status.intent')
+    def handle_status_timer_padatious(self, message):
+        self.handle_status_timer(message)
+
     @intent_handler(IntentBuilder("status.timer.intent").optionally("Query").
                 require("Status").one_of("Timer", "Time").optionally("All").
                 optionally("Duration").optionally("Name"))
@@ -588,8 +604,8 @@ class TimerSkill(MycroftSkill):
         if len(self.active_timers) == 1:
             timer_matches = self.active_timers
         else:
-            # get max 3 matches, unless user explicitly asks for all
-            timer_matches = self._get_timer_matches(utt, max_results=3)
+            # get max 2 matches, unless user explicitly asks for all
+            timer_matches = self._get_timer_matches(utt, max_results=2)
         if timer_matches is None:
             self.speak_dialog('timer.not.found')
         else:
@@ -612,39 +628,35 @@ class TimerSkill(MycroftSkill):
             # treat it like a stop button press
             self.stop()
         else:
-            utt = message.data["utterance"]
-            all_words = self.translate_list('all')
-            if (any(i.strip() in utt for i in all_words)):
-                message.data["All"] = all_words[0]
             self.handle_cancel_timer(message)
 
-    # TODO consolidate the two cancel timer handlers
     @intent_handler(IntentBuilder("").require("Cancel").require("Timer").
                     optionally("All").optionally("Duration").
                     optionally("Name"))
     def handle_cancel_timer(self, message=None):
+        utt = message.data['utterance']
         self.log.info("--------------------------------------")
         if message:
             for key in message.data:
                 self.log.info(f'handle_cancel_timer: {key}: {message.data[key]}')
         self.log.info("--------------------------------------")
-
-        utt = message.data['utterance']
         self.log.info(f'handle_cancel_timer: {utt}')
-        has_all = 'All' in message.data
+
+        all_words = self.translate_list('all')
+        self.log.info("message.data['All']: " + str(message.data.get('All')))
+        has_all = any(i.strip() in utt for i in all_words) or message.data.get('All')
         num_timers = len(self.active_timers)
+
         if num_timers == 0:
             self.speak_dialog("no.active.timer")
-            return
 
-        if not message or has_all:
-            # Either "cancel all" or from Stop button
+        elif not message or has_all:
             if num_timers == 1:
+                # Either "cancel all" or from Stop button
                 timer = self._get_next_timer()
                 self.speak_dialog("cancelled.single.timer")
             else:
-                self.speak_dialog('cancel.all',
-                                  data={"count": num_timers})
+                self.speak_dialog('cancel.all', data={"count": num_timers})
 
             # get duplicate so we can walk the list
             active_timers = list(self.active_timers)
@@ -663,16 +675,13 @@ class TimerSkill(MycroftSkill):
 
         elif num_timers > 1:
             dialog = 'ask.which.timer.cancel'
-
-            timer = self._get_timer_matches(utt, dialog)
+            timer = self._get_timer_matches(utt, dialog=dialog)
             if timer:
                 self.cancel_timer(timer)
                 duration = nice_duration(timer["duration"])
                 self.speak_dialog("cancelled.named.timer",
                                   data={"name": timer["name"],
-                                        "ordinal": self._get_speakable_ordinal(
-                                            timer["ordinal"],
-                                            timer["name"])})
+                                        "ordinal": self._get_speakable_ordinal(timer)})
                 self.pickle()   # save to disk
             else:
                 additional = ''
@@ -691,15 +700,13 @@ class TimerSkill(MycroftSkill):
                     self.handle_cancel_timer(message)
                     return
 
-                timer = self._get_timer_matches(which, dialog)
+                timer = self._get_timer_matches(which, dialog=dialog)
                 if timer:
                     self.cancel_timer(timer)
                     duration = nice_duration(timer["duration"])
                     self.speak_dialog("cancelled.named.timer",
                                     data={"name": timer["name"],
-                                            "ordinal": self._get_speakable_ordinal(
-                                                timer["ordinal"],
-                                                timer["name"])})
+                                            "ordinal": self._get_speakable_ordinal(timer)})
                     self.pickle()   # save to disk
                 else:
                     self.speak_dialog("timer.not.found")
@@ -727,7 +734,7 @@ class TimerSkill(MycroftSkill):
         timer = self._get_next_timer()
         if timer and timer["expires"] < datetime.now():
             # A timer is going off
-            if self.voc_match(utterances[0], "StopBeeping"):
+            if utterances and self.voc_match(utterances[0], "StopBeeping"):
                 # Stop the timer
                 self.stop()
                 return True  # and consume this phrase
