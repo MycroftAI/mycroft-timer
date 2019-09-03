@@ -225,14 +225,14 @@ class TimerSkill(MycroftSkill):
 
     def _get_timer_matches(self, utt, timers=None, max_results=1,
                            dialog='ask.which.timer'):
-        timers = timers or self.active_timers
         self.log.info("-----------GET-TIMER-----------")
+        timers = timers or self.active_timers
+        all_words = self.translate_list('all')
         # self.log.info("Utt initial: " + utt)
         if timers is None or len(timers) == 0:
             self.log.error("Cannot get match. No active timers.")
             return None
-        elif self.translate('all') in utt:
-            # TODO fix this check for 'all'
+        elif any(i.strip() in utt for i in all_words):
             return timers
         # self.log.info("timers: " + str(timers))
         duration, utt = self._extract_duration(utt)
