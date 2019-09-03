@@ -200,20 +200,17 @@ class TimerSkill(MycroftSkill):
                 next = timer
         return next
 
-    def _get_ordinal_of_timer(self, name, active_timers = None):
-        # Name the timer such that we add a "Second" or "Third" if you timers
-        # with the same name.
-        timer_map = [ t["ordinal"] if t["name"] == name else 0 for t in self.active_timers]
-        timer_count = 0
-        if len(timer_map) > 0:
-            timer_count = max(timer_map)
+    def _get_ordinal_of_timer(self, duration, timers=None):
+        # add a "Second" or "Third" of timers of same duration exist
+        timers = timers or self.active_timers
+        timer_count = sum(1 for t in timers if t["duration"] == duration)
         return timer_count + 1
 
     def _get_speakable_ordinal(self, ordinal, name):
         # Check if the timer with the following name is the only one
         # of its kind or has other timers with the same name
-        timer_map = [ t["ordinal"] if t["name"] == name else 0 for t in self.active_timers ]
-        if sum(timer_map) > 1 or ordinal > 1:
+        timer_count = sum(1 for t in self.active_timers if t["name"] == name)
+        if timer_count > 1 or ordinal > 1:
             return num2words(ordinal, to="ordinal", lang=self.lang)
         else:
             return ""
@@ -521,7 +518,7 @@ class TimerSkill(MycroftSkill):
         timer = {"name": timer_name,
                  "index": self.timer_index,
                  # keep track of ordinal until all timers of that name expire
-                 "ordinal": self._get_ordinal_of_timer(timer_name),
+                 "ordinal": self._get_ordinal_of_timer(secs),
                  "duration": secs,
                  "expires": time_expires,
                  "announced": False}
