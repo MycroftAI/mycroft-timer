@@ -146,9 +146,8 @@ class TimerSkill(MycroftSkill):
         try:
             num = extract_number(text, self.lang, ordinals=True)
             # TODO does this need to be converted to an int?
-            self.log.info('normal ord extraction: ' + str(num))
         except:
-            self.log.info(f'_extract_ordinal: ' +
+            self.log.debug('_extract_ordinal: ' +
                           'Error in extract_number process')
             pass
         if not num:
@@ -159,7 +158,7 @@ class TimerSkill(MycroftSkill):
                 if (results) and (results['Numeral']):
                     num = int(results['Numeral'])
             except:
-                self.log.info('_extract_ordinal: ' +
+                self.log.debug('_extract_ordinal: ' +
                               'Error in _read_ordinal_from_text process')
                 pass
         return num
@@ -176,7 +175,9 @@ class TimerSkill(MycroftSkill):
                     if res:
                         try:
                             # self.log.info('regex name extraction: ' + str(res.group("Name")))
-                            return res.group("Name")
+                            name = res.group("Name")
+                            if name and len(name.strip()) > 0:
+                                return name
                         except IndexError:
                             pass
         return None
