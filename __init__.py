@@ -237,6 +237,8 @@ class TimerSkill(MycroftSkill):
         # self.log.info("duration: " + str(duration))
         # self.log.info("Utt returned: " + utt)
         ordinal = self._extract_ordinal(utt)
+        timers_have_ordinals = any(t['ordinal'] > 1 for t in timers)
+        self.log.info("timers_have_ordinals: " + str(timers_have_ordinals))
         self.log.info("ordinal: " + str(ordinal))
         self.log.info("ordinal: " + str(type(ordinal)))
         name = self._get_timer_name(utt)
@@ -255,6 +257,7 @@ class TimerSkill(MycroftSkill):
             # self.log.info("name_matches:")
             # self.log.info(name_matches)
 
+        # TODO Test these branches
         if duration_matches and name_matches:
             matches = [t for t in name_matches if duration == t['duration']]
             # self.log.info("and_matches:")
@@ -268,15 +271,14 @@ class TimerSkill(MycroftSkill):
             # self.log.info("neither_matches:")
 
         if ordinal and len(matches) > 1:
-            # TODO if no matches have a stated ordinal, this should match index
             for match in matches:
-                # self.log.info(match)
-                if ordinal == match['ordinal']:
+                ord_to_match = (match['ordinal'] if timers_have_ordinals
+                                                 else match['index'])
+                if ordinal == ord_to_match:
                     return [match]
         elif len(matches) <= max_results:
             return matches
         elif len(matches) > max_results:
-            # TODO disambiguate here - probably still need recursion
             # TODO addition = the group currently spoken eg "5 minute timers" or "pasta timers"
             additional = ""
             speakable_matches = self._get_speakable_timer_list(matches)
