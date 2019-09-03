@@ -165,23 +165,17 @@ class TimerSkill(MycroftSkill):
         return num
 
     def _get_timer_name(self, utt):
-        self.log.info("FUNCTION: _get_timer_name")
-        # self.log.info(utt)
         rx_file = self.find_resource('name.rx', 'regex')
         if utt and rx_file:
             with open(rx_file) as f:
                 for pat in f.read().splitlines():
-                    self.log.info("Pattern: " + str(pat))
-                    self.log.info("Pattern type: " + str(type(pat)))
-                    self.log.info("Utt: " + str(utt))
-                    self.log.info("Utt type: " + str(type(utt)))
                     pat = pat.strip()
                     if pat and pat[0] == "#":
                         continue
                     res = re.search(pat, utt)
                     if res:
                         try:
-                            # self.log.info('res: ' + str(res.group("Name")))
+                            # self.log.info('regex name extraction: ' + str(res.group("Name")))
                             return res.group("Name")
                         except IndexError:
                             pass
@@ -214,10 +208,16 @@ class TimerSkill(MycroftSkill):
             return ""
 
     def _get_speakable_timer_list(self, timer_list):
-        # TODO handle speaking names if they exist
-        timer_list_with_ord = [ self._get_speakable_ordinal(t) + " " + nice_duration(t["duration"])
-                                for t in timer_list ]
-        names = join_list(timer_list_with_ord, self.translate("and"))
+        speakable_timer_list = []
+        for timer in timer_list:
+            dialog = 'timer.details'
+            if timer['name'] is not None:
+                dialog += '.named'
+            data = {'ordinal': self._get_speakable_ordinal(timer),
+                    'duration': nice_duration(timer["duration"]),
+                    'name': timer['name']}
+            speakable_timer_list.append(self.translate(dialog, data))
+        names = join_list(speakable_timer_list, self.translate("and"))
         return names
 
     def _get_timer_matches(self, utt, timers=None, max_results=1,
@@ -229,7 +229,7 @@ class TimerSkill(MycroftSkill):
         if timers is None or len(timers) == 0:
             self.log.error("Cannot get match. No active timers.")
             return None
-        elif any(i.strip() in utt for i in all_words):
+        elif utt and any(i.strip() in utt for i in all_words):
             return timers
         # self.log.info("timers: " + str(timers))
         duration, utt = self._extract_duration(utt)
@@ -244,34 +244,32 @@ class TimerSkill(MycroftSkill):
         duration_matches, name_matches = None, None
         if duration:
             duration_matches = [t for t in timers if duration == t['duration']]
-            self.log.info("duration_matches:")
-            self.log.info(duration_matches)
+            # self.log.info("duration_matches:")
+            # self.log.info(duration_matches)
         if name:
-            self.log.info("name: " + name)
+            # self.log.info("name: " + name)
             name_matches = [t for t in timers
                             if t['name']
                             and fuzzy_match(name,t['name']) > self.threshold]
-            self.log.info("name_matches:")
-            self.log.info(name_matches)
+            # self.log.info("name_matches:")
+            # self.log.info(name_matches)
 
         if duration_matches and name_matches:
             matches = [t for t in name_matches if duration == t['duration']]
-            self.log.info("and_matches:")
-            self.log.info(matches)
+            # self.log.info("and_matches:")
+            # self.log.info(matches)
         elif duration_matches or name_matches:
             matches = duration_matches or name_matches
-            self.log.info("or_matches:")
-            self.log.info(matches)
+            # self.log.info("or_matches:")
+            # self.log.info(matches)
         else:
             matches = timers
-            self.log.info("neither_matches:")
-        self.log.info("len(matches): " + str(len(matches)))
-        self.log.info("max_results: " + str(max_results))
+            # self.log.info("neither_matches:")
 
         if ordinal and len(matches) > 1:
             # TODO if no matches have a stated ordinal, this should match index
             for match in matches:
-                self.log.info(match)
+                # self.log.info(match)
                 if ordinal == match['ordinal']:
                     return [match]
         elif len(matches) <= max_results:
@@ -285,10 +283,13 @@ class TimerSkill(MycroftSkill):
                                       data={"count": len(matches),
                                             "names": speakable_matches,
                                             "additional": additional})
-            return self._get_timer_matches(reply, timers=matches,
-                                            dialog=dialog,
-                                            max_results=max_results)
-            return matches
+            if reply:
+                return self._get_timer_matches(reply,
+                                                   timers=matches,
+                                                   dialog=dialog,
+                                                   max_results=max_results)
+            else:
+                return "User Cancelled"
         else:
             return None
 
@@ -597,6 +598,8 @@ class TimerSkill(MycroftSkill):
         else:
             # get max 2 matches, unless user explicitly asks for all
             timer_matches = self._get_timer_matches(utt, max_results=2)
+        if timer_matches == "User Cancelled":
+            return
         if timer_matches is None:
             self.speak_dialog('timer.not.found')
         else:
