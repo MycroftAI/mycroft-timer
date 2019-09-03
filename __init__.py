@@ -226,11 +226,17 @@ class TimerSkill(MycroftSkill):
         names = join_list(timer_name_with_ordinal_list, self.translate("and"))
         return names
 
-    def _get_timer(self, utt, dialog):
-        # TODO remove dialog arg
+    def _get_timer_matches(self, utt, timers=None, max_results=1,
+                           dialog='ask.which.timer'):
+        timers = timers or self.active_timers
         self.log.info("-----------GET-TIMER-----------")
         # self.log.info("Utt initial: " + utt)
-        timers = self.active_timers
+        if timers is None or len(timers) == 0:
+            self.log.error("Cannot get match. No active timers.")
+            return None
+        elif self.translate('all') in utt:
+            # TODO fix this check for 'all'
+            return timers
         # self.log.info("timers: " + str(timers))
         duration, utt = self._extract_duration(utt)
         # self.log.info("duration: " + str(duration))
@@ -255,15 +261,23 @@ class TimerSkill(MycroftSkill):
         else:
             return None
 
-        if len(matches) > 1:
+        if ordinal and len(matches) > 1:
             for match in matches:
                 if ordinal == match['ordinal']:
-                    return match
-            else:
-                # TODO disambiguate here - probably still need recursion
-                return None
-        elif len(matches) == 1:
-            return matches[0]
+                    return [match]
+        elif len(matches) < max_results:
+            return matches
+        elif len(matches) > max_results:
+            # TODO disambiguate here - probably still need recursion
+            # names = self._get_speakable_timer_list(active_timer_temp)
+            # reply = self.get_response(dialog,
+            #                           data={"count": count,
+            #                                 "names": names,
+            #                                 "additional": additional})
+            # return self._get_timer_matches(reply, timers=matches,
+            #                                 dialog=dialog,
+            #                                 max_results=max_results)
+            return matches
         else:
             return None
 
@@ -464,7 +478,7 @@ class TimerSkill(MycroftSkill):
                 self._speak_timer(timer)
             return
         # Just speak status of given timer
-        timer = self._get_timer(timer_name, "ask.which.timer")
+        timer = self._get_timer_matches(timer_name, "ask.which.timer")
         return self._speak_timer(timer)
 
     #################################
@@ -565,9 +579,7 @@ class TimerSkill(MycroftSkill):
             self.speak_dialog("no.active.timer")
             return
 
-        # TODO is this sufficient to detect "all timers"
         utt = message.data["utterance"]
-        has_all = 'All' in message.data
 
         #self.log.info("-----------------------")
         #self.log.info("handle_status_timer: List of Active Timers")
@@ -575,49 +587,17 @@ class TimerSkill(MycroftSkill):
         #    self.log.info(f'{timer["index"]}: Timer: {timer["name"]} Ordinal: {timer["ordinal"]} Duration: {timer["duration"]}')
         #self.log.info("-----------------------")
 
-        requested_timer = _get_timer(utt)
-
+        # If asking about all, or only 1 timer exists then speak
         if len(self.active_timers) == 1:
-            self._speak_timer_status(None, has_all)
+            timer_matches = self.active_timers
         else:
-            self._multiple_timer_status(utt, has_all)
-
-    def _multiple_timer_status(self, utt, has_all):
-        # TODO RENAME - speak_multiple_timer_status?
-        """ Determines which timer to speak about
-
-            Args:
-                intent (dict): data from Message object
-        """
-        self.log.info("_multiple_timer_status")
-        self.log.info("Utt: " + str(utt))
-        dialog = 'ask.which.timer'
-
-        # Check if the Timer details are already in the utterance
-        # TODO REMOVE dialog as arg, if timer returned as None, decide what to do.
-        timer = self._get_timer(utt, dialog)
-
-        # If not in the first Utterance
-        if timer == None:
-            # If there are more than 3 timers, ask the user about
-            # the details of the timer
-            if len(self.active_timers) >= 3 and not has_all:
-                names = self._get_speakable_timer_list(self.active_timers)
-                which = self.get_response(dialog,
-                                          data={"count": len(self.active_timers),
-                                                "names": names,
-                                                "additional": ''})
-                if not which:
-                    return  # cancelled inquiry
-            # Else, speak all timer statuses
-            else:
-                which = None
-
-            self._speak_timer_status(which, has_all)
-
-        # Speak Timer status if it's already there
+            # get max 3 matches, unless user explicitly asks for all
+            timer_matches = self._get_timer_matches(utt, max_results=3)
+        if timer_matches is None:
+            self.speak_dialog('timer.not.found')
         else:
-            return self._speak_timer(timer)
+            for timer in timer_matches:
+                self._speak_timer(timer)
 
     @intent_handler(IntentBuilder("").require("Mute").require("Timer"))
     def handle_mute_timer(self, message):
@@ -687,7 +667,7 @@ class TimerSkill(MycroftSkill):
         elif num_timers > 1:
             dialog = 'ask.which.timer.cancel'
 
-            timer = self._get_timer(utt, dialog)
+            timer = self._get_timer_matches(utt, dialog)
             if timer:
                 self.cancel_timer(timer)
                 duration = nice_duration(timer["duration"])
@@ -714,7 +694,7 @@ class TimerSkill(MycroftSkill):
                     self.handle_cancel_timer(message)
                     return
 
-                timer = self._get_timer(which, dialog)
+                timer = self._get_timer_matches(which, dialog)
                 if timer:
                     self.cancel_timer(timer)
                     duration = nice_duration(timer["duration"])
