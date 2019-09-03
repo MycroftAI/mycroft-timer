@@ -677,8 +677,9 @@ class TimerSkill(MycroftSkill):
 
         elif num_timers > 1:
             dialog = 'ask.which.timer.cancel'
-            timer = self._get_timer_matches(utt, dialog=dialog)
+            timer = self._get_timer_matches(utt, dialog=dialog, max_results=1)
             if timer:
+                timer = timer[0]
                 self.cancel_timer(timer)
                 duration = nice_duration(timer["duration"])
                 self.speak_dialog("cancelled.named.timer",
@@ -718,6 +719,11 @@ class TimerSkill(MycroftSkill):
 
     def cancel_timer(self, timer):
         # Cancel given timer
+        self.log.info("---------CANCEL TIMER---------")
+        self.log.info(timer)
+        self.log.info("active_timers:")
+        for t in self.active_timers:
+            self.log.info(t)
         if timer:
             self.active_timers.remove(timer)
             if len(self.active_timers) == 0:
