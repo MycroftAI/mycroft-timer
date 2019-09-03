@@ -1,2 +1,3 @@
+\bfor.* (called|for|named) (?P<Name>.*)
 \b(called|for|named) (?P<Name>.*)
-status of (?P<Name>.*) timer
+\b(a|of) (?P<Name>.*) timer

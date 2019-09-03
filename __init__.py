@@ -75,7 +75,7 @@ class TimerSkill(MycroftSkill):
         self.display_idx = None
 
         # Threshold score for Fuzzy Logic matching for Timer Name
-        self.THRESHOLD = 0.7
+        self.threshold = 0.7
 
     def initialize(self):
         self.register_entity_file('duration.entity')
@@ -176,10 +176,10 @@ class TimerSkill(MycroftSkill):
         if utt and rx_file:
             with open(rx_file) as f:
                 for pat in f.read().splitlines():
-                    # self.log.info("Pattern: " + str(pat))
-                    # self.log.info("Pattern type: " + str(type(pat)))
-                    # self.log.info("Utt: " + str(utt))
-                    # self.log.info("Utt type: " + str(type(utt)))
+                    self.log.info("Pattern: " + str(pat))
+                    self.log.info("Pattern type: " + str(type(pat)))
+                    self.log.info("Utt: " + str(utt))
+                    self.log.info("Utt type: " + str(type(utt)))
                     pat = pat.strip()
                     if pat and pat[0] == "#":
                         continue
@@ -252,7 +252,11 @@ class TimerSkill(MycroftSkill):
             self.log.info("duration_matches:")
             self.log.info(duration_matches)
         if name:
-            name_matches = [t for t in timers if name == t['name']]
+            self.log.info("name: " + name)
+            name_matches = [t for t in timers
+                            if t['name']
+                            and fuzzy_match(name,t['name']) > self.threshold]
+            # name_matches = [t for t in timers if name == t['name']]
             self.log.info("name_matches:")
             self.log.info(name_matches)
 
@@ -271,6 +275,7 @@ class TimerSkill(MycroftSkill):
         self.log.info("max_results: " + str(max_results))
 
         if ordinal and len(matches) > 1:
+            # TODO if no matches have a stated ordinal, this should match index
             for match in matches:
                 self.log.info(match)
                 if ordinal == match['ordinal']:
@@ -292,6 +297,18 @@ class TimerSkill(MycroftSkill):
             return matches
         else:
             return None
+
+    # def _get_name_matches(self, timer, name, threshold):
+    #     name_split = name.split()
+    #     timer_name_len = len(timers["name"].split())
+    #     score_best = 0
+    #     for i in range(len(name_split) - timer_name_len, -1, -1):
+    #         name_comp = ' '.join(name_split[i:i + timer_name_len])
+    #         score_curr = fuzzy_match(name_comp, timers["name"])
+    #
+    #         if score_curr > score_best and score_curr >= threshold:
+    #             score_best = score_curr
+    #     return score_best
 
     def update_display(self, message):
         # Get the next triggering timer
@@ -594,11 +611,11 @@ class TimerSkill(MycroftSkill):
 
         utt = message.data["utterance"]
 
-        #self.log.info("-----------------------")
-        #self.log.info("handle_status_timer: List of Active Timers")
-        #for timer in self.active_timers:
-        #    self.log.info(f'{timer["index"]}: Timer: {timer["name"]} Ordinal: {timer["ordinal"]} Duration: {timer["duration"]}')
-        #self.log.info("-----------------------")
+        self.log.info("-----------------------")
+        self.log.info("handle_status_timer: List of Active Timers")
+        for timer in self.active_timers:
+           self.log.info(f'{timer["index"]}: Timer: {timer["name"]} Ordinal: {timer["ordinal"]} Duration: {timer["duration"]}')
+        self.log.info("-----------------------")
 
         # If asking about all, or only 1 timer exists then speak
         if len(self.active_timers) == 1:
