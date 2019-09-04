@@ -518,6 +518,8 @@ class TimerSkill(MycroftSkill):
     ######################################################################
     # INTENT HANDLERS
 
+    @intent_handler(IntentBuilder("start.timer").require("Timer")
+                    .optionally("Start").optionally("Connector"))
     def handle_start_timer(self, message):
         """ Common handler for start_timer intents
         """
@@ -591,19 +593,13 @@ class TimerSkill(MycroftSkill):
         # reset the mute flag with a new timer
         self.mute = False
 
-    # Handles most utterances eg 'start 30 minute timer'
-    @intent_handler(IntentBuilder("start.timer.intent").require("Start").
-                optionally("Connector").require("Timer"))
-    def handle_start_timer_required(self, message):
+    # Handles custom start phrases eg 'ping me in 5 minutes'
+    @intent_file_handler('start.timer.intent')
+    def handle_start_timer_padatious(self, message):
+        self.log.info('handle_start_timer_padatious')
         self.handle_start_timer(message)
 
-    # Handles simpler '40 minute timer'
-    @intent_handler(IntentBuilder("start.timer.simple.intent").
-                optionally("Start").optionally("Connector").require("Timer"))
-    def handle_start_timer_simple(self, message):
-        self.handle_start_timer(message)
-
-    # Handles custom phrases eg 'How much time left'
+    # Handles custom status phrases eg 'How much time left'
     @intent_file_handler('timer.status.intent')
     def handle_status_timer_padatious(self, message):
         self.handle_status_timer(message)

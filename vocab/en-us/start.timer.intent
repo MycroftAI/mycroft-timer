@@ -1,4 +1,1 @@
-({start} )({connector} |)timer( for {duration}|)( (called|named|for) {name}|)
-({start} )({connector} |)timer( for {name}|)( {duration} long|)
-({start} )({connector} |)({duration} |)timer( (called|named|for) {name}|)
-({start} )({connector} |)({duration} |)({name} |)timer
+ping me in {duration}
