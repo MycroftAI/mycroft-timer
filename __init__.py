@@ -154,7 +154,9 @@ class TimerSkill(MycroftSkill):
             try:
                 # Should be removed if the extract_number() function can
                 # parse ordinals already e.g. 1st, 3rd, 69th, etc.
-                results = re.match(r'\b((?P<Numeral>\d+)(st|nd|rd|th))\b', text)
+                regex = re.compile(r'\b((?P<Numeral>\d+)(st|nd|rd|th))\b')
+                results = re.search(regex, text)
+                self.log.info(results)
                 if (results) and (results['Numeral']):
                     num = int(results['Numeral'])
             except:
@@ -666,7 +668,6 @@ class TimerSkill(MycroftSkill):
         elif num_timers > 1:
             dialog = 'ask.which.timer.cancel'
             timer = self._get_timer_matches(utt, dialog=dialog, max_results=1)
-            self.log.info(timer)
             if timer:
                 if timer == "User Cancelled":
                     self.log.debug("User cancelled or did not respond")
