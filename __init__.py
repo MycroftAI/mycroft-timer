@@ -77,7 +77,7 @@ class TimerSkill(MycroftSkill):
         self.threshold = 0.7
 
     def initialize(self):
-        self.register_entity_file('duration.entity')
+        # self.register_entity_file('duration.entity')
         #self.register_entity_file('timervalue.entity')
 
         self.unpickle()
@@ -156,7 +156,6 @@ class TimerSkill(MycroftSkill):
                 # parse ordinals already e.g. 1st, 3rd, 69th, etc.
                 regex = re.compile(r'\b((?P<Numeral>\d+)(st|nd|rd|th))\b')
                 results = re.search(regex, text)
-                self.log.info(results)
                 if (results) and (results['Numeral']):
                     num = int(results['Numeral'])
             except:
