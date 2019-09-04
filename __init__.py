@@ -77,9 +77,6 @@ class TimerSkill(MycroftSkill):
         self.threshold = 0.7
 
     def initialize(self):
-        # self.register_entity_file('duration.entity')
-        #self.register_entity_file('timervalue.entity')
-
         self.unpickle()
 
         # Invoke update_display in one second to allow it to disable the
@@ -139,13 +136,15 @@ class TimerSkill(MycroftSkill):
         return None, text
 
     def _extract_ordinal(self, text):
+        """ Extract ordinal from text
+        Remove once extract_number supports short ordinal format eg '2nd'
+        """
         num = None
         if text is None or len(text) == 0:
             return None
 
         try:
             num = extract_number(text, self.lang, ordinals=True)
-            # TODO does this need to be converted to an int?
         except:
             self.log.debug('_extract_ordinal: ' +
                           'Error in extract_number process')
@@ -157,14 +156,16 @@ class TimerSkill(MycroftSkill):
                 regex = re.compile(r'\b((?P<Numeral>\d+)(st|nd|rd|th))\b')
                 results = re.search(regex, text)
                 if (results) and (results['Numeral']):
-                    num = int(results['Numeral'])
+                    num = results['Numeral']
             except:
                 self.log.debug('_extract_ordinal: ' +
                               'Error in regex search')
                 pass
-        return num
+        return int(num)
 
     def _get_timer_name(self, utt):
+        """ Get the timer name using regex on an utterance
+        """
         rx_file = self.find_resource('name.rx', 'regex')
         if utt and rx_file:
             with open(rx_file) as f:
@@ -184,7 +185,8 @@ class TimerSkill(MycroftSkill):
         return None
 
     def _get_next_timer(self):
-        # Retrieve the next timer set to trigger
+        """ Retrieve the next timer set to trigger
+        """
         next = None
         for timer in self.active_timers:
             if not next or timer["expires"] < next["expires"]:
@@ -192,14 +194,15 @@ class TimerSkill(MycroftSkill):
         return next
 
     def _get_ordinal_of_new_timer(self, duration, timers=None):
-        # add a "Second" or "Third" of timers of same duration exist
+        """ Get ordinal based on existing timer durations
+        """
         timers = timers or self.active_timers
         timer_count = sum(1 for t in timers if t["duration"] == duration)
         return timer_count + 1
 
     def _get_speakable_ordinal(self, timer):
-        # Check if the timer with the following duration is the only one
-        # of its kind or has other timers with the same duration
+        """ Get speakable ordinal if other timers exist with same duration
+        """
         timers = self.active_timers
         ordinal = timer['ordinal']
         duration = timer['duration']
@@ -210,6 +213,8 @@ class TimerSkill(MycroftSkill):
             return ""
 
     def _get_speakable_timer_list(self, timer_list):
+        """ Get timer list as speakable string
+        """
         speakable_timer_list = []
         for timer in timer_list:
             dialog = 'timer.details'
@@ -224,6 +229,17 @@ class TimerSkill(MycroftSkill):
 
     def _get_timer_matches(self, utt, timers=None, max_results=1,
                            dialog='ask.which.timer', is_response=False):
+        """ Get list of timers that match based on a user utterance
+            Args:
+                utt (str): string spoken by the user
+                timers (list): list of timers to match against
+                max_results (int): max number of results desired
+                dialog (str): name of dialog file used for disambiguation
+                is_response (bool): is this being called by get_response
+            Returns:
+                (str): ["Matched", "No Match Found", or "User Cancelled"]
+                (list): list of matched timers
+        """
         # self.log.info("-----------GET-TIMER-----------")
         timers = timers or self.active_timers
         all_words = self.translate_list('all')
@@ -445,8 +461,10 @@ class TimerSkill(MycroftSkill):
                 x += 4
 
     def _speak_timer(self, timer):
-        # If _speak_timer receives timer = None, it assumes that timer
-        # wasn't found, and not there was no active timers
+        """ Speak the status of individual timer either remaining or elapsed.
+        """
+        # If _speak_timer receives timer = None, it assumes that
+        # timer wasn't found, and not there was no active timers
         if timer is None:
             self.speak_dialog("timer.not.found")
             return
@@ -481,7 +499,8 @@ class TimerSkill(MycroftSkill):
         self.enclosure.activate_mouth_events()
 
     def _speak_timer_status(self, timer_name, has_all):
-        # self.log.info("_speak_timer_status")
+        """ Determine which timers to speak - all or specific timer
+        """
         # Check if utterance has "All"
         if (timer_name is None or has_all):
             for timer in self.active_timers:
@@ -495,6 +514,8 @@ class TimerSkill(MycroftSkill):
     # INTENT HANDLERS
 
     def handle_start_timer(self, message):
+        """ Common handler for start_timer intents
+        """
         utt = message.data["utterance"]
         #~~ GET TIMER DURATION
         secs, utt_remaining = self._extract_duration(utt)
@@ -565,17 +586,19 @@ class TimerSkill(MycroftSkill):
         # reset the mute flag with a new timer
         self.mute = False
 
+    # Handles most utterances eg 'start 30 minute timer'
     @intent_handler(IntentBuilder("start.timer.intent").require("Start").
                 optionally("Connector").require("Timer"))
     def handle_start_timer_required(self, message):
         self.handle_start_timer(message)
 
+    # Handles simpler '40 minute timer'
     @intent_handler(IntentBuilder("start.timer.simple.intent").
                 optionally("Start").optionally("Connector").require("Timer"))
     def handle_start_timer_simple(self, message):
         self.handle_start_timer(message)
 
-    # Handles 'How much time left'
+    # Handles custom phrases eg 'How much time left'
     @intent_file_handler('timer.status.intent')
     def handle_status_timer_padatious(self, message):
         self.handle_status_timer(message)
@@ -686,6 +709,8 @@ class TimerSkill(MycroftSkill):
         #       after itself nicely.
 
     def cancel_timer(self, timer):
+        """ Actually cancels the given timer
+        """
         # Cancel given timer
         if timer:
             self.active_timers.remove(timer)
