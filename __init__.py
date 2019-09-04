@@ -144,22 +144,25 @@ class TimerSkill(MycroftSkill):
             return None
 
         try:
+            self.log.info('extract_number(ordinals=True)')
             num = extract_number(text, self.lang, ordinals=True)
             # TODO does this need to be converted to an int?
         except:
-            self.log.debug('_extract_ordinal: ' +
+            self.log.info('_extract_ordinal: ' +
                           'Error in extract_number process')
             pass
         if not num:
             try:
+                self.log.info('extract_number with regex')
                 # Should be removed if the extract_number() function can
                 # parse ordinals already e.g. 1st, 3rd, 69th, etc.
-                results = regex.search(r'(?b)\b((?P<Numeral>\d+)(st|nd|rd|th))\b', text)
+                results = re.match(r'\b((?P<Numeral>\d+)(st|nd|rd|th))\b', text)
+                self.log.info("results: " + str(results))
                 if (results) and (results['Numeral']):
                     num = int(results['Numeral'])
             except:
-                self.log.debug('_extract_ordinal: ' +
-                              'Error in _read_ordinal_from_text process')
+                self.log.info('_extract_ordinal: ' +
+                              'Error in regex search')
                 pass
         return num
 
@@ -223,7 +226,7 @@ class TimerSkill(MycroftSkill):
 
     def _get_timer_matches(self, utt, timers=None, max_results=1,
                            dialog='ask.which.timer', is_response=False):
-        self.log.info("-----------GET-TIMER-----------")
+        # self.log.info("-----------GET-TIMER-----------")
         timers = timers or self.active_timers
         all_words = self.translate_list('all')
         # self.log.info("Utt initial: " + utt)
@@ -253,25 +256,25 @@ class TimerSkill(MycroftSkill):
             # self.log.info("duration_matches:")
             # self.log.info(duration_matches)
         if name:
-            self.log.info("name: " + name)
+            # self.log.info("name: " + name)
             name_matches = [t for t in timers
                             if t['name']
                             and fuzzy_match(name,t['name']) > self.threshold]
-            self.log.info("name_matches:")
-            self.log.info(name_matches)
+            # self.log.info("name_matches:")
+            # self.log.info(name_matches)
 
         # TODO Test these branches
         if duration_matches and name_matches:
             matches = [t for t in name_matches if duration == t['duration']]
-            self.log.info("and_matches:")
-            self.log.info(matches)
+            # self.log.info("and_matches:")
+            # self.log.info(matches)
         elif duration_matches or name_matches:
             matches = duration_matches or name_matches
-            self.log.info("or_matches:")
-            self.log.info(matches)
+            # self.log.info("or_matches:")
+            # self.log.info(matches)
         else:
             matches = timers
-            self.log.info("neither_matches:")
+            # self.log.info("neither_matches:")
 
         if ordinal and len(matches) > 1:
             for match in matches:
@@ -480,7 +483,7 @@ class TimerSkill(MycroftSkill):
         self.enclosure.activate_mouth_events()
 
     def _speak_timer_status(self, timer_name, has_all):
-        self.log.info("_speak_timer_status")
+        # self.log.info("_speak_timer_status")
         # Check if utterance has "All"
         if (timer_name is None or has_all):
             for timer in self.active_timers:
@@ -535,10 +538,10 @@ class TimerSkill(MycroftSkill):
                  "expires": time_expires,
                  "announced": False}
         self.active_timers.append(timer)
-        self.log.info("-------------TIMER-CREATED-------------")
+        self.log.debug("-------------TIMER-CREATED-------------")
         for key in timer:
-            self.log.info(f'creating timer: {key}: {timer[key]}')
-        self.log.info("---------------------------------------")
+            self.log.debug(f'creating timer: {key}: {timer[key]}')
+        self.log.debug("---------------------------------------")
 
         #~~ INFORM USER
         if timer['ordinal'] > 1:
@@ -583,10 +586,10 @@ class TimerSkill(MycroftSkill):
                 require("Status").one_of("Timer", "Time").optionally("All").
                 optionally("Duration").optionally("Name"))
     def handle_status_timer(self, message):
-        self.log.info("--------------------------------------")
+        self.log.debug("--------------------------------------")
         for key in message.data:
-            self.log.info(f'handle_status_timer: {key}: {message.data[key]}')
-        self.log.info("--------------------------------------")
+            self.log.debug(f'handle_status_timer: {key}: {message.data[key]}')
+        self.log.debug("--------------------------------------")
 
         if not self.active_timers:
             self.speak_dialog("no.active.timer")
@@ -594,11 +597,11 @@ class TimerSkill(MycroftSkill):
 
         utt = message.data["utterance"]
 
-        self.log.info("-----------------------")
-        self.log.info("handle_status_timer: List of Active Timers")
+        self.log.debug("-----------------------")
+        self.log.debug("handle_status_timer: List of Active Timers")
         for timer in self.active_timers:
-           self.log.info(f'{timer["index"]}: Timer: {timer["name"]} Ordinal: {timer["ordinal"]} Duration: {timer["duration"]}')
-        self.log.info("-----------------------")
+           self.log.debug(f'{timer["index"]}: Timer: {timer["name"]} Ordinal: {timer["ordinal"]} Duration: {timer["duration"]}')
+        self.log.debug("-----------------------")
 
         # If asking about all, or only 1 timer exists then speak
         if len(self.active_timers) == 1:
@@ -620,10 +623,6 @@ class TimerSkill(MycroftSkill):
 
     @intent_file_handler('stop.timer.intent')
     def handle_stop_timer(self, message):
-        self.log.info("--------------------------------------")
-        for key in message.data:
-            self.log.info(f'handle_stop_timer: {key}: {message.data[key]}')
-        self.log.info("--------------------------------------")
         timer = self._get_next_timer()
         if timer and timer["expires"] < datetime.now():
             # Timer is beeping requiring no confirmation reaction,
@@ -637,15 +636,7 @@ class TimerSkill(MycroftSkill):
                     optionally("Name"))
     def handle_cancel_timer(self, message=None):
         utt = message.data['utterance']
-        self.log.info("--------------------------------------")
-        if message:
-            for key in message.data:
-                self.log.info(f'handle_cancel_timer: {key}: {message.data[key]}')
-        self.log.info("--------------------------------------")
-        self.log.info(f'handle_cancel_timer: {utt}')
-
         all_words = self.translate_list('all')
-        self.log.info("message.data['All']: " + str(message.data.get('All')))
         has_all = any(i.strip() in utt for i in all_words) or message.data.get('All')
         num_timers = len(self.active_timers)
 
@@ -719,11 +710,6 @@ class TimerSkill(MycroftSkill):
 
     def cancel_timer(self, timer):
         # Cancel given timer
-        self.log.info("---------CANCEL TIMER---------")
-        self.log.info(timer)
-        self.log.info("active_timers:")
-        for t in self.active_timers:
-            self.log.info(t)
         if timer:
             self.active_timers.remove(timer)
             if len(self.active_timers) == 0:
