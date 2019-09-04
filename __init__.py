@@ -653,9 +653,8 @@ class TimerSkill(MycroftSkill):
         else:
             self.handle_cancel_timer(message)
 
-    @intent_handler(IntentBuilder("").require("Cancel").require("Timer").
-                    optionally("All").optionally("Duration").
-                    optionally("Name"))
+    @intent_handler(IntentBuilder("").require("Cancel").require("Timer")
+                    .optionally("All"))
     def handle_cancel_timer(self, message=None):
         utt = message.data['utterance']
         all_words = self.translate_list('all')
