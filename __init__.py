@@ -144,24 +144,21 @@ class TimerSkill(MycroftSkill):
             return None
 
         try:
-            self.log.info('extract_number(ordinals=True)')
             num = extract_number(text, self.lang, ordinals=True)
             # TODO does this need to be converted to an int?
         except:
-            self.log.info('_extract_ordinal: ' +
+            self.log.debug('_extract_ordinal: ' +
                           'Error in extract_number process')
             pass
         if not num:
             try:
-                self.log.info('extract_number with regex')
                 # Should be removed if the extract_number() function can
                 # parse ordinals already e.g. 1st, 3rd, 69th, etc.
                 results = re.match(r'\b((?P<Numeral>\d+)(st|nd|rd|th))\b', text)
-                self.log.info("results: " + str(results))
                 if (results) and (results['Numeral']):
                     num = int(results['Numeral'])
             except:
-                self.log.info('_extract_ordinal: ' +
+                self.log.debug('_extract_ordinal: ' +
                               'Error in regex search')
                 pass
         return num
@@ -669,7 +666,11 @@ class TimerSkill(MycroftSkill):
         elif num_timers > 1:
             dialog = 'ask.which.timer.cancel'
             timer = self._get_timer_matches(utt, dialog=dialog, max_results=1)
+            self.log.info(timer)
             if timer:
+                if timer == "User Cancelled":
+                    self.log.debug("User cancelled or did not respond")
+                    return
                 timer = timer[0]
                 self.cancel_timer(timer)
                 duration = nice_duration(timer["duration"])
@@ -677,33 +678,9 @@ class TimerSkill(MycroftSkill):
                                   data={"name": timer["name"],
                                         "ordinal": self._get_speakable_ordinal(timer)})
                 self.pickle()   # save to disk
+
             else:
-                additional = ''
-                names = self._get_speakable_timer_list(self.active_timers)
-                which = self.get_response(dialog,
-                                            data={"count": num_timers,
-                                                "names": names,
-                                                "additional": additional})
-                if not which:
-                    return  # user Cancelled the Cancel
-
-                # Check if they replied "all", "all timers", "both", etc.
-                all_words = self.translate_list('all')
-                if (which and any(i.strip() in which for i in all_words)):
-                    message.data["All"] = all_words[0]
-                    self.handle_cancel_timer(message)
-                    return
-
-                timer = self._get_timer_matches(which, dialog=dialog)
-                if timer:
-                    self.cancel_timer(timer)
-                    duration = nice_duration(timer["duration"])
-                    self.speak_dialog("cancelled.named.timer",
-                                    data={"name": timer["name"],
-                                            "ordinal": self._get_speakable_ordinal(timer)})
-                    self.pickle()   # save to disk
-                else:
-                    self.speak_dialog("timer.not.found")
+                self.speak_dialog("timer.not.found")
 
         # NOTE: This allows 'ShowTimer' to continue running, it will clean up
         #       after itself nicely.
@@ -755,12 +732,11 @@ class TimerSkill(MycroftSkill):
             return True
 
         elif self.active_timers:
-            # This is a little tricky.  We shouldn't initiate
-            # dialog during Stop handling (there is confusion
-            # between stopping speech and starting new conversations).
-            # Instead, we'll just consider this Stop consumed and
-            # post a message that will immediately be handled to
-            # ask the user if they want to cancel.
+            # This is a little tricky.  We shouldn't initiate dialog
+            # during Stop handling (there is confusion between stopping speech
+            # and starting new conversations). Instead, we'll just consider
+            # this Stop consumed and post a message that will immediately
+            # be handled to ask the user if they want to cancel.
             self.bus.emit(Message("skill.mycrofttimer.verify.cancel"))
             return True
 
