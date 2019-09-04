@@ -129,10 +129,13 @@ class TimerSkill(MycroftSkill):
         # Deal with that before calling extract_duration().
         # TODO: Fix inside parsers
         utt = text.replace("-", " ")
+        duration, str_remainder = extract_duration(utt, self.lang)
+        if duration:
+            # Remove "  and" left behind from "for 1 hour and 30 minutes"
+            # prevents it being interpretted as a name "for  and"
+            str_remainder = re.sub(r'\s\sand', '', str_remainder, flags=re.I)
+            return duration.total_seconds(), str_remainder
 
-        (dur_remainder, str_remainder) = extract_duration(utt, self.lang)
-        if dur_remainder:
-            return dur_remainder.total_seconds(), str_remainder
         return None, text
 
     def _extract_ordinal(self, text):
