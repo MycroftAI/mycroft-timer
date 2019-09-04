@@ -240,7 +240,7 @@ class TimerSkill(MycroftSkill):
                 dialog (str): name of dialog file used for disambiguation
                 is_response (bool): is this being called by get_response
             Returns:
-                (str): ["Matched", "No Match Found", or "User Cancelled"]
+                (str): ["All", "Matched", "No Match Found", or "User Cancelled"]
                 (list): list of matched timers
         """
         # self.log.info("-----------GET-TIMER-----------")
@@ -249,9 +249,9 @@ class TimerSkill(MycroftSkill):
         # self.log.info("Utt initial: " + utt)
         if timers is None or len(timers) == 0:
             self.log.error("Cannot get match. No active timers.")
-            return None
+            return ("No Match Found", None)
         elif utt and any(i.strip() in utt for i in all_words):
-            return timers
+            return ("All", None)
         # self.log.info("timers: " + str(timers))
         duration, utt = self._extract_duration(utt)
         # self.log.info("duration: " + str(duration))
@@ -298,9 +298,9 @@ class TimerSkill(MycroftSkill):
                 ord_to_match = (match['ordinal'] if timers_have_ordinals
                                                  else match['index'])
                 if ordinal == ord_to_match:
-                    return [match]
+                    return ("Match Found", [match])
         elif len(matches) <= max_results:
-            return matches
+            return ("Match Found", matches)
         elif len(matches) > max_results:
             # TODO addition = the group currently spoken eg "5 minute timers" or "pasta timers"
             additional = ""
@@ -317,9 +317,9 @@ class TimerSkill(MycroftSkill):
                                                    max_results=max_results,
                                                    is_response=True)
             else:
-                return "User Cancelled"
+                return ("User Cancelled", None)
         else:
-            return None
+            return ("No Match Found", None)
 
     def update_display(self, message):
         # Get the next triggering timer
@@ -510,8 +510,10 @@ class TimerSkill(MycroftSkill):
                 self._speak_timer(timer)
             return
         # Just speak status of given timer
-        timer = self._get_timer_matches(timer_name, "ask.which.timer")
-        return self._speak_timer(timer)
+        result, timers = self._get_timer_matches(timer_name)
+        if result == "No Match Found":
+            self.speak_dialog('timer.not.found')
+        return self._speak_timer(timers[0])
 
     ######################################################################
     # INTENT HANDLERS
@@ -632,9 +634,9 @@ class TimerSkill(MycroftSkill):
             timer_matches = self.active_timers
         else:
             # get max 2 matches, unless user explicitly asks for all
-            timer_matches = self._get_timer_matches(utt, max_results=2)
-        if timer_matches == "User Cancelled":
-            return
+            result, timer_matches = self._get_timer_matches(utt, max_results=2)
+            if result == "User Cancelled":
+                return
         if timer_matches is None:
             self.speak_dialog('timer.not.found')
         else:
@@ -692,9 +694,10 @@ class TimerSkill(MycroftSkill):
 
         elif num_timers > 1:
             dialog = 'ask.which.timer.cancel'
-            timer = self._get_timer_matches(utt, dialog=dialog, max_results=1)
+            result, timer = self._get_timer_matches(utt, dialog=dialog,
+                                                    max_results=1)
             if timer:
-                if timer == "User Cancelled":
+                if result == "User Cancelled":
                     self.log.debug("User cancelled or did not respond")
                     return
                 timer = timer[0]
