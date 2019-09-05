@@ -604,7 +604,14 @@ class TimerSkill(MycroftSkill):
     def handle_status_timer_padatious(self, message):
         self.handle_status_timer(message)
 
-    @intent_handler(IntentBuilder("status.timer.intent").optionally("Query").
+    # Handles "do I have any timers" etc
+    @intent_handler(IntentBuilder("status.timer.query").require("Query").
+                optionally("Status").require("Timer").optionally("All"))
+    def handle_query_status_timer(self, message):
+        self.handle_status_timer(message)
+
+    # Handles "timer status", "status of timers" etc
+    @intent_handler(IntentBuilder("status.timer").optionally("Query").
                 require("Status").one_of("Timer", "Time").optionally("All").
                 optionally("Duration").optionally("Name"))
     def handle_status_timer(self, message):
