@@ -148,6 +148,9 @@ class TimerSkill(MycroftSkill):
 
         try:
             num = extract_number(text, self.lang, ordinals=True)
+            # attempt to remove extracted ordinal
+            spoken_ord = num2words(int(num), to="ordinal", lang=self.lang)
+            utt = text.replace(spoken_ord,"")
         except:
             self.log.debug('_extract_ordinal: ' +
                           'Error in extract_number process')
@@ -157,23 +160,26 @@ class TimerSkill(MycroftSkill):
                 # Should be removed if the extract_number() function can
                 # parse ordinals already e.g. 1st, 3rd, 69th, etc.
                 regex = re.compile(r'\b((?P<Numeral>\d+)(st|nd|rd|th))\b')
-                results = re.search(regex, text)
-                if (results) and (results['Numeral']):
-                    num = results['Numeral']
+                result = re.search(regex, text)
+                if (result) and (result['Numeral']):
+                    num = result['Numeral']
+                    utt = text.replace(result,"")
             except:
                 self.log.debug('_extract_ordinal: ' +
                               'Error in regex search')
                 pass
-        return int(num)
+        return (int(num), utt)
 
     def _get_timer_name(self, utt):
         """ Get the timer name using regex on an utterance
         """
+        # self.log.info("Utt: " + utt)
         rx_file = self.find_resource('name.rx', 'regex')
         if utt and rx_file:
             with open(rx_file) as f:
                 for pat in f.read().splitlines():
                     pat = pat.strip()
+                    # self.log.info("Pattern: " + pat)
                     if pat and pat[0] == "#":
                         continue
                     res = re.search(pat, utt)
@@ -243,60 +249,75 @@ class TimerSkill(MycroftSkill):
                 (str): ["All", "Matched", "No Match Found", or "User Cancelled"]
                 (list): list of matched timers
         """
-        # self.log.info("-----------GET-TIMER-----------")
+        DEBUG = False
+        if DEBUG:
+            self.log.info("-----------GET-TIMER-----------")
+            self.log.info("Utt initial: " + utt)
         timers = timers or self.active_timers
         all_words = self.translate_list('all')
-        # self.log.info("Utt initial: " + utt)
         if timers is None or len(timers) == 0:
             self.log.error("Cannot get match. No active timers.")
             return ("No Match Found", None)
         elif utt and any(i.strip() in utt for i in all_words):
             return ("All", None)
-        # self.log.info("timers: " + str(timers))
         duration, utt = self._extract_duration(utt)
-        # self.log.info("duration: " + str(duration))
-        # self.log.info("Utt returned: " + utt)
-        ordinal = self._extract_ordinal(utt)
+        ordinal, utt = self._extract_ordinal(utt)
         timers_have_ordinals = any(t['ordinal'] > 1 for t in timers)
-        # self.log.info("timers_have_ordinals: " + str(timers_have_ordinals))
-        # self.log.info("ordinal: " + str(ordinal))
-        # self.log.info("ordinal: " + str(type(ordinal)))
         name = self._get_timer_name(utt)
         if is_response and name == None:
             # Catch direct naming of a timer when asked eg "pasta"
             name = utt
-        # self.log.info("name: " + str(name))
+
+        if DEBUG:
+            self.log.info("timers: " + str(timers))
+            self.log.info("duration: " + str(duration))
+            self.log.info("Utt returned: " + utt)
+            self.log.info("timers_have_ordinals: " + str(timers_have_ordinals))
+            self.log.info("ordinal: " + str(ordinal))
+            self.log.info("ordinal: " + str(type(ordinal)))
+            self.log.info("name: " + str(name))
 
         duration_matches, name_matches = None, None
         if duration:
             duration_matches = [t for t in timers if duration == t['duration']]
-            # self.log.info("duration_matches:")
-            # self.log.info(duration_matches)
+
         if name:
-            # self.log.info("name: " + name)
             name_matches = [t for t in timers
                             if t['name']
                             and fuzzy_match(name,t['name']) > self.threshold]
-            # self.log.info("name_matches:")
-            # self.log.info(name_matches)
+        if DEBUG:
+            if duration:
+                self.log.info("duration_matches:")
+                self.log.info(duration_matches)
+            if name:
+                self.log.info("name: " + name)
+                self.log.info("name_matches:")
+                self.log.info(name_matches)
 
         # TODO Test these branches
         if duration_matches and name_matches:
             matches = [t for t in name_matches if duration == t['duration']]
-            # self.log.info("and_matches:")
-            # self.log.info(matches)
         elif duration_matches or name_matches:
             matches = duration_matches or name_matches
-            # self.log.info("or_matches:")
-            # self.log.info(matches)
         else:
             matches = timers
-            # self.log.info("neither_matches:")
+
+        if DEBUG:
+            if duration_matches and name_matches:
+                self.log.info("and_matches:")
+                self.log.info(matches)
+            elif duration_matches or name_matches:
+                self.log.info("or_matches:")
+                self.log.info(matches)
+            else:
+                self.log.info("neither_matches:")
 
         if ordinal and len(matches) > 1:
-            for match in matches:
+            for idx, match in enumerate(matches):
+                # should instead set to match['index'] if index gets reported
+                # in timer description.
                 ord_to_match = (match['ordinal'] if timers_have_ordinals
-                                                 else match['index'])
+                                                 else (idx + 1))
                 if ordinal == ord_to_match:
                     return ("Match Found", [match])
         elif len(matches) <= max_results:
@@ -318,8 +339,8 @@ class TimerSkill(MycroftSkill):
                                                    is_response=True)
             else:
                 return ("User Cancelled", None)
-        else:
-            return ("No Match Found", None)
+
+        return ("No Match Found", None)
 
     def update_display(self, message):
         # Get the next triggering timer
@@ -626,11 +647,11 @@ class TimerSkill(MycroftSkill):
 
         utt = message.data["utterance"]
 
-        self.log.debug("-----------------------")
-        self.log.debug("handle_status_timer: List of Active Timers")
+        self.log.info("-----------------------")
+        self.log.info("handle_status_timer: List of Active Timers")
         for timer in self.active_timers:
-           self.log.debug(f'{timer["index"]}: Timer: {timer["name"]} Ordinal: {timer["ordinal"]} Duration: {timer["duration"]}')
-        self.log.debug("-----------------------")
+           self.log.info(f'{timer["index"]}: Timer: {timer["name"]} Ordinal: {timer["ordinal"]} Duration: {timer["duration"]}')
+        self.log.info("-----------------------")
 
         # If asking about all, or only 1 timer exists then speak
         if len(self.active_timers) == 1:
