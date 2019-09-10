@@ -1,2 +1,2 @@
-(The|) timer for {{name}} is up
-{{name}} timer is up
+(The|) {{ordinal}} timer for {{duration}} is up
+{{ordinal}} {{duration}} timer is up

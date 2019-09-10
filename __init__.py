@@ -430,10 +430,18 @@ class TimerSkill(MycroftSkill):
                 if len(self.active_timers) == 1:
                     self._play_beep()
                 else:
-                    name = timer['name'] or nice_duration(timer["duration"])
-                    self.speak_dialog("timer.expired",
-                                      data={"name": name,
-                                            "ordinal": self._get_speakable_ordinal(timer)})
+                    duration = nice_duration(timer["duration"])
+                    name = timer['name']
+                    speakable_ord = self._get_speakable_ordinal(timer)
+                    dialog = 'timer.expired'
+                    if name:
+                        dialog += '.named'
+                    if speakable_ord != "":
+                        dialog += '.ordinal'
+                    self.speak_dialog(dialog,
+                                      data={"duration": duration,
+                                            "name": name,
+                                            "ordinal": speakable_ord})
                 timer["announced"] = True
 
     def render_timer(self, idx, seconds):
@@ -513,7 +521,8 @@ class TimerSkill(MycroftSkill):
         time.sleep(0.25)
 
         now = datetime.now()
-        name = timer["name"] or nice_duration(timer["duration"])
+        duration = nice_duration(timer["duration"])
+        name = timer["name"]
         ordinal = timer["ordinal"]
 
         if timer and timer["expires"] < now:
@@ -525,11 +534,14 @@ class TimerSkill(MycroftSkill):
             time_diff = nice_duration((timer["expires"] - now).seconds)
             dialog = 'time.remaining'
 
+        if name:
+            dialog += '.named'
         speakable_ord = self._get_speakable_ordinal(timer)
         if speakable_ord != "":
-            dialog += '.ordinal'
+            dialog += '.with.ordinal'
 
-        self.speak_dialog(dialog, {"name": name,
+        self.speak_dialog(dialog, {"duration": duration,
+                                   "name": name,
                                    "time_diff": time_diff,
                                    "ordinal": speakable_ord})
         wait_while_speaking()
