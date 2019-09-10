@@ -573,7 +573,7 @@ class TimerSkill(MycroftSkill):
         self.active_timers.append(timer)
         self.log.debug("-------------TIMER-CREATED-------------")
         for key in timer:
-            self.log.debug(f'creating timer: {key}: {timer[key]}')
+            self.log.debug('creating timer: {}: {}'.format(key, timer[key]))
         self.log.debug("---------------------------------------")
 
         #~~ INFORM USER
