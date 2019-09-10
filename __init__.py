@@ -648,11 +648,12 @@ class TimerSkill(MycroftSkill):
 
         utt = message.data["utterance"]
 
-        self.log.info("-----------------------")
-        self.log.info("handle_status_timer: List of Active Timers")
-        for timer in self.active_timers:
-           self.log.info(f'{timer["index"]}: Timer: {timer["name"]} Ordinal: {timer["ordinal"]} Duration: {timer["duration"]}')
-        self.log.info("-----------------------")
+        if self.DEBUG:
+            self.log.info("-----------------------")
+            self.log.info("handle_status_timer: List of Active Timers")
+            for timer in self.active_timers:
+               self.log.info(f'{timer["index"]}: Timer: {timer["name"]} Ordinal: {timer["ordinal"]} Duration: {timer["duration"]}')
+            self.log.info("-----------------------")
 
         # If asking about all, or only 1 timer exists then speak
         if len(self.active_timers) == 1:
@@ -689,7 +690,7 @@ class TimerSkill(MycroftSkill):
             self.handle_cancel_timer(message)
 
     @intent_handler(IntentBuilder("").require("Cancel").require("Timer")
-                    .optionally("All"))
+                    .optionally("Connector").optionally("All"))
     def handle_cancel_timer(self, message=None):
         if self.DEBUG:
             self.log.info("--------------------------------------")
