@@ -62,6 +62,7 @@ except ImportError:
 class TimerSkill(MycroftSkill):
     def __init__(self):
         super(TimerSkill, self).__init__("TimerSkill")
+        self.DEBUG = True
         self.active_timers = []
         self.beep_repeat_period = 10
         self.sound_file = join(abspath(dirname(__file__)), 'twoBeep.wav')
@@ -253,8 +254,7 @@ class TimerSkill(MycroftSkill):
                 (str): ["All", "Matched", "No Match Found", or "User Cancelled"]
                 (list): list of matched timers
         """
-        DEBUG = False
-        if DEBUG:
+        if self.DEBUG:
             self.log.info("-----------GET-TIMER-----------")
             self.log.info("Utt initial: " + utt)
         timers = timers or self.active_timers
@@ -272,7 +272,7 @@ class TimerSkill(MycroftSkill):
             # Catch direct naming of a timer when asked eg "pasta"
             name = utt
 
-        if DEBUG:
+        if self.DEBUG:
             self.log.info("timers: " + str(timers))
             self.log.info("duration: " + str(duration))
             self.log.info("Utt returned: " + utt)
@@ -289,7 +289,7 @@ class TimerSkill(MycroftSkill):
             name_matches = [t for t in timers
                             if t['name']
                             and fuzzy_match(name,t['name']) > self.threshold]
-        if DEBUG:
+        if self.DEBUG:
             if duration:
                 self.log.info("duration_matches:")
                 self.log.info(duration_matches)
@@ -306,7 +306,7 @@ class TimerSkill(MycroftSkill):
         else:
             matches = timers
 
-        if DEBUG:
+        if self.DEBUG:
             if duration_matches and name_matches:
                 self.log.info("and_matches:")
                 self.log.info(matches)
@@ -674,17 +674,30 @@ class TimerSkill(MycroftSkill):
 
     @intent_file_handler('stop.timer.intent')
     def handle_stop_timer(self, message):
+        if self.DEBUG:
+            self.log.info('HANDLER: stop.timer.intent')
         timer = self._get_next_timer()
         if timer and timer["expires"] < datetime.now():
             # Timer is beeping requiring no confirmation reaction,
             # treat it like a stop button press
             self.stop()
+        elif message and message.data.get('utterance') == "cancel":
+            # No expired timers to clear
+            # Don't cancel active timers with only "cancel" as utterance
+            return
         else:
             self.handle_cancel_timer(message)
 
     @intent_handler(IntentBuilder("").require("Cancel").require("Timer")
                     .optionally("All"))
     def handle_cancel_timer(self, message=None):
+        if self.DEBUG:
+            self.log.info("--------------------------------------")
+            self.log.info('HANDLER: Adapt: Cancel + Timer')
+            self.log.info("--------------------------------------")
+            for key in message.data:
+                self.log.info(f'{key}: {message.data[key]}')
+            self.log.info("--------------------------------------")
         if message:
             utt = message.data['utterance']
             all_words = self.translate_list('all')
