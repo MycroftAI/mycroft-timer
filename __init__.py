@@ -299,10 +299,13 @@ class TimerSkill(MycroftSkill):
                 self.log.info(name_matches)
 
         # TODO Test these branches
-        if duration_matches and name_matches:
-            matches = [t for t in name_matches if duration == t['duration']]
-        elif duration_matches or name_matches:
-            matches = duration_matches or name_matches
+        if name or duration:
+            if duration_matches and name_matches:
+                matches = [t for t in name_matches if duration == t['duration']]
+            elif duration_matches or name_matches:
+                matches = duration_matches or name_matches
+            else:
+                return ("No Match Found", None)
         else:
             matches = timers
 
@@ -323,8 +326,14 @@ class TimerSkill(MycroftSkill):
                 ord_to_match = (match['ordinal'] if timers_have_ordinals
                                                  else (idx + 1))
                 if ordinal == ord_to_match:
+                    if self.DEBUG:
+                        self.log.info("1. ordinal match")
+                        self.log.info(match)
                     return ("Match Found", [match])
         elif len(matches) <= max_results:
+            if self.DEBUG:
+                self.log.info("2. range of matches")
+                self.log.info(matches)
             return ("Match Found", matches)
         elif len(matches) > max_results:
             # TODO addition = the group currently spoken eg "5 minute timers" or "pasta timers"
@@ -342,7 +351,8 @@ class TimerSkill(MycroftSkill):
                                                is_response=True)
             else:
                 return ("User Cancelled", None)
-
+        if self.DEBUG:
+            self.log.info("3. No matches")
         return ("No Match Found", None)
 
     def update_display(self, message):
@@ -724,13 +734,23 @@ class TimerSkill(MycroftSkill):
             self.pickle()   # save to disk
 
         elif num_timers == 1:
-            # TODO: Cancel if there is a spoken name and it is a mismatch?
+            # Check if utt included details and it is a mismatch
             # E.g. "Cancel the 5 minute timer" when it's a 7 minute timer
-            timer = self._get_next_timer()
-            self.cancel_timer(timer)
-            duration = nice_duration(timer["duration"])
-            self.speak_dialog("cancelled.single.timer")
-            self.pickle()   # save to disk
+            result, timer = self._get_timer_matches(utt, max_results=1)
+            if timer is not None:
+                timer = timer[0]
+            else:
+                # If mismatched confirm to cancel the current timer
+                next_timer = self._get_next_timer()
+                duration = nice_duration(next_timer["duration"])
+                name = next_timer["name"] or duration
+                if self.ask_yesno('confirm.timer.to.cancel',
+                                  data={"name": name}) == 'yes':
+                    timer = next_timer
+            if timer is not None:
+                self.cancel_timer(timer)
+                self.speak_dialog("cancelled.single.timer")
+                self.pickle()   # save to disk
 
         elif num_timers > 1:
             dialog = 'ask.which.timer.cancel'
@@ -743,9 +763,10 @@ class TimerSkill(MycroftSkill):
                 timer = timer[0]
                 self.cancel_timer(timer)
                 duration = nice_duration(timer["duration"])
+                name = timer["name"] or duration
+                ordinal = self._get_speakable_ordinal(timer)
                 self.speak_dialog("cancelled.named.timer",
-                                  data={"name": timer["name"],
-                                        "ordinal": self._get_speakable_ordinal(timer)})
+                                  data={"name": name, "ordinal": ordinal})
                 self.pickle()   # save to disk
 
             else:
