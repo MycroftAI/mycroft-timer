@@ -593,8 +593,6 @@ class TimerSkill(MycroftSkill):
         #~~ INFORM USER
         if timer['ordinal'] > 1:
             dialog = 'started.ordinal.timer'
-        elif len(self.active_timers) > 1:
-            dialog = 'started.another.timer'
         else:
             dialog = 'started.timer'
         if timer['name'] is not None:
