@@ -625,7 +625,8 @@ class TimerSkill(MycroftSkill):
         # reset the mute flag with a new timer
         self.mute = False
 
-    # Handles custom start phrases eg 'ping me in 5 minutes'
+    # Handles custom start phrases eg "ping me in 5 minutes"
+    # Also over matches Common Play for "start timer" utterances
     @intent_file_handler('start.timer.intent')
     def handle_start_timer_padatious(self, message):
         self.log.info('handle_start_timer_padatious')

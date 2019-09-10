@@ -1,1 +1,7 @@
 ping me in {duration}
+start a timer
+start a timer for {duration}
+start a timer (for|called|named) {name}
+start a {duration} timer
+start a {duration} timer (for|called|named) {name}
+start a timer (for|called|named) {name} for {duration}

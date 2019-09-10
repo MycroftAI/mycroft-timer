@@ -1,3 +1,4 @@
 \bfor.* (called|for|named) (?P<Name>.*)
+\b(called|for|named) (?P<Name>.*) for
 \b(called|for|named) (?P<Name>.*)
 \b(a|of|the) (?P<Name>.*) timer
