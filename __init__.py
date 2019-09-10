@@ -674,9 +674,15 @@ class TimerSkill(MycroftSkill):
             result, timer_matches = self._get_timer_matches(utt, max_results=2)
             if result == "User Cancelled":
                 return
+
+        # Speak the relevant dialog
         if timer_matches is None:
             self.speak_dialog('timer.not.found')
         else:
+            number_of_timers = len(timer_matches)
+            if number_of_timers > 1:
+                num = pronounce_number(number_of_timers)
+                self.speak_dialog('number.of.timers', {'num': num})
             for timer in timer_matches:
                 self._speak_timer(timer)
 
