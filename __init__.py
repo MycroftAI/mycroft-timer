@@ -229,7 +229,11 @@ class TimerSkill(MycroftSkill):
             dialog = 'timer.details'
             if timer['name'] is not None:
                 dialog += '.named'
-            data = {'ordinal': self._get_speakable_ordinal(timer),
+            ordinal = (None if timer['ordinal'] <= 1
+                       else self._get_speakable_ordinal(timer))
+            if ordinal is not None:
+                dialog += '.with.ordinal'
+            data = {'ordinal': ordinal,
                     'duration': nice_duration(timer["duration"]),
                     'name': timer['name']}
             speakable_timer_list.append(self.translate(dialog, data))
