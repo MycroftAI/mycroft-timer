@@ -334,13 +334,12 @@ class TimerSkill(MycroftSkill):
                                       data={"count": len(matches),
                                             "names": speakable_matches,
                                             "additional": additional})
-            wait_while_speaking()
             if reply:
                 return self._get_timer_matches(reply,
-                                                   timers=matches,
-                                                   dialog=dialog,
-                                                   max_results=max_results,
-                                                   is_response=True)
+                                               timers=matches,
+                                               dialog=dialog,
+                                               max_results=max_results,
+                                               is_response=True)
             else:
                 return ("User Cancelled", None)
 
@@ -723,10 +722,10 @@ class TimerSkill(MycroftSkill):
             dialog = 'ask.which.timer.cancel'
             result, timer = self._get_timer_matches(utt, dialog=dialog,
                                                     max_results=1)
+            if result == "User Cancelled":
+                self.log.debug("User cancelled or did not respond")
+                return
             if timer:
-                if result == "User Cancelled":
-                    self.log.debug("User cancelled or did not respond")
-                    return
                 timer = timer[0]
                 self.cancel_timer(timer)
                 duration = nice_duration(timer["duration"])
