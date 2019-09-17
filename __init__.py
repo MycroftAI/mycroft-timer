@@ -253,7 +253,7 @@ class TimerSkill(MycroftSkill):
             Returns:
                 (str): ["All", "Matched", "No Match Found", or "User Cancelled"]
                 (list): list of matched timers
-        """
+        """        
         timers = timers or self.active_timers
         all_words = self.translate_list('all')
         if timers is None or len(timers) == 0:
@@ -261,10 +261,22 @@ class TimerSkill(MycroftSkill):
             return ("No Match Found", None)
         elif utt and any(i.strip() in utt for i in all_words):
             return ("All", None)
-        duration, utt = self._extract_duration(utt)
-        ordinal, utt = self._extract_ordinal(utt)
+        
+        extracted_duration = self._extract_duration(utt)
+        if extracted_duration:
+            duration, utt = extracted_duration
+        else:
+            duration = extracted_duration
+            
+        extracted_ordinal = self._extract_ordinal(utt)
+        if extracted_ordinal:
+            ordinal, utt = extracted_ordinal
+        else:
+            ordinal = extracted_ordinal
+            
         timers_have_ordinals = any(t['ordinal'] > 1 for t in timers)
         name = self._get_timer_name(utt)
+        
         if is_response and name == None:
             # Catch direct naming of a timer when asked eg "pasta"
             name = utt
@@ -283,6 +295,8 @@ class TimerSkill(MycroftSkill):
                 matches = [t for t in name_matches if duration == t['duration']]
             elif duration_matches or name_matches:
                 matches = duration_matches or name_matches
+            elif ordinal > 0 and not(duration_matches or name_matches):
+                matches = timers
             else:
                 return ("No Match Found", None)
         else:
@@ -292,7 +306,8 @@ class TimerSkill(MycroftSkill):
             for idx, match in enumerate(matches):
                 # should instead set to match['index'] if index gets reported
                 # in timer description.
-                ord_to_match = (match['ordinal'] if timers_have_ordinals
+                ord_to_match = (match['ordinal'] if timers_have_ordinals and\
+                                                    duration_matches
                                                  else (idx + 1))
                 if ordinal == ord_to_match:
                     return ("Match Found", [match])
