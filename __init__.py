@@ -277,6 +277,8 @@ class TimerSkill(MycroftSkill):
         timers_have_ordinals = any(t['ordinal'] > 1 for t in timers)
         name = self._get_timer_name(utt)
         
+        self.log.info(f'_get_timer_matches: Name: {name}')
+        
         if is_response and name == None:
             # Catch direct naming of a timer when asked eg "pasta"
             name = utt
@@ -286,9 +288,11 @@ class TimerSkill(MycroftSkill):
             duration_matches = [t for t in timers if duration == t['duration']]
 
         if name:
-            name_matches = [t for t in timers
-                            if t['name']
-                            and fuzzy_match(name,t['name']) > self.threshold]
+            name_matches = [t for t in timers if t['name'] and \
+                            self._fuzzy_match_word_from_phrase(t['name'],
+                                                               name,
+                                                               self.threshold)
+                            ]
 
         if name or duration:
             if duration_matches and name_matches:
@@ -330,6 +334,28 @@ class TimerSkill(MycroftSkill):
             else:
                 return ("User Cancelled", None)
         return ("No Match Found", None)
+    
+    def _fuzzy_match_word_from_phrase(self, word, phrase, threshold):
+        self.log.info(f'_fuzzy_match_word_from_phrase: Word: {word}')
+        self.log.info(f'_fuzzy_match_word_from_phrase: Phrase: {phrase}')
+        self.log.info(f'_fuzzy_match_word_from_phrase: Threshold: {threshold}')
+        matched = False
+        score = 0
+        phrase_split = phrase.split(' ')
+        word_split_len = len(word.split(' '))
+        
+        for i in range(len(phrase_split) - word_split_len, -1, -1):
+            phrase_comp = ' '.join(phrase_split[i:i + word_split_len])
+            score_curr = fuzzy_match(phrase_comp, word.lower())
+            
+            self.log.info(f'_fuzzy_match_word_from_phrase: Comparing: {phrase_comp} - {word.lower()} = {score_curr}')
+            
+            if score_curr > score and score_curr >= threshold:
+                score = score_curr
+                matched = True
+                
+        return matched
+        
 
     def update_display(self, message):
         # Get the next triggering timer
