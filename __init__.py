@@ -185,9 +185,9 @@ class TimerSkill(MycroftSkill):
                     res = re.search(pat, utt)
                     if res:
                         try:
+                            name = res.group("Name").strip()
                             self.log.debug('Regex name extracted: '
-                                           + str(res.group("Name")))
-                            name = res.group("Name")
+                                           + name)
                             if name and len(name.strip()) > 0:
                                 return name
                         except IndexError:
@@ -579,8 +579,9 @@ class TimerSkill(MycroftSkill):
         #~~ GET TIMER NAME
         if utt_remaining is not None and len(utt_remaining) > 0:
             timer_name = self._get_timer_name(utt_remaining)
-            if self._check_duplicate_timer_name(timer_name):
-                return # make another timer with a different name
+            if timer_name:
+                if self._check_duplicate_timer_name(timer_name):
+                    return # make another timer with a different name
         else:
             timer_name = None
 
