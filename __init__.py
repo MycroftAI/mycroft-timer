@@ -579,6 +579,8 @@ class TimerSkill(MycroftSkill):
         #~~ GET TIMER NAME
         if utt_remaining is not None and len(utt_remaining) > 0:
             timer_name = self._get_timer_name(utt_remaining)
+            if self._check_duplicate_timer_name(timer_name):
+                return # make another timer with a different name
         else:
             timer_name = None
 
@@ -631,6 +633,17 @@ class TimerSkill(MycroftSkill):
         self.update_display(None)
         # reset the mute flag with a new timer
         self.mute = False
+        
+    def _check_duplicate_timer_name(self, name):
+        for timer in self.active_timers:
+            if timer['name'] and (name.lower() == timer['name'].lower()):
+                now = datetime.now()
+                time_diff = nice_duration((timer['expires'] - now).seconds)
+                self.speak_dialog('timer.duplicate.name',
+                                  data={"name": timer["name"],
+                                        "duration": time_diff})
+                return True
+        return False
 
     # Handles custom start phrases eg "ping me in 5 minutes"
     # Also over matches Common Play for "start timer" utterances
