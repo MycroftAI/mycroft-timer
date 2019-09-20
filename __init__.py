@@ -253,7 +253,7 @@ class TimerSkill(MycroftSkill):
             Returns:
                 (str): ["All", "Matched", "No Match Found", or "User Cancelled"]
                 (list): list of matched timers
-        """        
+        """
         timers = timers or self.active_timers
         all_words = self.translate_list('all')
         if timers is None or len(timers) == 0:
@@ -261,22 +261,22 @@ class TimerSkill(MycroftSkill):
             return ("No Match Found", None)
         elif utt and any(i.strip() in utt for i in all_words):
             return ("All", None)
-        
+
         extracted_duration = self._extract_duration(utt)
         if extracted_duration:
             duration, utt = extracted_duration
         else:
             duration = extracted_duration
-            
+
         extracted_ordinal = self._extract_ordinal(utt)
         if extracted_ordinal:
             ordinal, utt = extracted_ordinal
         else:
             ordinal = extracted_ordinal
-            
+
         timers_have_ordinals = any(t['ordinal'] > 1 for t in timers)
         name = self._get_timer_name(utt)
-        
+
         if is_response and name == None:
             # Catch direct naming of a timer when asked eg "pasta"
             name = utt
@@ -332,23 +332,23 @@ class TimerSkill(MycroftSkill):
             else:
                 return ("User Cancelled", None)
         return ("No Match Found", None)
-    
+
     def _fuzzy_match_word_from_phrase(self, word, phrase, threshold):
         matched = False
         score = 0
         phrase_split = phrase.split(' ')
         word_split_len = len(word.split(' '))
-        
+
         for i in range(len(phrase_split) - word_split_len, -1, -1):
             phrase_comp = ' '.join(phrase_split[i:i + word_split_len])
             score_curr = fuzzy_match(phrase_comp, word.lower())
-            
+
             if score_curr > score and score_curr >= threshold:
                 score = score_curr
                 matched = True
-                
+
         return matched
-        
+
 
     def update_display(self, message):
         # Get the next triggering timer
@@ -634,7 +634,7 @@ class TimerSkill(MycroftSkill):
         self.update_display(None)
         # reset the mute flag with a new timer
         self.mute = False
-        
+
     def _check_duplicate_timer_name(self, name):
         for timer in self.active_timers:
             if timer['name'] and (name.lower() == timer['name'].lower()):
@@ -770,9 +770,17 @@ class TimerSkill(MycroftSkill):
                 self.cancel_timer(timer)
                 duration = nice_duration(timer["duration"])
                 name = timer["name"] or duration
-                ordinal = self._get_speakable_ordinal(timer)
-                self.speak_dialog("cancelled.named.timer",
-                                  data={"name": name, "ordinal": ordinal})
+                speakable_ord = self._get_speakable_ordinal(timer)
+                name = timer["name"]
+                dialog = "cancelled.timer"
+                if name:
+                    dialog += '.named'
+                if speakable_ord != "":
+                    dialog += '.with.ordinal'
+                self.speak_dialog(dialog,
+                                  data={"duration": duration,
+                                        "name": name,
+                                        "ordinal": speakable_ord})
                 self.pickle()   # save to disk
 
             else:
