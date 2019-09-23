@@ -171,7 +171,10 @@ class TimerSkill(MycroftSkill):
         return (int(num), utt)
 
     def _get_timer_name(self, utt):
-        """ Get the timer name using regex on an utterance
+        """ Get the timer name using regex on an utterance.
+            For translations, for the last item on name.rx,
+            edit the words for Negative Lookbehind from the
+            Connector.voc file
         """
         self.log.debug("Utterance being searched: " + utt)
         rx_file = self.find_resource('name.rx', 'regex')
