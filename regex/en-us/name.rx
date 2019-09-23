@@ -2,4 +2,5 @@
 \b(called|for|named) (?P<Name>.*) for
 \b(called|for|named) (?P<Name>.*)
 \b^.*(a|of|the) (?P<Name>.*) timer
-\b^.* (?P<Name>.*)(?<!another)(?<!one more)(?<!a) timer$
+\b^.* (?P<Name>.*)(?<!a)(?<!another)(?<!any)(?<!my)(?<!one more)(?<!our)(?<!the) timer$
+
