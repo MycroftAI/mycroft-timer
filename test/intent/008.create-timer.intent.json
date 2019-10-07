@@ -1,6 +1,5 @@
 {
     "utterance": "start a 1 hour timer",
-    "intent_type": "start.timer.intent",
-    "expected_dialog": "started.another.timer",
+    "expected_dialog": "started.timer",
     "evaluation_timeout": 10
 }

@@ -1,14 +1,7 @@
-(Start|Set|Create|Begin|I need|Give me) (a|another|a second|) timer
-(Start|Set|Create|Begin|I need|Give me) (a|another|a second|) (##-second|##-hour|##-minute) timer.
-(Start|Set|Create|Begin|I need|Give me) (a|another|a second|) (##-second|##-hour|##-minute) timer (called|named|for) {name}.
-(Start|Set|Create|Begin|I need|Give me) (a|another|a second|) {duration} timer.
-(Start|Set|Create|Begin|I need|Give me) (a|another|a second|) {duration} timer (called|named|for) {name}.
-(Start|Set|Create|Begin|I need|Give me) (a|another|a second|) timer for {duration}.
-(Start|Set|Create|Begin|I need|Give me) (a|another|a second|) timer for {duration} (called|named|for) {name}.
-Timer (for|) {duration}.
-Timer for {duration} (called|named|for) {name}.
-{duration} timer.
-{duration} timer (called|named|for) {name}.
-Count {duration} for me.
-Time {duration} for me.
-
+ping me in {duration}
+(start|create) (a|) timer
+(start|create) (a|) timer for {duration}
+(start|create) (a|) timer (for|called|named) {name}
+(start|create) (a|) {duration} timer
+(start|create) (a|) {duration} timer (for|called|named) {name}
+(start|create) (a|) timer (for|called|named) {name} for {duration}
