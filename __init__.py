@@ -616,13 +616,14 @@ class TimerSkill(MycroftSkill):
                 return  # user cancelled
 
         #~~ GET TIMER NAME
+        timer_name = None
         if utt_remaining is not None and len(utt_remaining) > 0:
             timer_name = self._get_timer_name(utt_remaining)
-            if timer_name:
-                if self._check_duplicate_timer_name(timer_name):
-                    return # make another timer with a different name
+        if timer_name is None:
+            timer_name = 'timer ' + str(len(self.active_timers) + 1)
         else:
-            timer_name = None
+            if self._check_duplicate_timer_name(timer_name):
+                return # make another timer with a different name
 
         #~~ SHOULD IT BE AN ALARM?
         # TODO: add name of alarm if available?
@@ -657,7 +658,7 @@ class TimerSkill(MycroftSkill):
             dialog = 'started.ordinal.timer'
         else:
             dialog = 'started.timer'
-        if timer['name'] is not None:
+        if timer['name'] is not None and timer_name != 'timer 1':
             dialog += '.with.name'
 
         self.speak_dialog(dialog,
@@ -835,8 +836,7 @@ class TimerSkill(MycroftSkill):
             self.active_timers.remove(timer)
             if len(self.active_timers) == 0:
                 self.timer_index = 0  # back to zero timers
-                self.log.info('***** stopping timer screen *****')
-                self.gui.stop_screen()
+            self.gui.stop_screen(data=dict(timer_name=timer['name']))
             self.enclosure.eyes_on()  # reset just in case
 
     def shutdown(self):
