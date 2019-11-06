@@ -37,9 +37,6 @@ try:
 except ImportError:
     from mycroft.skills.skill_data import to_letters as to_alnum
 
-ONE_HOUR = 3600
-ONE_MINUTE = 60
-
 # TESTS
 #  0: cancel all timers
 #  1: start a timer > 1 minute
@@ -414,12 +411,10 @@ class TimerSkill(MycroftSkill):
             # Timer still running
             remaining = (timer["expires"] - now).seconds
             self.render_timer(idx, remaining)
-            self._display_timer(timer, remaining)
         else:
             # Timer has expired but not been cleared, flash eyes
             overtime = (now - timer["expires"]).seconds
             self.render_timer(idx, -overtime)
-            self._display_timer(timer, -overtime)
 
             if timer["announced"]:
                 # beep again every 10 seconds
@@ -458,19 +453,27 @@ class TimerSkill(MycroftSkill):
         else:
             expired = False
 
-        remaining_time = self._build_time_remaining_string(seconds)
-        if seconds > ONE_HOUR:
+        hours = seconds // (60*60)  # hours
+        rem = seconds % (60*60)
+        minutes = rem // 60  # minutes
+        seconds = rem % 60
+        if hours > 0:
+            # convert to h:mm:ss
+            time = (str(hours) + ":"+str(minutes).zfill(2) +
+                    ":"+str(seconds).zfill(2))
             # account of colons being smaller
-            pixel_width = len(remaining_time)*4 - 2*2 + 6
+            pixel_width = len(time)*4 - 2*2 + 6
         else:
+            # convert to m:ss
+            time = str(minutes).zfill(2)+":"+str(seconds).zfill(2)
             # account of colons being smaller
-            pixel_width = len(remaining_time)*4 - 2 + 6
+            pixel_width = len(time)*4 - 2 + 6
 
         x = (4*8 - pixel_width) // 2  # centers on display
         if expired:
-            remaining_time = "-"+remaining_time
+            time = "-"+time
         else:
-            remaining_time = " "+remaining_time
+            time = " "+time
 
         if idx:
             # If there is an index to show, display at the left
@@ -479,7 +482,7 @@ class TimerSkill(MycroftSkill):
             x += 6
 
         # draw on the display
-        for ch in remaining_time:
+        for ch in time:
             # deal with some odd characters that can break filesystems
             if ch == ":":
                 png = "colon.png"
@@ -496,48 +499,6 @@ class TimerSkill(MycroftSkill):
                 x += 2
             else:
                 x += 4
-
-    def _display_timer(self, timer, remaining_seconds):
-        """Send a bus message to display the data on a Mark 2 or similar."""
-        remaining_time = self._build_time_remaining_string(remaining_seconds)
-        if remaining_seconds < 0:
-            remaining_time = '-' + remaining_time
-        expired = remaining_seconds < 0
-        display_data = dict(
-            duration=timer['duration'],
-            time_remaining_display=remaining_time,
-            seconds_remaining=0 if expired else remaining_seconds,
-            timer_name=timer['name'],
-            expired=remaining_seconds < 0
-        )
-        msg = Message(
-            msg_type='display.screen.show',
-            data=dict(name='timer', display_data=display_data)
-        )
-        self.bus.emit(msg)
-
-    @staticmethod
-    def _build_time_remaining_string(remaining_seconds):
-        """Convert number of seconds into a displayable time string."""
-        hours = abs(remaining_seconds) // ONE_HOUR
-        hours_remainder = abs(remaining_seconds) % ONE_HOUR
-        minutes = hours_remainder // ONE_MINUTE
-        seconds = hours_remainder % ONE_MINUTE
-        if hours:
-            # convert to H:MM:SS
-            remaining_time = [
-                str(hours),
-                str(minutes).zfill(2),
-                str(seconds).zfill(2)
-            ]
-        else:
-            # convert to MM:SS
-            remaining_time = [
-                str(minutes).zfill(2),
-                str(seconds).zfill(2)
-            ]
-
-        return ':'.join(remaining_time)
 
     def _speak_timer(self, timer):
         """ Speak the status of individual timer either remaining or elapsed.
@@ -616,14 +577,13 @@ class TimerSkill(MycroftSkill):
                 return  # user cancelled
 
         #~~ GET TIMER NAME
-        timer_name = None
         if utt_remaining is not None and len(utt_remaining) > 0:
             timer_name = self._get_timer_name(utt_remaining)
-        if timer_name is None:
-            timer_name = 'timer ' + str(len(self.active_timers) + 1)
+            if timer_name:
+                if self._check_duplicate_timer_name(timer_name):
+                    return # make another timer with a different name
         else:
-            if self._check_duplicate_timer_name(timer_name):
-                return # make another timer with a different name
+            timer_name = None
 
         #~~ SHOULD IT BE AN ALARM?
         # TODO: add name of alarm if available?
@@ -658,7 +618,7 @@ class TimerSkill(MycroftSkill):
             dialog = 'started.ordinal.timer'
         else:
             dialog = 'started.timer'
-        if timer['name'] is not None and timer_name != 'timer 1':
+        if timer['name'] is not None:
             dialog += '.with.name'
 
         self.speak_dialog(dialog,
@@ -830,13 +790,13 @@ class TimerSkill(MycroftSkill):
         #       after itself nicely.
 
     def cancel_timer(self, timer):
-        """Actually cancels the given timer."""
+        """ Actually cancels the given timer
+        """
         # Cancel given timer
         if timer:
             self.active_timers.remove(timer)
             if len(self.active_timers) == 0:
                 self.timer_index = 0  # back to zero timers
-            self.gui.stop_screen(data=dict(timer_name=timer['name']))
             self.enclosure.eyes_on()  # reset just in case
 
     def shutdown(self):
