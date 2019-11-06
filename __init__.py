@@ -136,7 +136,7 @@ class TimerSkill(MycroftSkill):
         duration, str_remainder = extract_duration(utt, self.lang)
         if duration:
             # Remove "  and" left behind from "for 1 hour and 30 minutes"
-            # prevents it being interpretted as a name "for  and"
+            # prevents it being interpreted as a name "for  and"
             str_remainder = re.sub(r'\s\sand', '', str_remainder, flags=re.I)
             return duration.total_seconds(), str_remainder
 
