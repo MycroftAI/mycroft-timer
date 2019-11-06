@@ -15,22 +15,23 @@
 import time
 import pickle
 import re
+from datetime import datetime, timedelta
+from os.path import join, abspath, dirname
 
 from adapt.intent import IntentBuilder
+from num2words import num2words
+
+from mycroft.audio import wait_while_speaking, is_speaking
+from mycroft.messagebus.message import Message
 from mycroft.skills.core import (
     MycroftSkill,
     intent_handler,
-    intent_file_handler)
-from mycroft.util.log import LOG
-from mycroft.audio import wait_while_speaking, is_speaking
-from datetime import datetime, timedelta
-from os.path import join, isfile, abspath, dirname
+    intent_file_handler
+)
 from mycroft.util import play_wav
-from mycroft.messagebus.message import Message
-from mycroft.util.parse import extract_number, fuzzy_match, extract_duration
 from mycroft.util.format import pronounce_number, nice_duration, join_list
+from mycroft.util.parse import extract_number, fuzzy_match, extract_duration
 from mycroft.util.time import now_local
-from num2words import num2words
 
 try:
     from mycroft.skills.skill_data import to_alnum
@@ -111,10 +112,10 @@ class TimerSkill(MycroftSkill):
                 self.timer_index = timer["index"]
 
     # TODO: Implement util.is_listening() to replace this
-    def handle_listener_started(self, message):
+    def handle_listener_started(self, _):
         self.is_listening = True
 
-    def handle_listener_ended(self, message):
+    def handle_listener_ended(self, _):
         self.is_listening = False
 
     def _extract_duration(self, text):
@@ -153,10 +154,9 @@ class TimerSkill(MycroftSkill):
             num = extract_number(text, self.lang, ordinals=True)
             # attempt to remove extracted ordinal
             spoken_ord = num2words(int(num), to="ordinal", lang=self.lang)
-            utt = text.replace(spoken_ord,"")
+            utt = text.replace(spoken_ord, "")
         except:
-            self.log.debug('_extract_ordinal: ' +
-                          'Error in extract_number process')
+            self.log.debug('_extract_ordinal: Error in extract_number process')
             pass
         if not num:
             try:
@@ -164,14 +164,13 @@ class TimerSkill(MycroftSkill):
                 # parse ordinals already e.g. 1st, 3rd, 69th, etc.
                 regex = re.compile(r'\b((?P<Numeral>\d+)(st|nd|rd|th))\b')
                 result = re.search(regex, text)
-                if (result) and (result['Numeral']):
+                if result and (result['Numeral']):
                     num = result['Numeral']
-                    utt = text.replace(result,"")
+                    utt = text.replace(result, "")
             except:
-                self.log.debug('_extract_ordinal: ' +
-                              'Error in regex search')
+                self.log.debug('_extract_ordinal: Error in regex search')
                 pass
-        return (int(num), utt)
+        return int(num), utt
 
     def _get_timer_name(self, utt):
         """ Get the timer name using regex on an utterance.
@@ -200,11 +199,11 @@ class TimerSkill(MycroftSkill):
     def _get_next_timer(self):
         """ Retrieve the next timer set to trigger
         """
-        next = None
+        next_timer = None
         for timer in self.active_timers:
-            if not next or timer["expires"] < next["expires"]:
-                next = timer
-        return next
+            if not next_timer or timer["expires"] < next_timer["expires"]:
+                next_timer = timer
+        return next_timer
 
     def _get_ordinal_of_new_timer(self, duration, timers=None):
         """ Get ordinal based on existing timer durations
@@ -261,9 +260,9 @@ class TimerSkill(MycroftSkill):
         all_words = self.translate_list('all')
         if timers is None or len(timers) == 0:
             self.log.error("Cannot get match. No active timers.")
-            return ("No Match Found", None)
+            return "No Match Found", None
         elif utt and any(i.strip() in utt for i in all_words):
-            return ("All", None)
+            return "All", None
 
         extracted_duration = self._extract_duration(utt)
         if extracted_duration:
@@ -280,7 +279,7 @@ class TimerSkill(MycroftSkill):
         timers_have_ordinals = any(t['ordinal'] > 1 for t in timers)
         name = self._get_timer_name(utt)
 
-        if is_response and name == None:
+        if is_response and name is None:
             # Catch direct naming of a timer when asked eg "pasta"
             name = utt
 
@@ -289,7 +288,7 @@ class TimerSkill(MycroftSkill):
             duration_matches = [t for t in timers if duration == t['duration']]
 
         if name:
-            name_matches = [t for t in timers if t['name'] and \
+            name_matches = [t for t in timers if t['name'] and
                             self._fuzzy_match_word_from_phrase(t['name'],
                                                                name,
                                                                self.threshold)
@@ -303,7 +302,7 @@ class TimerSkill(MycroftSkill):
             elif ordinal > 0 and not(duration_matches or name_matches):
                 matches = timers
             else:
-                return ("No Match Found", None)
+                return "No Match Found", None
         else:
             matches = timers
 
@@ -311,13 +310,13 @@ class TimerSkill(MycroftSkill):
             for idx, match in enumerate(matches):
                 # should instead set to match['index'] if index gets reported
                 # in timer description.
-                ord_to_match = (match['ordinal'] if timers_have_ordinals and\
+                ord_to_match = (match['ordinal'] if timers_have_ordinals and
                                                     duration_matches
                                                  else (idx + 1))
                 if ordinal == ord_to_match:
-                    return ("Match Found", [match])
+                    return "Match Found", [match]
         elif len(matches) <= max_results:
-            return ("Match Found", matches)
+            return "Match Found", matches
         elif len(matches) > max_results:
             # TODO additional = the current group eg "5 minute timers"
             additional = ""
@@ -333,10 +332,11 @@ class TimerSkill(MycroftSkill):
                                                max_results=max_results,
                                                is_response=True)
             else:
-                return ("User Cancelled", None)
-        return ("No Match Found", None)
+                return "User Cancelled", None
+        return "No Match Found", None
 
-    def _fuzzy_match_word_from_phrase(self, word, phrase, threshold):
+    @staticmethod
+    def _fuzzy_match_word_from_phrase(word, phrase, threshold):
         matched = False
         score = 0
         phrase_split = phrase.split(' ')
@@ -352,8 +352,7 @@ class TimerSkill(MycroftSkill):
 
         return matched
 
-
-    def update_display(self, message):
+    def update_display(self, _):
         # Get the next triggering timer
         timer = self._get_next_timer()
         if not timer:
@@ -410,7 +409,7 @@ class TimerSkill(MycroftSkill):
             self.displaying_timer = timer
 
         # Calc remaining time and show using faceplate
-        if (timer["expires"] > now):
+        if timer["expires"] > now:
             # Timer still running
             remaining = (timer["expires"] - now).seconds
             self.render_timer(idx, remaining)
@@ -585,7 +584,7 @@ class TimerSkill(MycroftSkill):
         """ Determine which timers to speak - all or specific timer
         """
         # Check if utterance has "All"
-        if (timer_name is None or has_all):
+        if timer_name is None or has_all:
             for timer in self.active_timers:
                 self._speak_timer(timer)
             return
@@ -609,7 +608,7 @@ class TimerSkill(MycroftSkill):
         if secs and secs == 1:  # prevent "set one timer" doing 1 sec timer
             utt_remaining = message.data["utterance"]
 
-        if secs == None: # no duration found, request from user
+        if secs is None:  # no duration found, request from user
             req_duration = self.get_response('ask.how.long')
             secs, _ = self._extract_duration(req_duration)
             if secs is None:
@@ -623,7 +622,7 @@ class TimerSkill(MycroftSkill):
             timer_name = 'timer ' + str(len(self.active_timers) + 1)
         else:
             if self._check_duplicate_timer_name(timer_name):
-                return # make another timer with a different name
+                return  # make another timer with a different name
 
         #~~ SHOULD IT BE AN ALARM?
         # TODO: add name of alarm if available?
@@ -699,14 +698,15 @@ class TimerSkill(MycroftSkill):
 
     # Handles "do I have any timers" etc
     @intent_handler(IntentBuilder("status.timer.query").require("Query").
-                optionally("Status").require("Timer").optionally("All"))
+                    optionally("Status").require("Timer").optionally("All"))
     def handle_query_status_timer(self, message):
         self.handle_status_timer(message)
 
     # Handles "timer status", "status of timers" etc
     @intent_handler(IntentBuilder("status.timer").optionally("Query").
-                require("Status").one_of("Timer", "Time").optionally("All").
-                optionally("Duration").optionally("Name"))
+                    require("Status").one_of("Timer", "Time").
+                    optionally("All").optionally("Duration").
+                    optionally("Name"))
     def handle_status_timer(self, message):
         if not self.active_timers:
             self.speak_dialog("no.active.timer")
@@ -735,7 +735,7 @@ class TimerSkill(MycroftSkill):
                 self._speak_timer(timer)
 
     @intent_handler(IntentBuilder("").require("Mute").require("Timer"))
-    def handle_mute_timer(self, message):
+    def handle_mute_timer(self, _):
         self.mute = True
 
     @intent_file_handler('stop.timer.intent')
@@ -938,6 +938,7 @@ class TimerSkill(MycroftSkill):
                 return pickle.load(f)
         except:
             return default
+
 
 def create_skill():
     return TimerSkill()
