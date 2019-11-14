@@ -560,7 +560,7 @@ class TimerSkill(MycroftSkill):
     # INTENT HANDLERS
 
     @intent_handler(IntentBuilder("start.timer").require("Timer")
-                    .optionally("Start").optionally("Connector"))
+                    .require("Start").optionally("Connector"))
     def handle_start_timer(self, message):
         """ Common handler for start_timer intents
         """
