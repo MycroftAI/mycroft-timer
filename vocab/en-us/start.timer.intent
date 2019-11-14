@@ -1,4 +1,4 @@
-timer
+(another|second|third|fourth|fifth|) timer
 ping me in {duration}
 (start|create) (a|) timer
 (start|create) (a|) timer for {duration}
