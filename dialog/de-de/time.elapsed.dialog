@@ -1,1 +1,1 @@
-Der Timer für {{name}} ist vor {{passed_time}} abgelaufen
+Der Timer für {{duration}} ist vor {{time_diff}} abgelaufen
