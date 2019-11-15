@@ -1,3 +1,3 @@
-Timer für {{duration}} gestartet
-In Ordnung, ich habe einen Timer für {{duration}} gestartet
-Ich starte einen Timer für {{duration}}
+Timer gestartet für {duration}
+Okay, ich habe einen Timer für {duration} eingestellt
+Ich starte einen Timer für {duration}
