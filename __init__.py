@@ -508,11 +508,11 @@ class TimerSkill(MycroftSkill):
             timer_name=timer['name'],
             expired=remaining_seconds < 0
         )
-        msg = Message(
-            msg_type='display.screen.show',
-            data=dict(name='timer', display_data=display_data)
+        self.gui.display_screen(
+            name='timer',
+            data=display_data,
+            active_until_stopped=True
         )
-        self.bus.emit(msg)
 
     @staticmethod
     def _build_time_remaining_string(remaining_seconds):
@@ -653,7 +653,7 @@ class TimerSkill(MycroftSkill):
             dialog = 'started.ordinal.timer'
         else:
             dialog = 'started.timer'
-        if timer['name'] is not None or timer_name != 'timer 1':
+        if timer['name'] is not None and timer_name != 'timer 1':
             dialog += '.with.name'
 
         self.speak_dialog(dialog,
@@ -832,7 +832,7 @@ class TimerSkill(MycroftSkill):
             self.active_timers.remove(timer)
             if len(self.active_timers) == 0:
                 self.timer_index = 0  # back to zero timers
-            self.gui.stop_screen(data=dict(timer_name=timer['name']))
+                self.gui.stop_screen(data=dict(timer_name=timer['name']))
             self.enclosure.eyes_on()  # reset just in case
 
     def shutdown(self):
