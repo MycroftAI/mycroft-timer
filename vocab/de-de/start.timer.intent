@@ -1,3 +1,4 @@
+(ein | weiterer | zweiter | dritter | vierter | fünfter |) timer ((für |) {duration} |)
 ping mich um {duration}
 (start|create) (ein|) Timer
 (starte | erstelle) (einen |) Timer für {duration}
