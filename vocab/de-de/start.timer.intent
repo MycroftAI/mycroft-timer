@@ -2,7 +2,7 @@
 ping mich um {duration}
 (start|create) (ein|) Timer
 (starte | erstelle) (einen |) Timer für {duration}
-(Starte|Setze) (einen|) Timer (für|genannt|mit Namen) {name}.
-(Starte|Setze) (einen|) {duration} Timer
-(Starte|Setze) (einen|) {duration} Timer (genannt|mit Namen|für) {name}
+(Starte|Setze) (einen|) timer (für|genannt|mit Namen) {name}
+(Starte|Setze) (einen|) {duration} timer
+(starte|setze) (einen|) {duration} timer (genannt|mit namen|für) {name}
 (starte|setze) (einen|) {duration} Timer (genannt|mit Namen|für) {name}
