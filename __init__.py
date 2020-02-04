@@ -64,7 +64,8 @@ class TimerSkill(MycroftSkill):
         super(TimerSkill, self).__init__("TimerSkill")
         self.active_timers = []
         self.beep_repeat_period = 10
-        self.sound_file = join(abspath(dirname(__file__)), 'twoBeep.wav')
+        self.sound_file = join(abspath(dirname(__file__)), 'snd',
+                               'twoBeep.wav')
         self.beep_repeat_period = 5
 
         self.displaying_timer = None
