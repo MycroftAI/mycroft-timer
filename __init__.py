@@ -64,7 +64,8 @@ class TimerSkill(MycroftSkill):
         super(TimerSkill, self).__init__("TimerSkill")
         self.active_timers = []
         self.beep_repeat_period = 10
-        self.sound_file = join(abspath(dirname(__file__)), 'twoBeep.wav')
+        self.sound_file = join(abspath(dirname(__file__)), 'snd',
+                               'twoBeep.wav')
         self.beep_repeat_period = 5
 
         self.displaying_timer = None
@@ -477,7 +478,8 @@ class TimerSkill(MycroftSkill):
 
         if idx:
             # If there is an index to show, display at the left
-            png = join(abspath(dirname(__file__)), str(int(idx))+".png")
+            png = join(abspath(dirname(__file__)), "anim",
+                       str(int(idx))+".png")
             self.enclosure.mouth_display_png(png, x=3, y=2, refresh=False)
             x += 6
 
@@ -493,7 +495,7 @@ class TimerSkill(MycroftSkill):
             else:
                 png = ch+".png"
 
-            png = join(abspath(dirname(__file__)), png)
+            png = join(abspath(dirname(__file__)), 'anim',  png)
             self.enclosure.mouth_display_png(png, x=x, y=2, refresh=False)
             if ch == ':':
                 x += 2
