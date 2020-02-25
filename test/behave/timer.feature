@@ -147,7 +147,7 @@ Feature: mycroft-timer
     Given an english speaking user
       And no timers are active
       When the user says "<cancel timer with no timer active>"
-      THen "mycroft-timer" should reply with dialog from "no.active.timer.dialog"
+      Then "mycroft-timer" should reply with dialog from "no.active.timer.dialog"
 
    Examples: cancel timer with no timer active
      | cancel timer with no timer active |
