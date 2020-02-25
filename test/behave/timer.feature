@@ -3,7 +3,7 @@ Feature: mycroft-timer
   Scenario Outline: start a timer for a specified duration
     Given an english speaking user
       When the user says "<start a timer for a specified duration>"
-      Then "mycroft-timer" should reply with "started.timer.dialog"
+      Then "mycroft-timer" should reply with dialog from "started.timer.dialog"
 
    Examples: start a timer for for a specified duration
      | start a timer for a specified duration |
@@ -21,7 +21,7 @@ Feature: mycroft-timer
     Given an english speaking user
       And there is already an active timer
       When the user says "<start another timer for for a specified duration>"
-      Then "mycroft-timer" should reply with "started.timer.dialog"
+      Then "mycroft-timer" should reply with dialog from "started.timer.dialog"
 
    Examples: start another timer
      | start another timer for for a specified duration |
@@ -33,7 +33,7 @@ Feature: mycroft-timer
   Scenario Outline: start a named timer for for a specified duration
     Given an English speaking user
        When the user says "<start a named timer for a specified duration>"
-       Then "mycroft-timer" should reply with "started.timer.with.name.dialog"
+       Then "mycroft-timer" should reply with dialog from "started.timer.with.name.dialog"
 
    Examples: start a named timer for a specified duration
      | start a named timer for a specified duration |
@@ -47,7 +47,7 @@ Feature: mycroft-timer
       When the user says "<start a timer for an unspecified duration>"
       Then "mycroft-timer" should reply with "ask.how.long.dialog"
       And the user replies with "5 minutes"
-      And "mycroft-timer" should reply with "started.timer.dialog"
+      And "mycroft-timer" should reply with dialog from "started.timer.dialog"
 
    Examples: start a timer for an unspecified duration
      | start a timer for an unspecified duration |
@@ -108,7 +108,7 @@ Feature: mycroft-timer
       When the user says "<cancel timer with no active timers>"
       Then "mycroft-timer" should reply with dialog from "ask.which.timer.cancel.dialog"
       And the user replies "1 minute"
-      And "mycroft-timer" should reply with "cancelled.single.timer.dialog"
+      And "mycroft-timer" should reply with dialog from "cancelled.single.timer.dialog"
 
    Examples: cancel timer with two active timer
      | cancel timer with two active timers |
@@ -147,7 +147,7 @@ Feature: mycroft-timer
     Given an english speaking user
       And no timers are active
       When the user says "<cancel timer with no timer active>"
-      THen "mycroft-timer" should reply with "no.active.timer.dialog"
+      THen "mycroft-timer" should reply with dialog from "no.active.timer.dialog"
 
    Examples: cancel timer with no timer active
      | cancel timer with no timer active |
@@ -167,7 +167,7 @@ Feature: mycroft-timer
       And a 5 minute timer is set
       And a 10 minute timer is set
       When the user says "<cancel a specific timer>"
-      Then "mycroft-timer" should reply with "cancelled.timer.named.dialog"
+      Then "mycroft-timer" should reply with dialog from "cancelled.timer.named.dialog"
 
    Examples: cancel a specific timer
      | cancel a specific timer |
@@ -185,7 +185,7 @@ Feature: mycroft-timer
     Given an english speaking user
       And a timer named pasta is set
       When the user says "<cancel pasta timer>"
-      Then "mycroft-timer" should reply with "cancelled.timer.named.dialog"
+      Then "mycroft-timer" should reply with dialog from "cancelled.timer.named.dialog"
 
    Examples: cancel a named timer
      | cancel pasta timer |
@@ -205,7 +205,7 @@ Feature: mycroft-timer
       And a timer is set for 10 minutes
       And a timer is set for 15 minutes
       When the user says "<cancel all timers>"
-      Then "mycroft-timer" should reply with "cancel.all.dialog"
+      Then "mycroft-timer" should reply with dialog from "cancel.all.dialog"
 
    Examples: cancel all timers
      | cancel all timers |
@@ -243,7 +243,7 @@ Feature: mycroft-timer
     Given an english speaking user
       And a timer is set for 5 minutes
       When the user says "<status of a single timer>"
-      Then "mycroft-timer" should say "time.remaining.dialog"
+      Then "mycroft-timer" should reply with dialog from "time.remaining.dialog"
 
    Examples: status of a single timer
      | status of a single timer |
@@ -261,7 +261,7 @@ Feature: mycroft-timer
     Given an english speaking user
       And no timers are set
       When the user says "<status when there are no active timers>"
-      Then "mycroft-timer" should say "no.active.timer.dialog"
+      Then "mycroft-timer" should reply with dialog from "no.active.timer.dialog"
 
    Examples: status when there are no active timers
      | status when there are no active timers |
@@ -279,7 +279,7 @@ Feature: mycroft-timer
     Given an english speaking user
       And a timer named chicken is set for 20 minutes
       When the user says "<what is the status of named timer>"
-      Then "mycroft-timer" should say "time.remaining.named.dialog"
+      Then "mycroft-timer" should reply with dialog from "time.remaining.named.dialog"
 
   Examples: status of named timer
      | what is the status of name timer |
@@ -291,7 +291,9 @@ Feature: mycroft-timer
       And a 5 minute timer is set
       And a 10 minute timer is set
       When the user says "<status of two timers>"
-      Then "mycroft-timer" should say "There are two timers. The timer 1 timer for five minutes has five minutes fifteen seconds remaining. The timer 2 timer for ten minutes has eight minutes fifteen seconds remaining"
+      Then "mycroft-timer" should reply with dialog from "number.of.timers.dialog"
+      And "mycroft-timer" should reply with dialog from "time.remaining.dialog"
+      And "mycroft-timer" should reply with dialog from "time.remaining.dialog"
 
   Examples: status of named timer
      | status of two timers |
