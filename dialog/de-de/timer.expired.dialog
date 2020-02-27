@@ -1,1 +1,2 @@
-Der Timer für {{name}} ist abgelaufen
+(Der |) Timer für {{duration}} ist abgelaufen
+{{duration}} Timer ist abgelaufen
