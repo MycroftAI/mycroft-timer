@@ -44,16 +44,16 @@ Feature: mycroft-timer
   Scenario Outline: start a timer for an unspecified duration
     Given an english speaking user
       And no timers are previously set
-      When the user says "<timer>"
+      When the user says "<set a timer>"
       Then "mycroft-timer" should reply with "ask.how.long.dialog"
       And the user replies with "5 minutes"
       And "mycroft-timer" should reply with dialog from "started.timer.dialog"
 
    Examples: start a timer for an unspecified duration
-     | timer |
      | set a timer |
      | start a timer |
      | timer for 5 |
+     | timer |
 
   Scenario Outline: start another timer for an unspecified duration
     Given an english speaking user
@@ -108,7 +108,7 @@ Feature: mycroft-timer
       When the user says "<stop the timer>"
       Then "mycroft-timer" should reply with dialog from "ask.which.timer.cancel.dialog"
       And the user replies "1 minute"
-      And "mycroft-timer" should reply with dialog from "cancelled.single.timer.dialog"
+      And "mycroft-timer" should reply with dialog from "cancelled.timer.dialog"
 
    Examples: cancel timer with two active timer
      | stop the timer |
@@ -127,7 +127,7 @@ Feature: mycroft-timer
       And a 2 minute timer is set
       And a 3 minute timer is set
       When the user says "<cancel timer>"
-      Then "mycroft-timer" should reply with dialog from "ask.which.timer.dialog"
+      Then "mycroft-timer" should reply with dialog from "ask.which.timer.cancel.dialog"
       And the user replies "1 minute"
       And "mycroft-timer" should reply with dialog from "cancelled.single.timer.dialog"
 
@@ -167,7 +167,7 @@ Feature: mycroft-timer
       And a 5 minute timer is set
       And a 10 minute timer is set
       When the user says "<stop the 5 minute timer>"
-      Then "mycroft-timer" should reply with dialog from "cancelled.timer.named.dialog"
+      Then "mycroft-timer" should reply with dialog from "cancelled.timer.dialog"
 
    Examples: cancel a specific timer
      | stop the 5 minute timer |
@@ -178,14 +178,13 @@ Feature: mycroft-timer
      | disable 5 minute timer |
      | disable the 5 minute timer |
      | delete the 5 minute timer |
-     | remove the 5 minute timer |
 
   Scenario Outline: cancel a named timer
     Given an english speaking user
       And no timers are previously set
       And a timer named pasta is set
       When the user says "<cancel pasta timer>"
-      Then "mycroft-timer" should reply with dialog from "cancelled.timer.named.dialog"
+      Then "mycroft-timer" should reply with dialog from "cancelled.single.timer.dialog"
 
    Examples: cancel a named timer
      | cancel pasta timer |
@@ -277,17 +276,18 @@ Feature: mycroft-timer
      | what timers do I have |
      | when does the timer end |
 
+@xfai
   Scenario Outline: status of named timer
     Given an english speaking user
       And no timers are previously set
       And a timer named chicken is set for 20 minutes
-      When the user says "<status of lasagna timer>"
+      When the user says "<status of chicken timer>"
       Then "mycroft-timer" should reply with dialog from "time.remaining.named.dialog"
 
   Examples: status of named timer
-     | status of lasagna timer |
      | what is the status of the chicken timer |
 
+@xfai
   Scenario Outline: status of two timers
     Given an english speaking user
       And no timers are previously set
