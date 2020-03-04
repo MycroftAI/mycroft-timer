@@ -276,7 +276,6 @@ Feature: mycroft-timer
      | what timers do I have |
      | when does the timer end |
 
-@xfai
   Scenario Outline: status of named timer
     Given an english speaking user
       And no timers are previously set
@@ -286,8 +285,8 @@ Feature: mycroft-timer
 
   Examples: status of named timer
      | what is the status of the chicken timer |
+     | how much time is left on the chicken timer |
 
-@xfai
   Scenario Outline: status of two timers
     Given an english speaking user
       And no timers are previously set
@@ -298,7 +297,7 @@ Feature: mycroft-timer
       And "mycroft-timer" should reply with dialog from "time.remaining.dialog"
       And "mycroft-timer" should reply with dialog from "time.remaining.dialog"
 
-  Examples: status of named timer
+  Examples: status of two timers
      | what's the status of the timers |
      | what's left on my timers |
      | how much time is left on the timers |
