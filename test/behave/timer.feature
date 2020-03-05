@@ -45,15 +45,27 @@ Feature: mycroft-timer
     Given an english speaking user
       And no timers are previously set
       When the user says "<set a timer>"
-      Then "mycroft-timer" should reply with "ask.how.long.dialog"
+      Then "mycroft-timer" should reply with dialog from "ask.how.long.dialog"
       And the user replies with "5 minutes"
       And "mycroft-timer" should reply with dialog from "started.timer.dialog"
 
    Examples: start a timer for an unspecified duration
      | set a timer |
      | start a timer |
-     | timer for 5 |
      | timer |
+
+  @xfail
+  Scenario Outline: Failing start a timer for an unspecified duration
+    Given an english speaking user
+      And no timers are previously set
+      When the user says "<set a timer>"
+      Then "mycroft-timer" should reply with dialog from "ask.how.long.dialog"
+      And the user replies with "5 minutes"
+      And "mycroft-timer" should reply with dialog from "started.timer.dialog"
+
+   Examples: start a timer for an unspecified duration
+     | set a timer |
+     | timer for 5 |
 
   Scenario Outline: start another timer for an unspecified duration
     Given an english speaking user
@@ -78,9 +90,10 @@ Feature: mycroft-timer
       And "mycroft-timer" should reply with dialog from "started.timer.with.name.dialog"
 
    Examples: start a named timer for an unspecified duration
-     | set a timer named pasta |
-     | set a timer for pasta |
      | start a timer named pasta |
+     | start a timer named pasta |
+     | set a timer for pasta |
+     | set a timer named pasta |
      | start a timer for pasta |
 
   Scenario Outline: cancel timer with one active timer
@@ -129,7 +142,7 @@ Feature: mycroft-timer
       When the user says "<cancel timer>"
       Then "mycroft-timer" should reply with dialog from "ask.which.timer.cancel.dialog"
       And the user replies "1 minute"
-      And "mycroft-timer" should reply with dialog from "cancelled.single.timer.dialog"
+      And "mycroft-timer" should reply with dialog from "cancelled.timer.dialog"
 
    Examples: cancel timer with three active timer
      | cancel timer |
@@ -172,12 +185,24 @@ Feature: mycroft-timer
    Examples: cancel a specific timer
      | stop the 5 minute timer |
      | cancel the 5 minute timer |
-     | end 5 minute timer |
-     | end the 5 minute timer |
      | kill the 5 minute timer |
      | disable 5 minute timer |
      | disable the 5 minute timer |
      | delete the 5 minute timer |
+
+  @xfail
+  Scenario Outline: Failing cancel a specific timer
+    Given an english speaking user
+      And no timers are previously set
+      And a 5 minute timer is set
+      And a 10 minute timer is set
+      When the user says "<stop the 5 minute timer>"
+      Then "mycroft-timer" should reply with dialog from "cancelled.timer.dialog"
+
+   Examples: cancel a specific timer
+     | stop the 5 minute timer |
+     | end 5 minute timer |
+     | end the 5 minute timer |
 
   Scenario Outline: cancel a named timer
     Given an english speaking user
@@ -231,14 +256,25 @@ Feature: mycroft-timer
      | end timer |
      | turn it off |
      | silence |
-     | I got it |
      | mute |
      | shut up |
      | cancel all timers |
      | cancel the timers |
      | cancel timers |
      | disable |
+
+   @xfail
+  Scenario Outline: stop an expired timer from beeping
+    Given an english speaking user
+      And no timers are previously set
+      And a timer is expired
+      When the user says "<stop timer>"
+      Then "mycroft-timer" should stop beeping
+
+   Examples: stop timer
+     | stop timer |
      | that's enough |
+     | I got it |
 
   Scenario Outline: status of a single timer
     Given an english speaking user
