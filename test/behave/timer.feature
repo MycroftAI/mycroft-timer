@@ -320,6 +320,7 @@ Feature: mycroft-timer
       Then "mycroft-timer" should reply with dialog from "time.remaining.named.dialog"
 
   Examples: status of named timer
+     | status of chicken timer |
      | what is the status of the chicken timer |
      | how much time is left on the chicken timer |
 
