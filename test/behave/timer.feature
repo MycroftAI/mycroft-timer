@@ -260,7 +260,6 @@ Feature: mycroft-timer
      | cancel all timers |
      | cancel the timers |
      | cancel timers |
-     | disable |
 
    @xfail
   Scenario Outline: Failed stop an expired timer from beeping
@@ -275,6 +274,7 @@ Feature: mycroft-timer
      | that's enough |
      | I got it |
      | mute |
+     | disable |
 
   Scenario Outline: status of a single timer
     Given an english speaking user

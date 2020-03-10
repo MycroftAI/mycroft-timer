@@ -18,7 +18,7 @@ def given_set_timer_lenght(context, timer_length):
 def given_set_timer_named(context, name, time):
     emit_utterance(context.bus,
                    'set a timer for {} time called {}'.format(time, name))
-    wait_for_dialog(context.bus, ['started.timer'])
+    wait_for_dialog(context.bus, ['started.timer.with.name'])
     context.bus.clear_messages()
 
 
@@ -42,9 +42,9 @@ def given_set_timer(context):
 @given('no timers are previously set')
 def given_no_timers(context):
     followups = ['ask.cancel.running.plural',
-                 'ask.cancel.running..alarm',
                  'ask.cancel.desc.alarm.recurring']
     no_timers = ['no.active.timer',
+                 'cancel.all',
                  'cancelled.single.timer',
                  'cancelled.timer.named',
                  'cancelled.timer.named.with.ordinal',
@@ -80,8 +80,9 @@ def given_single_timer(context):
 
 @given('a timer is expired')
 def given_expired_timer(context):
-    emit_utterance(context.bus, 'set a 5 second timer')
-    time.sleep(10)
+    emit_utterance(context.bus, 'set a 3 second timer')
+    wait_for_dialog(context.bus, ['started.timer'])
+    time.sleep(4)
 
 
 @then('"mycroft-timer" should stop beeping')
