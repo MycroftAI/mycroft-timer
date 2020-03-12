@@ -26,7 +26,7 @@ Feature: mycroft-timer
       Then "mycroft-timer" should reply with dialog from "started.timer.dialog"
 
    Examples: set another timer
-     | set a another timer for a duration |
+     | set another timer for a duration |
      | second timer 20 minutes |
      | start another timer for 5 minutes |
      | set one more timer for 10 minutes |
@@ -40,9 +40,17 @@ Feature: mycroft-timer
    Examples: set a named timer for a specified duration
      | set a named timer for a duration |
      | set a 10 minute timer for pasta |
-     | set a timer for 10 minutes for pasta |
      | start a timer for 25 minutes called oven one |
      | start a timer for 15 minutes named oven two |
+
+Scenario Outline: set a named timer for for a specified duration ordinal
+  Given an English speaking user
+     When the user says "<set a named timer for a duration ordinal>"
+     Then "mycroft-timer" should reply with dialog from "started.ordinal.timer.with.name.dialog"
+
+  Examples: set a named timer for a specified duration ordinal
+    | set a named timer for a duration ordinal |
+    | set a timer for 10 minutes for pasta |
 
   Scenario Outline: set a timer for an unspecified duration
     Given an english speaking user
