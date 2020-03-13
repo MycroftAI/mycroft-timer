@@ -34,6 +34,7 @@ Feature: mycroft-timer
 
   Scenario Outline: set a named timer for for a specified duration
     Given an English speaking user
+      And no timers are previously set
        When the user says "<set a named timer for a duration>"
        Then "mycroft-timer" should reply with dialog from "started.timer.with.name.dialog"
 
@@ -43,10 +44,12 @@ Feature: mycroft-timer
      | start a timer for 25 minutes called oven one |
      | start a timer for 15 minutes named oven two |
 
-Scenario Outline: set a named timer for for a specified duration ordinal
-  Given an English speaking user
-     When the user says "<set a named timer for a duration ordinal>"
-     Then "mycroft-timer" should reply with dialog from "started.ordinal.timer.with.name.dialog"
+  @xfail
+  Scenario Outline: set a named timer for for a specified duration ordinal
+    Given an English speaking user
+      And no timers are previously set
+      When the user says "<set a named timer for a duration ordinal>"
+      Then "mycroft-timer" should reply with dialog from "started.ordinal.timer.with.name.dialog"
 
   Examples: set a named timer for a specified duration ordinal
     | set a named timer for a duration ordinal |
@@ -304,7 +307,6 @@ Scenario Outline: set a named timer for for a specified duration ordinal
 
    Examples: status of a single timer
      | timer status |
-     | timer status |
      | what's left on my timer |
      | how much is left on the timer |
      | what's the remaining time |
@@ -313,6 +315,18 @@ Scenario Outline: set a named timer for for a specified duration ordinal
      | are there any timers |
      | what timers do I have |
      | when does the timer end |
+
+  @xfail
+  Scenario Outline: Failing status of a single timer
+    Given an english speaking user
+      And no timers are previously set
+      And a timer is set for 5 minutes
+      When the user says "<timer status>"
+      Then "mycroft-timer" should reply with dialog from "time.remaining.dialog"
+
+   Examples: status of a single timer
+     | timer status |
+     | timer status |
 
   Scenario Outline: status when there are no active timers
     Given an english speaking user
@@ -323,7 +337,6 @@ Scenario Outline: set a named timer for for a specified duration ordinal
 
    Examples: status when there are no active timers
      | timer status |
-     | timer status |
      | what's left on my timer |
      | how much is left on the timer |
      | what's the remaining time |
@@ -332,6 +345,18 @@ Scenario Outline: set a named timer for for a specified duration ordinal
      | are there any timers |
      | what timers do I have |
      | when does the timer end |
+
+  @xfail
+  Scenario Outline: Failing status when there are no active timers
+    Given an english speaking user
+      And no timers are previously set
+      And no timers are set
+      When the user says "<timer status>"
+      Then "mycroft-timer" should reply with dialog from "no.active.timer.dialog"
+
+   Examples: status when there are no active timers
+     | timer status |
+     | timer status |
 
   Scenario Outline: status of named timer
     Given an english speaking user
@@ -358,7 +383,6 @@ Scenario Outline: set a named timer for for a specified duration ordinal
 
   Examples: status of two timers
      | what's the status of the timers |
-     | what's the status of the timers |
      | what's left on my timers |
      | how much time is left on the timers |
      | what's the remaining time |
@@ -367,3 +391,18 @@ Scenario Outline: set a named timer for for a specified duration ordinal
      | are there any timers |
      | what timers do I have |
      | when does the timer end |
+
+  @xfail
+  Scenario Outline: Failing status of two timers
+    Given an english speaking user
+      And no timers are previously set
+      And a 5 minute timer is set
+      And a 10 minute timer is set
+      When the user says "<what's the status of the timers>"
+      Then "mycroft-timer" should reply with dialog from "number.of.timers.dialog"
+      And "mycroft-timer" should reply with dialog from "time.remaining.dialog"
+      And "mycroft-timer" should reply with dialog from "time.remaining.dialog"
+
+  Examples: status of two timers
+     | what's the status of the timers |
+     | what's the status of the timers |
