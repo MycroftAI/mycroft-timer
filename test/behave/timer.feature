@@ -45,6 +45,7 @@ Feature: mycroft-timer
      | start a timer for 15 minutes named oven two |
 
   @xfail
+  # Jira MS-91 https://mycroft.atlassian.net/browse/MS-91
   Scenario Outline: set a named timer for for a specified duration ordinal
     Given an English speaking user
       And no timers are previously set
@@ -70,6 +71,7 @@ Feature: mycroft-timer
      | timer |
 
   @xfail
+  # Jira MS-60 https://mycroft.atlassian.net/browse/MS-60
   Scenario Outline: Failing set a timer for an unspecified duration
     Given an english speaking user
       And no timers are previously set
@@ -192,7 +194,6 @@ Feature: mycroft-timer
      | delete timer |
      | remove timer |
 
-
   Scenario Outline: cancel a specific timer
     Given an english speaking user
       And no timers are previously set
@@ -211,6 +212,7 @@ Feature: mycroft-timer
      | delete the 5 minute timer |
 
   @xfail
+  # Jira MS-61 https://mycroft.atlassian.net/browse/MS-61
   Scenario Outline: Failing cancel a specific timer
     Given an english speaking user
       And no timers are previously set
@@ -242,7 +244,6 @@ Feature: mycroft-timer
      | disable the pasta timer |
      | delete the pasta timer |
      | remove pasta timer |
-
 
   Scenario Outline: cancel all timers when 3 timers are active
     Given an english speaking user
@@ -284,6 +285,7 @@ Feature: mycroft-timer
      | cancel timers |
 
    @xfail
+   # Jira MS-62 https://mycroft.atlassian.net/browse/MS-62
   Scenario Outline: Failed stop an expired timer from beeping
     Given an english speaking user
       And no timers are previously set
@@ -317,6 +319,7 @@ Feature: mycroft-timer
      | when does the timer end |
 
   @xfail
+  # Jira MS-92 https://mycroft.atlassian.net/browse/MS-92
   Scenario Outline: Failing status of a single timer
     Given an english speaking user
       And no timers are previously set
@@ -347,6 +350,7 @@ Feature: mycroft-timer
      | when does the timer end |
 
   @xfail
+  # Jira MS-94 https://mycroft.atlassian.net/browse/MS-94
   Scenario Outline: Failing status when there are no active timers
     Given an english speaking user
       And no timers are previously set
@@ -393,6 +397,7 @@ Feature: mycroft-timer
      | when does the timer end |
 
   @xfail
+  # Jira MS-95 https://mycroft.atlassian.net/browse/MS-95
   Scenario Outline: Failing status of two timers
     Given an english speaking user
       And no timers are previously set
