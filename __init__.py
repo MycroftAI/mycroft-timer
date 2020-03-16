@@ -566,6 +566,12 @@ class TimerSkill(MycroftSkill):
     def handle_start_timer(self, message):
         """ Common handler for start_timer intents
         """
+
+        def validate_duration(string):
+            """Check that extract_duration returns a valid duration."""
+            res = extract_duration(string, self.lang)
+            return res and res[0]
+
         utt = message.data["utterance"]
         #~~ GET TIMER DURATION
         secs, utt_remaining = self._extract_duration(utt)
@@ -573,7 +579,8 @@ class TimerSkill(MycroftSkill):
             utt_remaining = message.data["utterance"]
 
         if secs == None: # no duration found, request from user
-            req_duration = self.get_response('ask.how.long')
+            req_duration = self.get_response('ask.how.long',
+                                             validator=validate_duration)
             secs, _ = self._extract_duration(req_duration)
             if secs is None:
                 return  # user cancelled
