@@ -84,6 +84,18 @@ Feature: mycroft-timer
      | set a timer for unspecified duration |
      | timer for 5 |
 
+  Scenario Outline: set a timer for an unspecified duration but then dismiss
+    Given an english speaking user
+      And no timers are previously set
+      When the user says "set a timer"
+      Then "mycroft-timer" should reply with dialog from "ask.how.long.dialog"
+      And the user replies with "<nevermind>"
+
+   Examples: set a timer for an unspecified duration
+     | nevermind |
+     | forget it |
+     | dismiss |
+
   Scenario Outline: set another timer for an unspecified duration
     Given an english speaking user
       And no timers are previously set
@@ -174,6 +186,22 @@ Feature: mycroft-timer
      | disable the timer |
      | delete timer |
      | remove timer |
+
+  Scenario Outline: canceling a timer with three active timers when the user decides not to cancel
+    Given an english speaking user
+      And no timers are previously set
+      And a 1 minute timer is set
+      And a 2 minute timer is set
+      And a 3 minute timer is set
+      When the user says "<user decides not to cancel>"
+      Then "mycroft-timer" should reply with dialog from "ask.which.timer.cancel.dialog"
+      And the user replies "nevermind"
+
+   Examples: cancel timer with three active timer and user decides not to cancel
+    | user decides not to cancel |
+    | cancel timer |
+    | stop the timer |
+    | end timer |
 
   Scenario Outline: cancel timer with no timer active
     Given an english speaking user
