@@ -96,6 +96,18 @@ Feature: mycroft-timer
      | forget it |
      | dismiss |
 
+  Scenario Outline: set a timer for an unspecified duration but then says jibberish
+    Given an english speaking user
+      And no timers are previously set
+      When the user says "set a timer"
+      Then "mycroft-timer" should reply with dialog from "ask.how.long.dialog"
+      And the user replies with "<sandwich>"
+
+   Examples: set a timer for an unspecified duration
+     | sandwich |
+     | blah |
+     | goo |     
+
   Scenario Outline: set another timer for an unspecified duration
     Given an english speaking user
       And no timers are previously set
