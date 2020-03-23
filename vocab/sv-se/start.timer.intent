@@ -1,12 +1,8 @@
-(Starta|ställ in|börja|ge mig|jag behöver) (|en|en till|en andra|en ny) timer
-(Starta|ställ in|börja|ge mig|jag behöver) (|en|en till|en andra|en ny) (##-(sekund|sekunder)|##-(timme|timmar)|##-(minut|minuter)) timer
-(Starta|ställ in|börja|ge mig|jag behöver) (|en|en till|en andra|en ny) (##-(sekund|sekunder)|##-(timme|timmar)|##-(minut|minuter)) timer (med namn|kallad) {name}.
-(Starta|ställ in|börja|ge mig|jag behöver) (|en|en till|en andra|en ny) {duration} timer
-(Starta|ställ in|börja|ge mig|jag behöver) (|en|en till|en andra|en ny) {duration} timer (med namn|kallad) {name}.
-(Starta|ställ in|börja|ge mig|jag behöver) (|en|en till|en andra|en ny) timer på {duration}.
-Timer på {duration}.
-Timer på {duration} (kallad|med namnet|vid namn) {name}
-{duration} timer.
-{duration} timer (kallad|med namnet|vid namn) {name}.
-Räkna {duration} åt mig
-Ta tid (i|) {duration} åt mig.
+(en annan|ytterligare en|andra|tredje|fjärde|femte|) timer ((för |){duration}|)
+ping mig om {duration}
+(starta|skapa) (en|) timer
+(starta|ställ in) (en) timer på {duration}
+(starta|gör|skapa) (en) timer (kallad|med namnet|vid namn) {name}
+(starta|ställ in) en timer på {duration}
+(starta|ställ in) (en|) {duration} timer (kallad|med namnet|vid namn) {name}
+(starta|ställ in) (en|) {duration} timer (kallad|med namnet|vid namn) {name}
