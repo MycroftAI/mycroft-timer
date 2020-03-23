@@ -1,1 +1,1 @@
-Det finns {{count}} aktiva timrar. Vilken vill du avbryta?
+Det finns {{count}} timers {{additional}} som körs, {{names}}, vilkenvill du avbryta?
