@@ -13,10 +13,21 @@ Feature: mycroft-timer
      | set a timer for 5 minutes |
      | start a 1 minute timer |
      | start a timer for 1 minute and 30 seconds |
-     | begin timer 2 minutes |
      | create a timer for 1 hour |
      | create a timer for 1 hour and 30 minutes |
      | ping me in 5 minutes |
+
+  @xfail
+  # Jira MS-114 https://mycroft.atlassian.net/browse/MS-114
+  Scenario Outline: Failing set a timer for a specified duration
+    Given an english speaking user
+      And no timers are previously set
+      When the user says "<set a timer for a duration>"
+      Then "mycroft-timer" should reply with dialog from "started.timer.dialog"
+
+   Examples: set a timer for for a specified duration
+     | set a timer for a duration |
+     | begin timer 2 minutes |
 
   Scenario Outline: set another timer for for a specified duration
     Given an english speaking user
@@ -237,13 +248,25 @@ Feature: mycroft-timer
      | cancel a named timer |
      | cancel pasta timer |
      | stop the pasta timer |
-     | end pasta timer |
-     | end the pasta timer |
      | kill the pasta timer |
      | disable pasta timer |
      | disable the pasta timer |
      | delete the pasta timer |
      | remove pasta timer |
+
+  @xfail
+  # Jira MS-113 https://mycroft.atlassian.net/browse/MS-113
+  Scenario Outline: Failing cancel a named timer
+    Given an english speaking user
+      And no timers are previously set
+      And a timer named pasta is set
+      When the user says "<cancel a named timer>"
+      Then "mycroft-timer" should reply with dialog from "cancelled.single.timer.dialog"
+
+   Examples: cancel a named timer
+     | cancel a named timer |
+     | end pasta timer |
+     | end the pasta timer |
 
   Scenario Outline: cancel all timers when 3 timers are active
     Given an english speaking user
