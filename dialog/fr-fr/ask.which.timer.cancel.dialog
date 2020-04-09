@@ -1,1 +1,1 @@
-Il y a {{count}} minuteurs en cours. Lequel voulez-vous annuler ?
+Il y a {{count}} minuteurs en cours, {{names}}. Lequel voulez-vous annuler ?
