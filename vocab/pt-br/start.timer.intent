@@ -1,0 +1,8 @@
+(outro|mais um|segundo|terceiro|quarto|quinto|) temporizador ((para|) {duration}|)
+Me dê um toque em {duration}
+(crie|criar|defina|definir|coloque|colocar|configure|configurar) (|um) temporizador
+(crie|criar|defina|definir|coloque|colocar|configure|configurar) um temporizador para {duration}
+(crie|criar|defina|definir|coloque|colocar|configure|configurar) um temporizador (chamado|com o nome de|que se chame) {name}
+(crie|criar|defina|definir|coloque|colocar|configure|configurar) um temporizador de {duration}
+(crie|criar|defina|definir|coloque|colocar|configure|configurar) um temporizador de {duration} (chamado|com o nome de| que se chame) {name}
+(crie|criar|defina|definir|coloque|colocar|configure|configurar) um temporizador (chamado|com o nome de|que se chame) {name} de {duration}
