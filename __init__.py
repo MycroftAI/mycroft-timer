@@ -334,7 +334,7 @@ class TimerSkill(MycroftSkill):
         return "No Match Found", None
 
     @staticmethod
-    def _fuzzy_match_word_from_phrase(self, word, phrase, threshold):
+    def _fuzzy_match_word_from_phrase(word, phrase, threshold):
         matched = False
         score = 0
         phrase_split = phrase.split(' ')
