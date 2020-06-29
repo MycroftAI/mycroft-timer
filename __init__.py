@@ -115,7 +115,32 @@ class TimerSkill(MycroftSkill):
         self.is_listening = True
 
     def handle_listener_ended(self, message):
-        self.is_listening = False
+        def set_is_listening():
+            self.is_listening = False
+
+        def wait_for_speak(timeout=8):
+            """Wait for a speak Message on the bus.
+
+            Arguments:
+                timeout (int): how long to wait, defaults to 8 sec
+            """
+            speak_msg_detected = False
+
+            def detected_speak(message=None):
+                nonlocal speak_msg_detected
+                speak_msg_detected = True
+            self.bus.on('speak', detected_speak)
+            time.sleep(timeout)
+            self.bus.remove('speak', detected_speak)
+            return speak_msg_detected
+
+        if self.beep_process is not None:
+            self.bus.on('recognizer_loop:speech.recognition.unknown',
+                        set_is_listening)
+            speak_msg_detected = wait_for_speak()
+            self.bus.remove('recognizer_loop:speech.recognition.unknown',
+                            set_is_listening)
+        set_is_listening()
 
     def _extract_duration(self, text):
         """Extract duration in seconds.
