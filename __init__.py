@@ -136,7 +136,7 @@ class TimerSkill(MycroftSkill):
         duration, str_remainder = extract_duration(utt, self.lang)
         if duration:
             # Remove "  and" left behind from "for 1 hour and 30 minutes"
-            # prevents it being interpretted as a name "for  and"
+            # prevents it being interpreted as a name "for  and"
             str_remainder = re.sub(r'\s\sand', '', str_remainder, flags=re.I)
             return duration.total_seconds(), str_remainder
 
@@ -307,9 +307,10 @@ class TimerSkill(MycroftSkill):
             for idx, match in enumerate(matches):
                 # should instead set to match['index'] if index gets reported
                 # in timer description.
-                ord_to_match = (match['ordinal'] if timers_have_ordinals and
-                                                    duration_matches
-                                                 else (idx + 1))
+                if timers_have_ordinals and duration_matches:
+                    ord_to_match = match['ordinal']
+                else: 
+                    ord_to_match = idx + 1
                 if ordinal == ord_to_match:
                     return "Match Found", [match]
         elif len(matches) <= max_results:
@@ -584,7 +585,7 @@ class TimerSkill(MycroftSkill):
             return res and res[0]
 
         utt = message.data["utterance"]
-        #~~ GET TIMER DURATION
+        # GET TIMER DURATION
         secs, utt_remaining = self._extract_duration(utt)
         if secs and secs == 1:  # prevent "set one timer" doing 1 sec timer
             utt_remaining = message.data["utterance"]
@@ -596,7 +597,7 @@ class TimerSkill(MycroftSkill):
             if secs is None:
                 return  # user cancelled
 
-        #~~ GET TIMER NAME
+        # GET TIMER NAME
         if utt_remaining is not None and len(utt_remaining) > 0:
             timer_name = self._get_timer_name(utt_remaining)
             if timer_name:
@@ -605,7 +606,7 @@ class TimerSkill(MycroftSkill):
         else:
             timer_name = None
 
-        #~~ SHOULD IT BE AN ALARM?
+        # SHOULD IT BE AN ALARM?
         # TODO: add name of alarm if available?
         if secs >= 60*60*24:  # 24 hours in seconds
             if self.ask_yesno("timer.too.long.alarm.instead") == 'yes':
@@ -617,7 +618,7 @@ class TimerSkill(MycroftSkill):
                                       {"utterances": [phrase], "lang": "en-us"}))
             return
 
-        #~~ CREATE TIMER
+        # CREATE TIMER
         self.timer_index += 1
         time_expires = datetime.now() + timedelta(seconds=secs)
         timer = {"name": timer_name,
@@ -633,7 +634,7 @@ class TimerSkill(MycroftSkill):
             self.log.debug('creating timer: {}: {}'.format(key, timer[key]))
         self.log.debug("---------------------------------------")
 
-        #~~ INFORM USER
+        # INFORM USER
         if timer['ordinal'] > 1:
             dialog = 'started.ordinal.timer'
         else:
@@ -646,7 +647,7 @@ class TimerSkill(MycroftSkill):
                                 "name": timer["name"],
                                 "ordinal": self._get_speakable_ordinal(timer)})
 
-        #~~ CLEANUP
+        # CLEANUP
         self.pickle()
         wait_while_speaking()
         self.enable_intent("handle_mute_timer")
