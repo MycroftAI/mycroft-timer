@@ -1,1 +1,1 @@
-Le minuteur {{name}} a {{remaining}} (restant|restante)
+Sur le minuteur de {{duration}} il reste {{time_diff}} restante
