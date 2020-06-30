@@ -346,6 +346,9 @@ Feature: mycroft-timer
      | cancel all timers |
      | cancel the timers |
      | cancel timers |
+     | I got it |
+     | mute |
+     | disable |
 
    @xfail
    # Jira MS-62 https://mycroft.atlassian.net/browse/MS-62
@@ -359,9 +362,6 @@ Feature: mycroft-timer
    Examples: stop timer
      | stop timer |
      | that's enough |
-     | I got it |
-     | mute |
-     | disable |
 
   Scenario Outline: status of a single timer
     Given an english speaking user
