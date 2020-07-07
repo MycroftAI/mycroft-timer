@@ -735,14 +735,13 @@ class TimerSkill(MycroftSkill):
         for key in timer:
             self.log.debug('creating inverval timer: {}: {}'.format(key, timer[key]))
         self.log.debug("---------------------------------------")
-
         #~~ INFORM USER
         if timer['ordinal'] > 1:
             dialog = 'started.ordinal.timer'
         else:
             dialog = 'started.interval.timer'
-        if timer['name'] is not None:
-            dialog += '.with.name'
+        # if timer['name'] is not None:
+        #     dialog += '.with.name'
 
         self.speak_dialog(dialog,
                           data={"duration": nice_duration(timer["duration"]),
