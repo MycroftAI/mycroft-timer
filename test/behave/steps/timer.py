@@ -3,7 +3,8 @@ import time
 from behave import given, then
 
 from mycroft.audio import wait_while_speaking
-from test.integrationtests.voight_kampff import wait_for_dialog, emit_utterance
+from test.integrationtests.voight_kampff import (emit_utterance,
+     mycroft_responses, then_wait, wait_for_dialog)
 
 
 @given('a {timer_length} timer is set')
@@ -95,3 +96,39 @@ def then_stop_beeping(context):
         time.sleep(1)
     else:
         assert False, "Timer is still ringing"
+
+# TODO remove from Skill once included in Mycroft-core
+def then_wait_fail(msg_type, criteria_func, context, timeout=10):
+    """Wait for a specified time, failing if criteria is fulfilled.
+
+    Arguments:
+        msg_type: message type to watch
+        criteria_func: Function to determine if a message fulfilling the
+                       test case has been found.
+        context: behave context
+        timeout: Time allowance for a message fulfilling the criteria
+
+    Returns:
+        tuple (bool, str) test status and debug output
+    """
+    status, debug = then_wait(msg_type, criteria_func, context, timeout)
+    return (not status, debug)
+
+# NOTE: language here has been changed to avoid conflict with soon to be merged VK Step.
+# When this code is removed, change this back to "Skill should not reply"
+@then('"{skill}" should not respond')
+def then_do_not_respond(context, skill):
+
+    def check_all_dialog(message):
+        msg_skill = message.data.get('meta').get('skill')
+        utt = message.data['utterance'].lower()
+        skill_responded = skill == msg_skill
+        debug_msg = ("{} responded with '{}'. \n".format(skill, utt)
+                     if skill_responded else '')
+        return (skill_responded, debug_msg)
+
+    passed, debug = then_wait_fail('speak', check_all_dialog, context)
+    if not passed:
+        assert_msg = debug
+        assert_msg += mycroft_responses(context)
+    assert passed, assert_msg or '{} responded'.format(skill)

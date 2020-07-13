@@ -474,3 +474,14 @@ Feature: mycroft-timer
   Examples: status of two timers
      | what's the status of the timers |
      | what's the status of the timers |
+
+  Scenario Outline: Setting alarms
+    Given an english speaking user
+     When the user says "<set an alarm>"
+     Then "TimerSkill" should not respond
+
+    Examples:
+      | set an alarm |
+      | create an alarm |
+      | create an alarm for 7:30 am |
+      | create a repeating alarm for weekdays |
