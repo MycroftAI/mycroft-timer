@@ -349,18 +349,6 @@ Feature: mycroft-timer
      | I got it |
      | mute |
      | disable |
-
-   @xfail
-   # Jira MS-62 https://mycroft.atlassian.net/browse/MS-62
-  Scenario Outline: Failed stop an expired timer from beeping
-    Given an english speaking user
-      And no timers are previously set
-      And a timer is expired
-      When the user says "<stop timer>"
-      Then "mycroft-timer" should stop beeping
-
-   Examples: stop timer
-     | stop timer |
      | that's enough |
 
   Scenario Outline: status of a single timer
@@ -474,3 +462,14 @@ Feature: mycroft-timer
   Examples: status of two timers
      | what's the status of the timers |
      | what's the status of the timers |
+
+  Scenario Outline: Setting alarms
+    Given an english speaking user
+     When the user says "<set an alarm>"
+     Then "TimerSkill" should not respond
+
+    Examples:
+      | set an alarm |
+      | create an alarm |
+      | create an alarm for 7:30 am |
+      | create a repeating alarm for weekdays |
