@@ -112,7 +112,7 @@ def then_wait_fail(msg_type, criteria_func, context, timeout=10):
         tuple (bool, str) test status and debug output
     """
     status, debug = then_wait(msg_type, criteria_func, context, timeout)
-    return (not status, debug)
+    return not status, debug
 
 # NOTE: language here has been changed to avoid conflict with soon to be merged VK Step.
 # When this code is removed, change this back to "Skill should not reply"
@@ -125,7 +125,7 @@ def then_do_not_respond(context, skill):
         skill_responded = skill == msg_skill
         debug_msg = ("{} responded with '{}'. \n".format(skill, utt)
                      if skill_responded else '')
-        return (skill_responded, debug_msg)
+        return skill_responded, debug_msg
 
     passed, debug = then_wait_fail('speak', check_all_dialog, context)
     if not passed:
