@@ -430,7 +430,7 @@ Feature: mycroft-timer
   Scenario Outline: Setting alarms
     Given an english speaking user
      When the user says "<set an alarm>"
-     Then "TimerSkill" should not respond
+     Then "TimerSkill" should not reply
 
     Examples:
       | set an alarm |
