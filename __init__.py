@@ -425,6 +425,14 @@ class TimerSkill(MycroftSkill):
             # Timer still running
             remaining = (timer["expires"] - now).seconds
             self.render_timer(idx, remaining)
+        elif timer.get("is_interval"):
+            # Timer has expired but it is an interval
+            self._play_beep()
+            # reset the timer expiration
+            remaining = timer["duration"]
+            time_expires = datetime.now() + timedelta(seconds=remaining)
+            timer["expires"] = time_expires
+            self.render_timer(idx, remaining)
         else:
             # Timer has expired but not been cleared, flash eyes
             overtime = (now - timer["expires"]).seconds
@@ -679,6 +687,111 @@ class TimerSkill(MycroftSkill):
                                         "duration": time_diff})
                 return True
         return False
+
+    @intent_handler('start.interval.timer.intent')
+    def handle_start_interval_timer(self, message):
+        """ Common handler for start_interval_timer intents
+        """
+        def validate_duration(string):
+            """Check that extract_duration returns a valid duration."""
+            res = extract_duration(string, self.lang)
+            return res and res[0]
+
+        utt = message.data["utterance"]
+        #~~ GET TIMER DURATION
+        secs, utt_remaining = self._extract_duration(utt)
+        if secs and secs == 1:  # prevent "set one timer" doing 1 sec timer
+            utt_remaining = message.data["utterance"]
+
+        if secs == None: # no duration found, request from user
+            req_duration = self.get_response('ask.how.long.interval',
+                                             validator=validate_duration)
+            secs, _ = self._extract_duration(req_duration)
+            if secs is None:
+                return  # user cancelled
+
+        #~~ GET TIMER NAME
+        # START WIP - Not worried about timer names for now
+        #if utt_remaining is not None and len(utt_remaining) > 0:
+        #    timer_name = self._get_timer_name(utt_remaining)
+        #    if timer_name:
+        #        if self._check_duplicate_timer_name(timer_name):
+        #            return # make another timer with a different name
+        #else:
+        #    timer_name = None
+        timer_name = None
+        # END WIP
+
+        #~~ SHOULD IT BE AN ALARM?
+        # TODO: add name of alarm if available?
+        if secs >= 60*60*24:  # 24 hours in seconds
+            if self.ask_yesno("timer.too.long.alarm.instead") == 'yes':
+                alarm_time = now_local() + timedelta(seconds=secs)
+                phrase = self.translate('set.alarm',
+                                        {'date': alarm_time.strftime('%B %d %Y'),
+                                         'time': alarm_time.strftime('%I:%M%p')})
+                self.bus.emit(Message("recognizer_loop:utterance",
+                                      {"utterances": [phrase], "lang": "en-us"}))
+            return
+
+        #~~ CREATE TIMER
+        self.timer_index += 1
+        time_expires = datetime.now() + timedelta(seconds=secs)
+        timer = {"name": timer_name,
+                 "index": self.timer_index,
+                 # keep track of ordinal until all timers of that name expire
+                 "ordinal": self._get_ordinal_of_new_timer(secs),
+                 "duration": secs,
+                 "expires": time_expires,
+                 "announced": False,
+                 "is_interval":True}
+        self.active_timers.append(timer)
+        self.log.debug("-------------TIMER-CREATED-------------")
+        for key in timer:
+            self.log.debug('creating inverval timer: {}: {}'.format(key, timer[key]))
+        self.log.debug("---------------------------------------")
+        #~~ INFORM USER
+        if timer['ordinal'] > 1:
+            dialog = 'started.ordinal.interval.timer'
+        else:
+            dialog = 'started.interval.timer'
+        # if timer['name'] is not None:
+        #     dialog += '.with.name'
+
+        self.speak_dialog(dialog,
+                          data={"duration": nice_duration(timer["duration"]),
+                                "name": timer["name"],
+                                "ordinal": self._get_speakable_ordinal(timer)})
+
+        #~~ CLEANUP
+        self.pickle()
+        wait_while_speaking()
+        self.enable_intent("handle_mute_timer")
+        # Start showing the remaining time on the faceplate
+        self.update_display(None)
+        # reset the mute flag with a new timer
+        self.mute = False
+
+    # Handles custom start phrases eg "ping me in 5 minutes"
+    # Also over matches Common Play for "start timer" utterances
+    @intent_file_handler('start.interval.timer.intent')
+    def handle_start_interval_timer_padatious(self, message):
+        self.handle_start_interval_timer(message)
+
+    @intent_file_handler('stop.interval.timer.intent')
+    def handle_stop_interval_timer(self, message):
+        timer = self._get_next_timer()
+        if timer and timer["expires"] < datetime.now():
+            # Timer is beeping requiring no confirmation reaction,
+            # treat it like a stop button press
+            self.stop()
+        elif message and message.data.get('utterance') == "cancel":
+            # No expired timers to clear
+            # Don't cancel active timers with only "cancel" as utterance
+            return
+        else:
+            self.handle_cancel_timer(message)
+
 
     # Handles custom start phrases eg "ping me in 5 minutes"
     # Also over matches Common Play for "start timer" utterances
