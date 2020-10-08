@@ -2,7 +2,7 @@
 Set named timers for cooking, watering plants, brewing tea and more. 
 
 ## About 
-Use Mycroft when your hands are messy or you need more that the one timer in your kitchen.  Multiple timers are easy to set and track with conversational interactions.
+Use Mycroft when your hands are messy or you need more that the one timer in your kitchen.  Multiple timers are easy to set and track with conversational interactions.  Interval timers will play a single beep before restarting the timer again.
 
 On a Mark 1 you'll see visual feedback as the timer runs, and you can use
 the top button to stop the beeping once a timer expires.
@@ -16,6 +16,10 @@ the top button to stop the beeping once a timer expires.
 * "How long is left on the timer?"
 * "How long is left on the turkey timer?"
 * "Mute the timer" (once triggered)
+
+* "Start an interval timer for every 30 seconds"
+* "Set a 10 minute interval timer"
+* "Ping me every minute"
 
 ## Credits 
 Mycroft AI (@MycroftAI)
