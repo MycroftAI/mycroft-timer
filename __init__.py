@@ -675,8 +675,7 @@ class TimerSkill(MycroftSkill):
                 return True
         return False
 
-    @intent_handler(IntentBuilder("start.interval.timer").require("Timer")
-                    .require("Start").optionally("Connector"))
+    @intent_handler('start.interval.timer.intent')
     def handle_start_interval_timer(self, message):
         """ Common handler for start_interval_timer intents
         """
@@ -692,20 +691,23 @@ class TimerSkill(MycroftSkill):
             utt_remaining = message.data["utterance"]
 
         if secs == None: # no duration found, request from user
-            req_duration = self.get_response('ask.how.long',
+            req_duration = self.get_response('ask.how.long.interval',
                                              validator=validate_duration)
             secs, _ = self._extract_duration(req_duration)
             if secs is None:
                 return  # user cancelled
 
         #~~ GET TIMER NAME
-        if utt_remaining is not None and len(utt_remaining) > 0:
-            timer_name = self._get_timer_name(utt_remaining)
-            if timer_name:
-                if self._check_duplicate_timer_name(timer_name):
-                    return # make another timer with a different name
-        else:
-            timer_name = None
+        # START WIP - Not worried about timer names for now
+        #if utt_remaining is not None and len(utt_remaining) > 0:
+        #    timer_name = self._get_timer_name(utt_remaining)
+        #    if timer_name:
+        #        if self._check_duplicate_timer_name(timer_name):
+        #            return # make another timer with a different name
+        #else:
+        #    timer_name = None
+        timer_name = None
+        # END WIP
 
         #~~ SHOULD IT BE AN ALARM?
         # TODO: add name of alarm if available?
@@ -737,7 +739,7 @@ class TimerSkill(MycroftSkill):
         self.log.debug("---------------------------------------")
         #~~ INFORM USER
         if timer['ordinal'] > 1:
-            dialog = 'started.ordinal.timer'
+            dialog = 'started.ordinal.interval.timer'
         else:
             dialog = 'started.interval.timer'
         # if timer['name'] is not None:

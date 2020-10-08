@@ -1,6 +1,5 @@
-(another|one more|second|third|fourth|fifth|) timer ((for every |){duration}|)
-(set|start|create) (a|) timer ((for every |){duration}|)
+(another|one more|second|third|fourth|fifth|) interval timer ((for every |){duration}|)
 ping me every {duration}
-(set|start|create) (a|) interval timer
-(set|start|create) (a|) interval timer for every {duration}
+(set|start|create) (an|) interval timer
+(set|start|create) (an|) interval timer for every {duration}
 (set|start|create) (a|) {duration} interval timer
