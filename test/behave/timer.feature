@@ -293,18 +293,6 @@ Feature: mycroft-timer
      | disable the pasta timer |
      | delete the pasta timer |
      | remove pasta timer |
-
-  @xfail
-  # Jira MS-113 https://mycroft.atlassian.net/browse/MS-113
-  Scenario Outline: Failing cancel a named timer
-    Given an english speaking user
-      And no timers are previously set
-      And a timer named pasta is set
-      When the user says "<cancel a named timer>"
-      Then "mycroft-timer" should reply with dialog from "cancelled.single.timer.dialog"
-
-   Examples: cancel a named timer
-     | cancel a named timer |
      | end pasta timer |
      | end the pasta timer |
 
@@ -368,18 +356,6 @@ Feature: mycroft-timer
      | are there any timers |
      | what timers do I have |
      | when does the timer end |
-
-  @xfail
-  # Jira MS-92 https://mycroft.atlassian.net/browse/MS-92
-  Scenario Outline: Failing status of a single timer
-    Given an english speaking user
-      And no timers are previously set
-      And a timer is set for 5 minutes
-      When the user says "<timer status>"
-      Then "mycroft-timer" should reply with dialog from "time.remaining.dialog"
-
-   Examples: status of a single timer
-     | timer status |
      | timer status |
 
   Scenario Outline: status when there are no active timers
@@ -399,18 +375,6 @@ Feature: mycroft-timer
      | are there any timers |
      | what timers do I have |
      | when does the timer end |
-
-  @xfail
-  # Jira MS-94 https://mycroft.atlassian.net/browse/MS-94
-  Scenario Outline: Failing status when there are no active timers
-    Given an english speaking user
-      And no timers are previously set
-      And no timers are set
-      When the user says "<timer status>"
-      Then "mycroft-timer" should reply with dialog from "no.active.timer.dialog"
-
-   Examples: status when there are no active timers
-     | timer status |
      | timer status |
 
   Scenario Outline: status of named timer
@@ -466,7 +430,7 @@ Feature: mycroft-timer
   Scenario Outline: Setting alarms
     Given an english speaking user
      When the user says "<set an alarm>"
-     Then "TimerSkill" should not respond
+     Then "TimerSkill" should not reply
 
     Examples:
       | set an alarm |

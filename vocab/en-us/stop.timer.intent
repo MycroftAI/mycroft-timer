@@ -1,4 +1,5 @@
-(stop|end|cancel|abort|delete|kill|turn off) (all|the|) (timer|timers)
+(stop|end|cancel|abort|delete|disable|kill|turn off) (all|the|) (timer|timers)
+(stop|end|cancel|abort|delete|disable|kill|turn off)( the|) {duration_or_name} (timer|timers)
 turn it off
 silence
 shutup
