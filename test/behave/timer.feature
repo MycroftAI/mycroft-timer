@@ -431,6 +431,7 @@ Feature: mycroft-timer
     Given an english speaking user
      When the user says "<set an alarm>"
      Then "TimerSkill" should not reply
+     When the user says "cancel"
 
     Examples:
       | set an alarm |
