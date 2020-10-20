@@ -24,8 +24,7 @@ from mycroft.audio import wait_while_speaking, is_speaking
 from mycroft.messagebus.message import Message
 from mycroft.skills.core import (
     MycroftSkill,
-    intent_handler,
-    intent_file_handler)
+    intent_handler)
 from mycroft.util import play_wav
 from mycroft.util.format import pronounce_number, nice_duration, join_list
 from mycroft.util.parse import extract_number, fuzzy_match, extract_duration
@@ -682,12 +681,12 @@ class TimerSkill(MycroftSkill):
 
     # Handles custom start phrases eg "ping me in 5 minutes"
     # Also over matches Common Play for "start timer" utterances
-    @intent_file_handler('start.timer.intent')
+    @intent_handler('start.timer.intent')
     def handle_start_timer_padatious(self, message):
         self.handle_start_timer(message)
 
     # Handles custom status phrases eg 'How much time left'
-    @intent_file_handler('timer.status.intent')
+    @intent_handler('timer.status.intent')
     def handle_status_timer_padatious(self, message):
         self.handle_status_timer(message)
 
@@ -733,7 +732,7 @@ class TimerSkill(MycroftSkill):
     def handle_mute_timer(self, message):
         self.mute = True
 
-    @intent_file_handler('stop.timer.intent')
+    @intent_handler('stop.timer.intent')
     def handle_stop_timer(self, message):
         timer = self._get_next_timer()
         if timer and timer["expires"] < datetime.now():
