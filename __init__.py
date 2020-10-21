@@ -20,11 +20,9 @@ from os.path import join, isfile, abspath, dirname
 from num2words import num2words
 
 from adapt.intent import IntentBuilder
+from mycroft import MycroftSkill, intent_handler
 from mycroft.audio import wait_while_speaking, is_speaking
 from mycroft.messagebus.message import Message
-from mycroft.skills.core import (
-    MycroftSkill,
-    intent_handler)
 from mycroft.util import play_wav
 from mycroft.util.format import pronounce_number, nice_duration, join_list
 from mycroft.util.parse import extract_number, fuzzy_match, extract_duration
