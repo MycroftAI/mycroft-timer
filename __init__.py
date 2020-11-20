@@ -22,6 +22,7 @@ from num2words import num2words
 from adapt.intent import IntentBuilder
 from mycroft import MycroftSkill, intent_handler
 from mycroft.audio import wait_while_speaking, is_speaking
+from mycroft.configuration import LocalConf, SYSTEM_CONFIG
 from mycroft.messagebus.message import Message
 from mycroft.util import play_wav
 from mycroft.util.format import pronounce_number, nice_duration, join_list
@@ -38,6 +39,7 @@ from .util.bus import wait_for_message
 
 ONE_HOUR = 3600
 ONE_MINUTE = 60
+BACKGROUND_COLORS = ('#22A7F0', '#40DBB0', '#BDC3C7', '#4DE0FF')
 
 
 # TESTS
@@ -79,6 +81,10 @@ class TimerSkill(MycroftSkill):
 
         # Threshold score for Fuzzy Logic matching for Timer Name
         self.threshold = 0.7
+
+        system_config = LocalConf(SYSTEM_CONFIG)
+        self.platform = system_config.get("enclosure", {}).get("platform")
+        self.screen_showing = False
 
     def initialize(self):
         self.unpickle()
@@ -360,8 +366,7 @@ class TimerSkill(MycroftSkill):
 
         return matched
 
-
-    def update_display(self, message):
+    def update_display(self, _):
         # Get the next triggering timer
         timer = self._get_next_timer()
         if not timer:
@@ -421,11 +426,17 @@ class TimerSkill(MycroftSkill):
         if timer["expires"] > now:
             # Timer still running
             remaining = (timer["expires"] - now).seconds
-            self.render_timer(idx, remaining)
+            if self.platform == "mycroft_mark_2":
+                self.render_qt_timer(idx, timer, remaining)
+            else:
+                self.render_timer(idx, remaining)
         else:
             # Timer has expired but not been cleared, flash eyes
             overtime = (now - timer["expires"]).seconds
-            self.render_timer(idx, -overtime)
+            if self.platform == "mycroft_mark_2":
+                self.render_qt_timer(idx, timer, overtime)
+            else:
+                self.render_timer(idx, overtime)
 
             if timer["announced"]:
                 # beep again every 10 seconds
@@ -449,6 +460,37 @@ class TimerSkill(MycroftSkill):
                                             "name": name,
                                             "ordinal": speakable_ord})
                 timer["announced"] = True
+
+    def render_qt_timer(self, idx, timer, remaining_time):
+        color_idx = 0 if idx is None else idx % 4 - 1
+        elapsed_time = timer['duration'] - remaining_time
+        remaining_time_display = self._build_time_remaining_string(
+            remaining_time
+        )
+        if datetime.now() > timer['expires']:
+            percent_elapsed = 1
+            remaining_time_display = '-' + remaining_time_display
+            self.gui['timer_expired'] = True
+        else:
+            percent_elapsed = elapsed_time / timer['duration']
+            self.gui['timer_expired'] = False
+
+        if timer['name']:
+            timer_name = timer['name']
+        else:
+            if idx is None or idx == 1:
+                timer_name = 'Timer'
+            else:
+                timer_name = 'Timer ' + str(idx)
+
+        self.gui['timer_color'] = BACKGROUND_COLORS[color_idx]
+        self.gui['timer_name'] = timer_name
+        self.gui['percent_elapsed'] = percent_elapsed
+        self.gui['time_remaining'] = remaining_time_display
+
+        if not self.screen_showing:
+            self.gui.show_page('timer.qml', override_idle=True)
+            self.screen_showing = True
 
     def render_timer(self, idx, seconds):
         display_owner = self.enclosure.display_manager.get_active()
@@ -827,6 +869,9 @@ class TimerSkill(MycroftSkill):
         if timer:
             self.active_timers.remove(timer)
             if len(self.active_timers) == 0:
+                if self.screen_showing:
+                    self.gui.clear()
+                    self.screen_showing = False
                 self.timer_index = 0  # back to zero timers
             self.enclosure.eyes_on()  # reset just in case
 
