@@ -35,7 +35,7 @@ Mycroft.Delegate {
             return height
         }
     }
-        
+
     onTimerDataChanged: {
         if(previousTimer != sessionData.timer_data){
             timerModel.append(sessionData.timer_data)
@@ -59,14 +59,14 @@ Mycroft.Delegate {
             }
         }
     }
-     
+
     DelegateModel {
-            id: visualModel
-            model: ListModel {
-                id: timerModel
-            }
+        id: visualModel
+        model: ListModel {
+            id: timerModel
+        }
         
-            delegate: Rectangle {
+        delegate: Rectangle {
             width: view.cellWidth
             height: view.cellHeight
             color: "transparent"
@@ -104,7 +104,7 @@ Mycroft.Delegate {
                             timeRemaining.text = hours + ":" + minutes + ":" + seconds
                         }
                         timeRemaining.text = minutes + ":" + seconds
-//                         var elapsed_time = time_duration_current - seconds
+                        //                         var elapsed_time = time_duration_current - seconds
                         var percent_elapsed = seconds / time_duration_current
                         progressbar.width = percent_elapsed * timerProgress.width
                     } else {
@@ -137,11 +137,11 @@ Mycroft.Delegate {
                 height: view.cellHeight - Kirigami.Units.gridUnit
                 anchors.centerIn: parent
                 color: "transparent"
-                radius: 20 
+                radius: 20
                 Component.onCompleted: {
                     color = model.timer_color
                 }
-            
+
                 Rectangle {
                     id: timerProgress
                     anchors.fill: parent
@@ -156,7 +156,7 @@ Mycroft.Delegate {
                     }
                     
                     Rectangle {
-                        id: progressbar                        
+                        id: progressbar
                         height: parent.height * 0.1
                         radius: 3
                         anchors.bottom: parent.bottom
