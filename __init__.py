@@ -68,6 +68,7 @@ class TimerSkill(MycroftSkill):
     def __init__(self):
         super(TimerSkill, self).__init__("TimerSkill")
         self.active_timers = []
+        self.displaytimer_list = None
         self.beep_repeat_period = 10
         self.sound_file = join(abspath(dirname(__file__)), 'snd',
                                'twoBeep.wav')
@@ -91,8 +92,9 @@ class TimerSkill(MycroftSkill):
 
         # Invoke update_display in one second to allow it to disable the
         # cancel intent, since there are no timers to cancel yet!
-        self.schedule_repeating_event(self.update_display,
-                                      None, 1, name='ShowTimer')
+        if self.platform != "mycroft_mark_2":
+            self.schedule_repeating_event(self.update_display,
+                                          None, 1, name='ShowTimer')
 
         # To prevent beeping while listening
         self.is_listening = False
@@ -102,6 +104,7 @@ class TimerSkill(MycroftSkill):
                        self.handle_listener_ended)
         self.add_event('skill.mycrofttimer.verify.cancel',
                        self.handle_verify_stop_timer)
+        self.gui.register_handler('skill.mycrofttimer.expiredtimer', self.handle_expired_timer)
 
     def pickle(self):
         # Save the timers for reload
@@ -426,17 +429,11 @@ class TimerSkill(MycroftSkill):
         if timer["expires"] > now:
             # Timer still running
             remaining = (timer["expires"] - now).seconds
-            if self.platform == "mycroft_mark_2":
-                self.render_qt_timer(idx, timer, remaining)
-            else:
-                self.render_timer(idx, remaining)
+            self.render_timer(idx, remaining)
         else:
             # Timer has expired but not been cleared, flash eyes
             overtime = (now - timer["expires"]).seconds
-            if self.platform == "mycroft_mark_2":
-                self.render_qt_timer(idx, timer, overtime)
-            else:
-                self.render_timer(idx, overtime)
+            self.render_timer(idx, overtime)
 
             if timer["announced"]:
                 # beep again every 10 seconds
@@ -461,32 +458,11 @@ class TimerSkill(MycroftSkill):
                                             "ordinal": speakable_ord})
                 timer["announced"] = True
 
-    def render_qt_timer(self, idx, timer, remaining_time):
-        color_idx = 0 if idx is None else idx % 4 - 1
-        elapsed_time = timer['duration'] - remaining_time
-        remaining_time_display = self._build_time_remaining_string(
-            remaining_time
-        )
-        if datetime.now() > timer['expires']:
-            percent_elapsed = 1
-            remaining_time_display = '-' + remaining_time_display
-            self.gui['timer_expired'] = True
-        else:
-            percent_elapsed = elapsed_time / timer['duration']
-            self.gui['timer_expired'] = False
-
-        if timer['name']:
-            timer_name = timer['name']
-        else:
-            if idx is None or idx == 1:
-                timer_name = 'Timer'
-            else:
-                timer_name = 'Timer ' + str(idx)
-
-        self.gui['timer_color'] = BACKGROUND_COLORS[color_idx]
-        self.gui['timer_name'] = timer_name
-        self.gui['percent_elapsed'] = percent_elapsed
-        self.gui['time_remaining'] = remaining_time_display
+    def render_qt_timer(self, ct):
+        print(ct.keys())
+        self.gui["remove_timer"] = ""
+        self.gui["cancelAllTimers"] = False
+        self.gui['timer_data'] = ct
 
         if not self.screen_showing:
             self.gui.show_page('timer.qml', override_idle=True)
@@ -685,7 +661,19 @@ class TimerSkill(MycroftSkill):
         for key in timer:
             self.log.debug('creating timer: {}: {}'.format(key, timer[key]))
         self.log.debug("---------------------------------------")
-
+        
+        if self.platform == "mycroft_mark_2":
+            if self.timer_index is None or self.timer_index == 1:
+                timer_id = 1
+            else:
+                timer_id = self.timer_index
+            
+            now = datetime.now()
+            remaining = (timer["expires"] - now).seconds
+            ct = self._build_timer_display(timer_id, timer, remaining)
+            self.render_qt_timer(ct)
+            self.screen_showing = True
+            
         # INFORM USER
         if timer['ordinal'] > 1:
             dialog = 'started.ordinal.timer'
@@ -704,7 +692,8 @@ class TimerSkill(MycroftSkill):
         wait_while_speaking()
         self.enable_intent("handle_mute_timer")
         # Start showing the remaining time on the faceplate
-        self.update_display(None)
+        if self.platform != "mycroft_mark_2":
+            self.update_display(None)
         # reset the mute flag with a new timer
         self.mute = False
 
@@ -789,6 +778,7 @@ class TimerSkill(MycroftSkill):
     @intent_handler(IntentBuilder("").require("Cancel").require("Timer")
                     .optionally("Connector").optionally("All"))
     def handle_cancel_timer(self, message=None):
+        #self.displaytimer_list.clear()
         if message:
             utt = message.data['utterance']
             all_words = self.translate_list('all')
@@ -797,6 +787,7 @@ class TimerSkill(MycroftSkill):
         num_timers = len(self.active_timers)
 
         if num_timers == 0:
+            self.gui.remove_page("timer.qml")
             self.speak_dialog("no.active.timer")
 
         elif not message or has_all:
@@ -805,8 +796,11 @@ class TimerSkill(MycroftSkill):
                 timer = self._get_next_timer()
                 self.speak_dialog("cancelled.single.timer")
             else:
+                self.gui.remove_page("timer.qml")
+                #self.displaytimer_list.clear()
+                self.gui["cancelAllTimers"] = True
                 self.speak_dialog('cancel.all', data={"count": num_timers})
-
+            
             # get duplicate so we can walk the list
             active_timers = list(self.active_timers)
             for timer in active_timers:
@@ -863,17 +857,43 @@ class TimerSkill(MycroftSkill):
         # NOTE: This allows 'ShowTimer' to continue running, it will clean up
         #       after itself nicely.
 
+    def handle_expired_timer(self, message):
+        print(message.data.keys())
+        
+        #if only timer, just beep        
+        if len(self.active_timers) == 1:
+            self._play_beep()
+        else:
+            duration = nice_duration(message.data["duration"])
+            name = message.data['name']
+            timer = {"name": message.data['name'],
+                 "index": message.data['index'],
+                 "ordinal": message.data['ordinal'],
+                 "duration": message.data['duration'],
+                 "announced": message.data['announced']}
+            speakable_ord = self._get_speakable_ordinal(timer)
+            dialog = 'timer.expired'
+            if name:
+                dialog += '.named'
+            if speakable_ord != "":
+                dialog += '.ordinal'
+            self.speak_dialog(dialog,
+                                data={"duration": duration,
+                                    "name": name,
+                                    "ordinal": speakable_ord})        
+
     def cancel_timer(self, timer):
         """Actually cancels the given timer."""
         # Cancel given timer
         if timer:
+            self.gui["remove_timer"] = {"index": timer["index"], "duration": timer["duration"]}
             self.active_timers.remove(timer)
             if len(self.active_timers) == 0:
                 if self.screen_showing:
                     self.gui.clear()
                     self.screen_showing = False
                 self.timer_index = 0  # back to zero timers
-            self.enclosure.eyes_on()  # reset just in case
+                self.enclosure.eyes_on()  # reset just in case
 
     def shutdown(self):
         # Clear the timer list, this fixes issues when stop() gets called
@@ -944,6 +964,80 @@ class TimerSkill(MycroftSkill):
         if self._is_playing_beep():
             self.beep_process.kill()
             self.beep_process = None
+            
+    def _build_timer_display(self, idx, timer, remaining_time):
+        color_idx = 0 if idx is None else idx % 4 - 1
+        elapsed_time = timer['duration'] - remaining_time
+        remaining_time_display = self._build_time_remaining_string(
+            remaining_time
+        )
+        if datetime.now() > timer['expires']:
+            percent_elapsed = 1
+            remaining_time_display = '-' + remaining_time_display
+            timer_expd = True
+        else:
+            percent_elapsed = elapsed_time / timer['duration']
+            timer_expd = False
+            
+        remain_time_in_ms = remaining_time * 1000
+            
+        if timer['name']:
+            timer_name = timer['name']
+        else:
+            if idx is None or idx == 1:
+                timer_name = 'Timer'
+                timer_id = 1
+            else:
+                timer_name = 'Timer ' + str(idx)
+                timer_id = idx
+            
+        timer_duration = timer['duration']
+        timer_data = {"timer_color": BACKGROUND_COLORS[color_idx], "timer_name": timer_name, "time_remaining": remain_time_in_ms, "timer_duration": timer_duration, "timer_id": timer_id, "timer_ordinal": timer["ordinal"], "timer_announced": timer["announced"], "timer_index": timer["index"]}
+        
+        return timer_data
+    
+    #def _update_timer_display(self, idx, timer, remaining_time):
+        #elapsed_time = timer['duration'] - remaining_time
+        #remaining_time_display = self._build_time_remaining_string(
+            #remaining_time
+        #)
+        #if datetime.now() > timer['expires']:
+            #percent_elapsed = 1
+            #remaining_time_display = '-' + remaining_time_display
+            #timer_expd = True
+        #else:
+            #percent_elapsed = elapsed_time / timer['duration']
+            #timer_expd = False
+            
+        #updated_block = {"percent_elapsed": percent_elapsed, "time_remaining": remaining_time_display, "timer_expired": timer_expd}
+        #return updated_block
+
+    #def _run_timer_append_update_threaded(self, idx, timer, remaining_time):
+        #ct = self._build_timer_display(idx, timer, remaining)
+        #if idx is None or idx == 1:
+            #timer_id = 1
+        #else:
+            #timer_id = idx
+        
+        #listidx = int(timer_id) - 1
+        #print(listidx)
+        #if len(self.displaytimer_list) != 0:
+            #timer_list_len = len(self.displaytimer_list)                    
+            #try:
+                #update_timer = self._update_timer_display(idx, timer, remaining)
+                #self.displaytimer_list[listidx]["percent_elapsed"] =  update_timer["percent_elapsed"] 
+                #self.displaytimer_list[listidx]["time_remaining"] = update_timer["time_remaining"] 
+                #self.displaytimer_list[listidx]["timer_expired"] = update_timer["timer_expired"]
+                
+            #except IndexError:
+                #self.displaytimer_list.append(ct)
+            
+        #else:
+            #print("I found none appended")
+            #self.displaytimer_list.append(ct)
+
+        #self.render_qt_timer()
+        #print(len(self.displaytimer_list))
 
     ######################################################################
     # TODO:Move to MycroftSkill
