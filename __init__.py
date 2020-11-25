@@ -68,7 +68,6 @@ class TimerSkill(MycroftSkill):
     def __init__(self):
         super(TimerSkill, self).__init__("TimerSkill")
         self.active_timers = []
-        self.displaytimer_list = None
         self.beep_repeat_period = 10
         self.sound_file = join(abspath(dirname(__file__)), 'snd',
                                'twoBeep.wav')
@@ -459,7 +458,6 @@ class TimerSkill(MycroftSkill):
                 timer["announced"] = True
 
     def render_qt_timer(self, ct):
-        print(ct.keys())
         self.gui["remove_timer"] = ""
         self.gui["cancelAllTimers"] = False
         self.gui['timer_data'] = ct
@@ -778,7 +776,6 @@ class TimerSkill(MycroftSkill):
     @intent_handler(IntentBuilder("").require("Cancel").require("Timer")
                     .optionally("Connector").optionally("All"))
     def handle_cancel_timer(self, message=None):
-        #self.displaytimer_list.clear()
         if message:
             utt = message.data['utterance']
             all_words = self.translate_list('all')
@@ -797,7 +794,6 @@ class TimerSkill(MycroftSkill):
                 self.speak_dialog("cancelled.single.timer")
             else:
                 self.gui.remove_page("timer.qml")
-                #self.displaytimer_list.clear()
                 self.gui["cancelAllTimers"] = True
                 self.speak_dialog('cancel.all', data={"count": num_timers})
             
@@ -858,8 +854,6 @@ class TimerSkill(MycroftSkill):
         #       after itself nicely.
 
     def handle_expired_timer(self, message):
-        print(message.data.keys())
-        
         #if only timer, just beep        
         if len(self.active_timers) == 1:
             self._play_beep()
@@ -995,49 +989,6 @@ class TimerSkill(MycroftSkill):
         timer_data = {"timer_color": BACKGROUND_COLORS[color_idx], "timer_name": timer_name, "time_remaining": remain_time_in_ms, "timer_duration": timer_duration, "timer_id": timer_id, "timer_ordinal": timer["ordinal"], "timer_announced": timer["announced"], "timer_index": timer["index"]}
         
         return timer_data
-    
-    #def _update_timer_display(self, idx, timer, remaining_time):
-        #elapsed_time = timer['duration'] - remaining_time
-        #remaining_time_display = self._build_time_remaining_string(
-            #remaining_time
-        #)
-        #if datetime.now() > timer['expires']:
-            #percent_elapsed = 1
-            #remaining_time_display = '-' + remaining_time_display
-            #timer_expd = True
-        #else:
-            #percent_elapsed = elapsed_time / timer['duration']
-            #timer_expd = False
-            
-        #updated_block = {"percent_elapsed": percent_elapsed, "time_remaining": remaining_time_display, "timer_expired": timer_expd}
-        #return updated_block
-
-    #def _run_timer_append_update_threaded(self, idx, timer, remaining_time):
-        #ct = self._build_timer_display(idx, timer, remaining)
-        #if idx is None or idx == 1:
-            #timer_id = 1
-        #else:
-            #timer_id = idx
-        
-        #listidx = int(timer_id) - 1
-        #print(listidx)
-        #if len(self.displaytimer_list) != 0:
-            #timer_list_len = len(self.displaytimer_list)                    
-            #try:
-                #update_timer = self._update_timer_display(idx, timer, remaining)
-                #self.displaytimer_list[listidx]["percent_elapsed"] =  update_timer["percent_elapsed"] 
-                #self.displaytimer_list[listidx]["time_remaining"] = update_timer["time_remaining"] 
-                #self.displaytimer_list[listidx]["timer_expired"] = update_timer["timer_expired"]
-                
-            #except IndexError:
-                #self.displaytimer_list.append(ct)
-            
-        #else:
-            #print("I found none appended")
-            #self.displaytimer_list.append(ct)
-
-        #self.render_qt_timer()
-        #print(len(self.displaytimer_list))
 
     ######################################################################
     # TODO:Move to MycroftSkill
