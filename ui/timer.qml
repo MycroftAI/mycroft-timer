@@ -104,7 +104,6 @@ Mycroft.Delegate {
                             timeRemaining.text = hours + ":" + minutes + ":" + seconds
                         }
                         timeRemaining.text = minutes + ":" + seconds
-                        //                         var elapsed_time = time_duration_current - seconds
                         var percent_elapsed = seconds / time_duration_current
                         progressbar.width = percent_elapsed * timerProgress.width
                     } else {

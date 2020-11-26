@@ -82,8 +82,6 @@ class TimerSkill(MycroftSkill):
         # Threshold score for Fuzzy Logic matching for Timer Name
         self.threshold = 0.7
 
-        system_config = LocalConf(SYSTEM_CONFIG)
-        self.platform = system_config.get("enclosure", {}).get("platform")
         self.screen_showing = False
 
     def initialize(self):
@@ -91,7 +89,7 @@ class TimerSkill(MycroftSkill):
 
         # Invoke update_display in one second to allow it to disable the
         # cancel intent, since there are no timers to cancel yet!
-        if self.platform != "mycroft_mark_2":
+        if not self.gui.connected:
             self.schedule_repeating_event(self.update_display,
                                           None, 1, name='ShowTimer')
 
@@ -660,7 +658,7 @@ class TimerSkill(MycroftSkill):
             self.log.debug('creating timer: {}: {}'.format(key, timer[key]))
         self.log.debug("---------------------------------------")
         
-        if self.platform == "mycroft_mark_2":
+        if self.gui.connected:
             if self.timer_index is None or self.timer_index == 1:
                 timer_id = 1
             else:
@@ -690,7 +688,7 @@ class TimerSkill(MycroftSkill):
         wait_while_speaking()
         self.enable_intent("handle_mute_timer")
         # Start showing the remaining time on the faceplate
-        if self.platform != "mycroft_mark_2":
+        if not self.gui.connected:
             self.update_display(None)
         # reset the mute flag with a new timer
         self.mute = False
