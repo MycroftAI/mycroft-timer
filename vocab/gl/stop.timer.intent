@@ -1,0 +1,8 @@
+silenciar
+calar
+(parar|terminar|cancelar|abortar|eliminar|apagar) (todos|todos os|os|o) (temporizador|temporizadores|alarma|alarmas)
+(parar|terminar|cancelar|abortar|eliminar|apagar) (os|os|o) {duration_or_name}(temporizador|temporizadores|alarma|alarmas)
+apaga
+cala
+Entendín
+(Finalizar|cancelar|parar) temporizador

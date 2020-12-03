@@ -1,12 +1,8 @@
-(Start|Zet|Creëer|Begin|Geef me)(een|nog een|een tweede|) timer
-(Start|Zet|Creëer|Begin|Geef me)(een|nog een|een tweede|) (##seconden|##uur|##minuten) timer
-(Start|Zet|Creëer|Begin|Geef me)(een|nog een|een tweede|) (##seconden|##uur|##minuten) timer (genaamd|met naam|voor) {name}.
-(Start|Zet|Creëer|Begin|Geef me)(een|nog een|een tweede|) {duration} timer
-(Start|Zet|Creëer|Begin|Geef me)(een|nog een|een tweede|) {duration} timer (genaamd|met naam|voor) {name}.
-(Start|Zet|Maak|Begin|Ik heb|Geef me) (een|nog een|een tweede|) timer voor {duration} (aan|nodig)?.
+Timer
+(een nieuwe|een extra|de tweede|de derde|de vierde|de vijfde|) timer((voor|){duration}|)
+waarschuw me binnen {duration}
 Timer (voor|){duration}.
-Timer voor {duration} (genaamd|met naam|voor) {name}.
-{duration} timer.
+
+
+
 {duration} timer (genaamd|met naam|voor) {name}.
-Tel {duration} voor (mij|me) af.
-Meet {duration} voor (mij|me).

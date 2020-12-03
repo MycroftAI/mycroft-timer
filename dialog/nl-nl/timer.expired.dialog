@@ -1,1 +1,2 @@
-De timer voor {{name}} loopt af
+(De |) timer voor {{duration}} is afgelopen
+{{duration}} timer is afgelopen
