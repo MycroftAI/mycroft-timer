@@ -1,1 +1,1 @@
-Hay {{count}} temporizadores ejecutando {{names}}.  ¿A cuál te refieres?
+Hay {{count}} temporizadores {{additional}} ejecutando, {{names}}.¿A cuál te refieres?

@@ -1,1 +1,1 @@
-Queda {{remaining}} del temporizador {{name}}
+Del temporizador de {{duration}} quedan {{time_diff}}

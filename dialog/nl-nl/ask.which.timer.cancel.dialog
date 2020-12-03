@@ -1,1 +1,1 @@
-Er lopen {{count}} timers. Welke wil je annuleren?
+Er lopen {{count}} {{additional}} timers voor {{names}}. Welke wil je annuleren?

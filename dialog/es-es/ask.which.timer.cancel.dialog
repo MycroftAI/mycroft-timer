@@ -1,1 +1,1 @@
-Hay {{count}} temporizadores funcionando.  ¿Cuál quieres cancelar?
+Hay {{count}} temporizadores {{additional}} en ejecución, {{names}}, ¿Cuál te gustaría cancelar?
