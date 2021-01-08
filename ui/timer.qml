@@ -100,11 +100,12 @@ Mycroft.Delegate {
 
                         seconds = Math.floor(seconds % 60);
                         seconds = (seconds >= 10) ? seconds : "0" + seconds;
+                        var percent_elapsed = (time_remaining_current / 1000) / time_duration_current;
                         if (hours != "") {
                             timeRemaining.text = hours + ":" + minutes + ":" + seconds
+                        } else {
+                            timeRemaining.text = minutes + ":" + seconds
                         }
-                        timeRemaining.text = minutes + ":" + seconds
-                        var percent_elapsed = seconds / time_duration_current
                         progressbar.width = percent_elapsed * timerProgress.width
                     } else {
                         expireAnimation.running = true
@@ -124,8 +125,9 @@ Mycroft.Delegate {
                         seconds = (seconds >= 10) ? seconds : "0" + seconds;
                         if (hours != "") {
                             timeRemaining.text = "-" + hours + ":" + minutes + ":" + seconds
+                        } else {
+                            timeRemaining.text = "-" + minutes + ":" + seconds
                         }
-                        timeRemaining.text = "-" + minutes + ":" + seconds
                     }
                 }
             }
@@ -171,8 +173,14 @@ Mycroft.Delegate {
                     anchors.topMargin: Kirigami.Units.largeSpacing
                     color: "#2C3E50"
                     font.family: "Noto Sans"
-                    font.pixelSize: parent.height * 0.15
+                    horizontalAlignment: Text.AlignHCenter
+                    width: timerBackground.width - (Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing)
+                    height: parent.height * 0.35
+                    font.pixelSize: contentWidth > (width * 0.8) ? timerName.height * 0.4 : timerName.height * 0.6
                     font.weight: Font.Bold
+                    maximumLineCount: 2
+                    wrapMode: Text.WrapAnywhere
+                    elide: Text.ElideRight
                     Component.onCompleted: {
                         text = model.timer_name
                     }
@@ -183,9 +191,11 @@ Mycroft.Delegate {
                     id: timeRemaining
                     anchors.horizontalCenter: timerBackground.horizontalCenter
                     anchors.verticalCenter: parent.verticalCenter
+                    horizontalAlignment: Text.AlignHCenter
+                    width: timerBackground.width - Kirigami.Units.largeSpacing
                     color: "white"
                     font.family: "Noto Sans"
-                    font.pixelSize: parent.height * 0.2
+                    font.pixelSize: contentWidth > timerBackground.width ? parent.height * 0.10 : parent.height * 0.18
                     font.weight: Font.Bold
 
                     /* Flash the time remaining when the timer expires for a visual cue */

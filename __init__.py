@@ -972,7 +972,8 @@ class TimerSkill(MycroftSkill):
             timer_expd = False
             
         remain_time_in_ms = remaining_time * 1000
-            
+        
+        timer_id = idx or 1
         if timer['name']:
             timer_name = timer['name']
         else:
