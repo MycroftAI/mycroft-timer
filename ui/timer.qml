@@ -176,7 +176,7 @@ Mycroft.Delegate {
                     horizontalAlignment: Text.AlignHCenter
                     width: timerBackground.width - (Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing)
                     height: parent.height * 0.35
-                    font.pixelSize: contentWidth > (width * 0.8) ? timerName.height * 0.4 : timerName.height * 0.6
+                    font.pixelSize: contentWidth > (parent.width * 0.8) ? timerName.height * 0.4 : timerName.height * 0.6
                     font.weight: Font.Bold
                     maximumLineCount: 2
                     wrapMode: Text.WrapAnywhere
@@ -195,7 +195,7 @@ Mycroft.Delegate {
                     width: timerBackground.width - Kirigami.Units.largeSpacing
                     color: "white"
                     font.family: "Noto Sans"
-                    font.pixelSize: contentWidth > timerBackground.width ? parent.height * 0.10 : parent.height * 0.18
+                    font.pixelSize: contentWidth > timerBackground.width ? parent.height * 0.15 : parent.height * 0.25
                     font.weight: Font.Bold
 
                     /* Flash the time remaining when the timer expires for a visual cue */
