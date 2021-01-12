@@ -975,14 +975,12 @@ class TimerSkill(MycroftSkill):
         
         timer_id = idx or 1
         if timer['name']:
-            timer_name = timer['name']
+            timer_name = timer['name'].capitalize()
         else:
             if idx is None or idx == 1:
                 timer_name = 'Timer'
-                timer_id = 1
             else:
                 timer_name = 'Timer ' + str(idx)
-                timer_id = idx
             
         timer_duration = timer['duration']
         timer_data = {"timer_color": BACKGROUND_COLORS[color_idx], "timer_name": timer_name, "time_remaining": remain_time_in_ms, "timer_duration": timer_duration, "timer_id": timer_id, "timer_ordinal": timer["ordinal"], "timer_announced": timer["announced"], "timer_index": timer["index"]}
