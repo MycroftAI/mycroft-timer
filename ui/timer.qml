@@ -18,7 +18,7 @@ Mycroft.Delegate {
     property var removeTimer: sessionData.remove_timer
     property bool cancelAllTimers: false
     property var previousTimer
-    
+
     function calculateCellHeight(count){
         horizontalMode && count > 1 ? height / 2 : height || !horizontalMode && count > 1 ? height / 4 : height
         if(horizontalMode && count > 1) {
@@ -42,13 +42,13 @@ Mycroft.Delegate {
             previousTimer = sessionData.timer_data
         }
     }
-    
+
     onCancelAllTimersChanged: {
         if(sessionData.cancelAllTimers){
             timerModel.clear()
         }
     }
-    
+
     onRemoveTimerChanged: {
         if(removeTimer != ""){
             for (var i = 0; i < timerModel.count; i++) {
@@ -65,7 +65,7 @@ Mycroft.Delegate {
         model: ListModel {
             id: timerModel
         }
-        
+
         delegate: Rectangle {
             width: view.cellWidth
             height: view.cellHeight
@@ -73,13 +73,13 @@ Mycroft.Delegate {
             property var time_remaining_current
             property var time_duration_current
             property var time_remaining_negative: 0
-            
+
             Component.onCompleted: {
                 time_remaining_current = model.time_remaining
                 time_duration_current = model.timer_duration
                 countdownTimer.start()
             }
-            
+
             Timer {
                 id: countdownTimer
                 interval: 1000
@@ -131,7 +131,7 @@ Mycroft.Delegate {
                     }
                 }
             }
-            
+
             Rectangle {
                 id: timerBackground
                 width: view.cellWidth - Kirigami.Units.gridUnit
@@ -151,11 +151,11 @@ Mycroft.Delegate {
                     layer.effect: OpacityMask {
                         maskSource: timerBackground
                     }
-                    
+
                     Component.onCompleted: {
                         color = model.timer_color
                     }
-                    
+
                     Rectangle {
                         id: progressbar
                         height: parent.height * 0.1
@@ -176,7 +176,7 @@ Mycroft.Delegate {
                     horizontalAlignment: Text.AlignHCenter
                     width: timerBackground.width - (Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing)
                     height: parent.height * 0.35
-                    font.pixelSize: contentWidth > (parent.width * 0.8) ? timerName.height * 0.4 : timerName.height * 0.6
+                    font.pixelSize: parent.width * 0.15
                     font.weight: Font.Bold
                     maximumLineCount: 2
                     wrapMode: Text.WrapAnywhere
@@ -190,12 +190,12 @@ Mycroft.Delegate {
                 Label {
                     id: timeRemaining
                     anchors.horizontalCenter: timerBackground.horizontalCenter
-                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.top: timerName.bottom
                     horizontalAlignment: Text.AlignHCenter
                     width: timerBackground.width - Kirigami.Units.largeSpacing
                     color: "white"
                     font.family: "Noto Sans"
-                    font.pixelSize: contentWidth > timerBackground.width ? parent.height * 0.15 : parent.height * 0.25
+                    font.pixelSize: parent.width * 0.20
                     font.weight: Font.Bold
 
                     /* Flash the time remaining when the timer expires for a visual cue */
@@ -203,7 +203,7 @@ Mycroft.Delegate {
                         id: expireAnimation
                         running: false
                         loops: Animation.Infinite
-                        
+
                         onRunningChanged: {
                             if(running){
                                 triggerGuiEvent("skill.mycrofttimer.expiredtimer", {"index": model.timer_index, "name": model.timer_name, "duration": model.timer_duration, "ordinal": model.timer_ordinal, "announced": model.timer_announced})
