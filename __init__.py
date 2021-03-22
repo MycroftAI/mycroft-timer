@@ -882,7 +882,7 @@ class TimerSkill(MycroftSkill):
             self.active_timers.remove(timer)
             if len(self.active_timers) == 0:
                 if self.screen_showing:
-                    self.gui.clear()
+                    self.gui.release()
                     self.screen_showing = False
                 self.timer_index = 0  # back to zero timers
                 self.enclosure.eyes_on()  # reset just in case
