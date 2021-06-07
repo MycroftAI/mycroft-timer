@@ -34,19 +34,20 @@ class TimerMatcher:
             for timer in self.timers:
                 if self.requested_duration == timer.duration:
                     duration_matches.append(timer)
-        LOG.info("Found {} duration matches".format(len(duration_matches)))
+            LOG.info("Found {} duration matches".format(len(duration_matches)))
 
         return duration_matches
 
     def _match_timers_to_name(self):
         name_matches = []
-        for timer in self.timers:
-            name_found = find_timer_name_in_utterance(
-                timer.name, self.utterance, FUZZY_MATCH_THRESHOLD
-            )
-            if name_found:
-                name_matches.append(timer)
-        LOG.info("Found {} name matches".format(len(name_matches)))
+        if self.requested_name is not None:
+            for timer in self.timers:
+                name_found = find_timer_name_in_utterance(
+                    self.requested_name, self.utterance, FUZZY_MATCH_THRESHOLD
+                )
+                if name_found:
+                    name_matches.append(timer)
+            LOG.info("Found {} name matches".format(len(name_matches)))
 
         return name_matches
 

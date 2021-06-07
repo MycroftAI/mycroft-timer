@@ -22,9 +22,11 @@ def extract_timer_duration(utterance: str) -> Tuple[Optional[timedelta], Optiona
     extract_result = extract_duration(normalized_utterance)
     if extract_result is None:
         duration = remaining_utterance = None
-        LOG.info("No duration found in request")
     else:
         duration, remaining_utterance = extract_result
+    if duration is None:
+        LOG.info("No duration found in request")
+    else:
         LOG.info("Duration of {} found in request".format(duration))
 
     return duration, remaining_utterance
@@ -44,6 +46,7 @@ def _normalize_utterance(utterance: str) -> str:
     """
     # TODO: Fix inside parsers
     return utterance.replace("-", " ")
+
 
 def remove_conjunction(conjunction: str, utterance: str) -> str:
     """Remove the specified conjunction from the utterance.
@@ -66,6 +69,7 @@ def remove_conjunction(conjunction: str, utterance: str) -> str:
 
     return remaining_utterance
 
+
 def extract_ordinal(utterance: str) -> str:
     """Extract ordinal number from the utterance.
 
@@ -82,6 +86,7 @@ def extract_ordinal(utterance: str) -> str:
         ordinal = extracted_number
 
     return ordinal
+
 
 def find_timer_name_in_utterance(timer_name, utterance, threshold):
     found = False
@@ -102,6 +107,7 @@ def find_timer_name_in_utterance(timer_name, utterance, threshold):
             found = True
 
     return found
+
 
 def get_speakable_ordinal(timer, language):
     """Get speakable ordinal if other timers exist with same duration."""

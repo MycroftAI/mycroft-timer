@@ -20,7 +20,7 @@ from typing import List, Optional, Tuple
 
 from adapt.intent import IntentBuilder
 from mycroft import MycroftSkill, intent_handler
-from mycroft.audio import is_speaking
+from mycroft.audio import is_speaking, wait_while_speaking
 from mycroft.skills.intent_service import AdaptIntent
 from mycroft.messagebus.message import Message
 from mycroft.util import play_wav
@@ -43,7 +43,6 @@ from .skill import (
     remove_conjunction,
     TimerDialog
 )
-from .util.bus import wait_for_message
 
 ONE_DAY = 86400
 ONE_HOUR = 3600
@@ -71,9 +70,8 @@ class TimerSkill(MycroftSkill):
         self.display_idx = None
         self.regex_file_path = self.find_resource('name.rx', 'regex')
 
-        # Threshold score for Fuzzy Logic matching for Timer Name
-        self.threshold = 0.7
         self.screen_showing = False
+        self.pause_beeping = False
         self.all_timers_words = [word.strip() for word in self.translate_list('all')]
 
     def initialize(self):
@@ -86,9 +84,9 @@ class TimerSkill(MycroftSkill):
                                           None, 1, name='ShowTimer')
 
         # To prevent beeping while listening
-        self.is_listening = False
         self.add_event('recognizer_loop:record_begin', self.handle_listener_started)
         self.add_event('recognizer_loop:record_end', self.handle_listener_ended)
+        self.add_event('speak', self.handle_speak)
         self.add_event(
             'skill.mycrofttimer.verify.cancel', self.handle_verify_stop_timer)
         self.gui.register_handler(
@@ -104,15 +102,14 @@ class TimerSkill(MycroftSkill):
 
     # Handles custom start phrases eg "ping me in 5 minutes"
     # Also over matches Common Play for "start timer" utterances
-    # @intent_handler('start.timer.intent')
-    # def handle_start_timer_padatious(self, message):
-    #     print(message.data)
-    #     self._start_new_timer(message)
+    @intent_handler('start.timer.intent')
+    def handle_start_timer_padatious(self, message):
+        self._start_new_timer(message)
 
     # Handles custom status phrases eg 'How much time left'
-    @intent_handler('timer.status.intent')
-    def handle_status_timer_padatious(self, message):
-        self._communicate_timer_status(message)
+    # @intent_handler('timer.status.intent')
+    # def handle_status_timer_padatious(self, message):
+    #     self._communicate_timer_status(message)
 
     # Handles "do I have any timers" etc
     @intent_handler(AdaptIntent().require("Query").
@@ -198,7 +195,7 @@ class TimerSkill(MycroftSkill):
         if duplicate_timer:
             self._handle_duplicate_name_error(duplicate_timer)
         if duration.total_seconds() >= ONE_DAY:
-            answer = self.ask_yesno("timer.too.long.alarm.instead")
+            answer = self.ask_yesno("timer-too-long-alarm-instead")
             if answer == 'yes':
                 self._convert_to_alarm(duration)
 
@@ -227,7 +224,7 @@ class TimerSkill(MycroftSkill):
             duration = self._request_duration()
         else:
             conjunction = self.translate("and")
-            remaining_utterance = remove_conjunction(conjunction, utterance)
+            remaining_utterance = remove_conjunction(conjunction, remaining_utterance)
 
         return duration, remaining_utterance
 
@@ -432,7 +429,7 @@ class TimerSkill(MycroftSkill):
         # duplicate active timers so we can walk a static list
         active_timers = list(self.active_timers)
         for timer in active_timers:
-            self.cancel_timer(timer)
+            self._cancel_timer(timer)
 
     def _cancel_single_timer(self, utterance):
         # Check if utt included details and it is a mismatch
@@ -444,7 +441,7 @@ class TimerSkill(MycroftSkill):
             if reply == 'no':
                 timer = None
         if timer is not None:
-            self.cancel_timer(timer)
+            self._cancel_timer(timer)
             self.speak_dialog("cancelled-single-timer")
 
     def _match_cancel_request(self, utterance):
@@ -452,7 +449,10 @@ class TimerSkill(MycroftSkill):
             utterance, self.active_timers, self.regex_file_path
         )
         match_criteria_in_utterance = matches is not None
-        timer_matched_criteria = len(matches) == 1
+        if match_criteria_in_utterance:
+            timer_matched_criteria = len(matches) == 1
+        else:
+            timer_matched_criteria = False
 
         return match_criteria_in_utterance and not timer_matched_criteria
 
@@ -474,14 +474,14 @@ class TimerSkill(MycroftSkill):
         if matches is not None:
             if matches:
                 timer = matches[0]
-                self.cancel_timer(timer)
+                self._cancel_timer(timer)
                 dialog = TimerDialog(timer, self.lang)
                 dialog.build_cancel_dialog()
                 self.speak_dialog(dialog.name, dialog.data)
             else:
                 self.speak_dialog("timer-not-found")
 
-    def cancel_timer(self, timer):
+    def _cancel_timer(self, timer):
         """Actually cancels the given timer."""
         self.gui["remove_timer"] = {"index": timer.index, "duration": timer.duration}
         self.active_timers.remove(timer)
@@ -540,21 +540,19 @@ class TimerSkill(MycroftSkill):
                                     "name": name,
                                     "ordinal": speakable_ord})
 
-    # TODO: Implement util.is_listening() to replace this
-    def is_not_listening(self):
-        self.is_listening = False
-
     def handle_listener_started(self, _):
-        self.is_listening = True
+        if self.beep_process is not None:
+            self.pause_beeping = True
 
     def handle_listener_ended(self, _):
         if self.beep_process is not None:
-            self.bus.on('recognizer_loop:speech.recognition.unknown',
-                        self.is_not_listening)
-            speak_msg_detected = wait_for_message(self.bus, 'speak')
-            self.bus.remove('recognizer_loop:speech.recognition.unknown',
-                            self.is_not_listening)
-        self.is_not_listening()
+            self.pause_beeping = False
+
+    def handle_speak(self, _):
+        if self.beep_process is not None:
+            self.pause_beeping = True
+            wait_while_speaking()
+            self.pause_beeping = False
 
     def _get_next_timer(self):
         """Retrieve the next timer set to trigger."""
@@ -745,7 +743,7 @@ class TimerSkill(MycroftSkill):
         if len(self.active_timers) > 0:
             active_timers = list(self.active_timers)
             for timer in active_timers:
-                self.cancel_timer(timer)
+                self._cancel_timer(timer)
 
     def converse(self, utterances, lang="en-us"):
         timer = self._get_next_timer()
@@ -772,7 +770,7 @@ class TimerSkill(MycroftSkill):
         if timer and timer.expiration < now:
             # stop the expired timer(s)
             while timer and timer.expiration < now:
-                self.cancel_timer(timer)
+                self._cancel_timer(timer)
                 timer = self._get_next_timer()
             self.write_timers()   # save to disk
             return True
@@ -788,12 +786,9 @@ class TimerSkill(MycroftSkill):
 
         return False
 
-    ######################################################################
-    # Audio feedback
-
     def _play_beep(self):
         # Play the beep sound
-        if not self._is_playing_beep() and not self.is_listening:
+        if not self._is_playing_beep() and not self.pause_beeping:
             self.beep_process = play_wav(self.sound_file)
 
     def _is_playing_beep(self):

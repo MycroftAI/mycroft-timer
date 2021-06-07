@@ -29,11 +29,24 @@ class TimerNameExtractor:
         for pattern in regex_patterns:
             pattern_match = re.search(pattern, self.utterance)
             if pattern_match:
-                try:
-                    self.extracted_name = pattern_match.group("Name").strip()
-                    LOG.info('Timer name extracted from utterance: ' + self.extracted_name)
-                except IndexError:
-                    LOG.info('No timer name extracted from utterance')
+                self._handle_pattern_match(pattern_match)
+                if self.extracted_name is not None:
+                    break
+        self._log_extraction_result()
+
+    def _handle_pattern_match(self, pattern_match):
+        try:
+            extracted_name = pattern_match.group("Name").strip()
+            if extracted_name:
+                self.extracted_name = extracted_name
+        except IndexError:
+            pass
+
+    def _log_extraction_result(self):
+        if self.extracted_name is None:
+            LOG.info('No timer name extracted from utterance')
+        else:
+            LOG.info('Timer name extracted from utterance: ' + self.extracted_name)
 
 def extract_timer_name(utterance: str, regex_file_path: str) -> str:
     extractor = TimerNameExtractor(utterance, regex_file_path)
