@@ -6,7 +6,7 @@ import QtQml.Models 2.12
 import org.kde.kirigami 2.9 as Kirigami
 import Mycroft 1.0 as Mycroft
 
-Mycroft.Delegate {
+Mycroft.CardDelegate {
     id: timerFrame
     leftPadding: 0
     rightPadding: 0
@@ -139,27 +139,36 @@ Mycroft.Delegate {
                 anchors.centerIn: parent
                 color: "transparent"
                 radius: 20
+                z: 3
+                
                 Component.onCompleted: {
                     color = model.timer_color
                 }
-
+                
                 Rectangle {
                     id: timerProgress
-                    anchors.fill: parent
                     color: "transparent"
+                    radius: timerBackground.radius
+                    anchors.fill: parent
+                    visible: true
                     layer.enabled: true
                     layer.effect: OpacityMask {
-                        maskSource: timerBackground
+                        maskSource: Item {
+                            width: timerProgress.width
+                            height: timerProgress.height
+                            Rectangle {
+                                anchors.centerIn: parent
+                                width: timerProgress.width
+                                height: timerProgress.height
+                                radius: timerBackground.radius
+                            }
+                        }
                     }
-
-                    Component.onCompleted: {
-                        color = model.timer_color
-                    }
-
+                    
                     Rectangle {
                         id: progressbar
-                        height: parent.height * 0.1
-                        radius: 3
+                        height: Mycroft.Units.gridUnit * 2
+                        radius: timerBackground.radius
                         anchors.bottom: parent.bottom
                         color: "#FD9E66"
                     }
