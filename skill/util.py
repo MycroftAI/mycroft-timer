@@ -109,7 +109,25 @@ def find_timer_name_in_utterance(timer_name, utterance, threshold):
     return found
 
 
-def get_speakable_ordinal(timer, language):
+def get_speakable_ordinal(ordinal, language):
     """Get speakable ordinal if other timers exist with same duration."""
-    return num2words(timer.ordinal, to="ordinal", lang=language)
+    return num2words(ordinal, to="ordinal", lang=language)
 
+
+def format_timedelta(time_delta: timedelta):
+    """Convert number of seconds into a displayable time string."""
+    hours = abs(time_delta // timedelta(hours=1))
+    minutes = abs((time_delta - timedelta(hours=hours)) // timedelta(minutes=1))
+    seconds = abs(
+        (time_delta - timedelta(hours=hours) - timedelta(minutes=minutes))
+        // timedelta(seconds=1)
+    )
+    if hours:
+        time_elements = [
+            str(hours), str(minutes).zfill(2), str(seconds).zfill(2)
+        ]
+    else:
+        time_elements = [str(minutes).zfill(2), str(seconds).zfill(2)]
+    formatted_time_delta = ':'.join(time_elements)
+
+    return formatted_time_delta
