@@ -1,11 +1,26 @@
+# Copyright 2021 Mycroft AI Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""Utility functions for the timer skill."""
 import re
 from datetime import timedelta
 from typing import Optional, Tuple
 
-from num2words import num2words
-
+from mycroft.util.format import pronounce_number
 from mycroft.util.log import LOG
 from mycroft.util.parse import extract_duration, extract_number, fuzzy_match
+
+FUZZY_MATCH_THRESHOLD = 0.7
 
 
 def extract_timer_duration(utterance: str) -> Tuple[Optional[timedelta], Optional[str]]:
@@ -64,8 +79,8 @@ def remove_conjunction(conjunction: str, utterance: str) -> str:
         The same utterance with any dashes replaced by spaces.
 
     """
-    pattern = r'\s\s{}'.format(conjunction)
-    remaining_utterance = re.sub(pattern, '', utterance, flags=re.IGNORECASE)
+    pattern = r"\s\s{}".format(conjunction)
+    remaining_utterance = re.sub(pattern, "", utterance, flags=re.IGNORECASE)
 
     return remaining_utterance
 
@@ -88,7 +103,19 @@ def extract_ordinal(utterance: str) -> str:
     return ordinal
 
 
-def find_timer_name_in_utterance(timer_name, utterance, threshold):
+def find_timer_name_in_utterance(timer_name: str, utterance: str) -> bool:
+    """Match a timer name to a name requested in the user request.
+
+    Use "fuzzy matching" to perform the search in case the STT translation is not
+    a precise match.
+
+    Args:
+        timer_name: name of a timer to match against
+        utterance: the user request.
+
+    Returns:
+        Whether or not a match was found.
+    """
     found = False
     best_score = 0
     utterance_words = utterance.split()
@@ -96,12 +123,12 @@ def find_timer_name_in_utterance(timer_name, utterance, threshold):
     name_word_count = len(timer_name.split())
 
     for index in range(utterance_word_count - name_word_count, -1, -1):
-        utterance_part = ' '.join(utterance_words[index:index + utterance_word_count])
+        utterance_part = " ".join(utterance_words[index : index + utterance_word_count])
         score = fuzzy_match(utterance_part, timer_name.lower())
 
-        if score > best_score and score >= threshold:
+        if score > best_score and score >= FUZZY_MATCH_THRESHOLD:
             LOG.info(
-                "Timer name \"{}\" matched with score of {}".format(timer_name, score)
+                'Timer name "{}" matched with score of {}'.format(timer_name, score)
             )
             best_score = score
             found = True
@@ -109,13 +136,28 @@ def find_timer_name_in_utterance(timer_name, utterance, threshold):
     return found
 
 
-def get_speakable_ordinal(ordinal, language):
-    """Get speakable ordinal if other timers exist with same duration."""
-    return num2words(ordinal, to="ordinal", lang=language)
+def get_speakable_ordinal(ordinal) -> str:
+    """Get speakable ordinal if other timers exist with same duration.
+
+    Args:
+        ordinal: if more than one timer exists for the same duration, this value will
+            indicate if it is the first, second, etc. instance of the duration.
+
+    Returns:
+        The ordinal that can be passed to TTS (i.e. "first", "second")
+    """
+    return pronounce_number(ordinal, ordinals=True)
 
 
-def format_timedelta(time_delta: timedelta):
-    """Convert number of seconds into a displayable time string."""
+def format_timedelta(time_delta: timedelta) -> str:
+    """Convert number of seconds into a displayable time string.
+
+    Args:
+        time_delta: an amount of time to convert to a displayable string.
+
+    Returns:
+        the value to display on a device's screen or faceplate.
+    """
     hours = abs(time_delta // timedelta(hours=1))
     minutes = abs((time_delta - timedelta(hours=hours)) // timedelta(minutes=1))
     seconds = abs(
@@ -123,11 +165,9 @@ def format_timedelta(time_delta: timedelta):
         // timedelta(seconds=1)
     )
     if hours:
-        time_elements = [
-            str(hours), str(minutes).zfill(2), str(seconds).zfill(2)
-        ]
+        time_elements = [str(hours), str(minutes).zfill(2), str(seconds).zfill(2)]
     else:
         time_elements = [str(minutes).zfill(2), str(seconds).zfill(2)]
-    formatted_time_delta = ':'.join(time_elements)
+    formatted_time_delta = ":".join(time_elements)
 
     return formatted_time_delta
