@@ -12,14 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Logic to match one or more timers to a user's request."""
-from typing import List, TYPE_CHECKING
+from typing import List
 
 from mycroft.util.log import LOG
 from .name_extractor import extract_timer_name
+from .timer import CountdownTimer
 from .util import extract_ordinal, extract_timer_duration, find_timer_name_in_utterance
-
-if TYPE_CHECKING:
-    from .timer import CountdownTimer
 
 
 class TimerMatcher:
