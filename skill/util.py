@@ -18,9 +18,7 @@ from typing import Optional, Tuple
 
 from mycroft.util.format import pronounce_number
 from mycroft.util.log import LOG
-from mycroft.util.parse import extract_duration, extract_number, fuzzy_match
-
-FUZZY_MATCH_THRESHOLD = 0.7
+from mycroft.util.parse import extract_duration, extract_number
 
 
 def extract_timer_duration(utterance: str) -> Tuple[Optional[timedelta], Optional[str]]:
@@ -101,39 +99,6 @@ def extract_ordinal(utterance: str) -> str:
         ordinal = extracted_number
 
     return ordinal
-
-
-def find_timer_name_in_utterance(timer_name: str, utterance: str) -> bool:
-    """Match a timer name to a name requested in the user request.
-
-    Use "fuzzy matching" to perform the search in case the STT translation is not
-    a precise match.
-
-    Args:
-        timer_name: name of a timer to match against
-        utterance: the user request.
-
-    Returns:
-        Whether or not a match was found.
-    """
-    found = False
-    best_score = 0
-    utterance_words = utterance.split()
-    utterance_word_count = len(utterance_words)
-    name_word_count = len(timer_name.split())
-
-    for index in range(utterance_word_count - name_word_count, -1, -1):
-        utterance_part = " ".join(utterance_words[index : index + utterance_word_count])
-        score = fuzzy_match(utterance_part, timer_name.lower())
-
-        if score > best_score and score >= FUZZY_MATCH_THRESHOLD:
-            LOG.info(
-                'Timer name "{}" matched with score of {}'.format(timer_name, score)
-            )
-            best_score = score
-            found = True
-
-    return found
 
 
 def get_speakable_ordinal(ordinal) -> str:

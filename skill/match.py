@@ -15,9 +15,12 @@
 from typing import List
 
 from mycroft.util.log import LOG
+from mycroft.util.parse import fuzzy_match
 from .name_extractor import extract_timer_name
 from .timer import CountdownTimer
-from .util import extract_ordinal, extract_timer_duration, find_timer_name_in_utterance
+from .util import extract_ordinal, extract_timer_duration
+
+FUZZY_MATCH_THRESHOLD = 0.7
 
 
 class TimerMatcher:
@@ -36,6 +39,7 @@ class TimerMatcher:
         if self.requested_duration is not None or self.requested_name is not None:
             duration_matches = self._match_timers_to_duration()
             name_matches = self._match_timers_to_name()
+            print(name_matches)
             if duration_matches and name_matches:
                 self.matches = [
                     timer for timer in name_matches if timer in duration_matches
@@ -62,12 +66,14 @@ class TimerMatcher:
         """If the utterance includes a timer name, find timers that match it."""
         name_matches = []
         if self.requested_name is not None:
+            best_score = 0
             for timer in self.timers:
-                name_found = find_timer_name_in_utterance(
-                    self.requested_name, self.utterance
-                )
-                if name_found:
-                    name_matches.append(timer)
+                score = fuzzy_match(self.requested_name, timer.name.lower())
+                if score == 1.0:
+                    name_matches = [timer]
+                    break
+                elif score >= FUZZY_MATCH_THRESHOLD and score > best_score:
+                    name_matches.insert(0, timer)
             LOG.info("Found {} name matches".format(len(name_matches)))
 
         return name_matches
@@ -84,6 +90,7 @@ class TimerMatcher:
         for timer in self.matches:
             if self.requested_ordinal == timer.ordinal:
                 self.matches = [timer]
+                break
 
     def _match_timers_to_ordinal(self):
         """No timers have matched to name and/or duration so search all for ordinal."""

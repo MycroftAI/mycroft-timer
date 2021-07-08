@@ -81,7 +81,7 @@ class CountdownTimer:
         return time_since_expiration
 
     @property
-    def display_data(self):
+    def display_data(self) -> dict:
         """Build the name/value pairs to be passed to the GUI."""
         color_index = (self.index % 4) - 1
         if self.expired:

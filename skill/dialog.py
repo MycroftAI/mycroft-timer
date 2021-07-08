@@ -37,7 +37,7 @@ class TimerDialog:
         """
         self.name = "started-timer"
         self.data = dict(duration=self.timer.speakable_duration)
-        if timer_count > 1:
+        if timer_count > 1 or self.timer.name != "Timer":
             self.name += "-named"
             self.data.update(name=self.timer.name)
             self._check_for_ordinal()
@@ -52,7 +52,7 @@ class TimerDialog:
         else:
             self.name = "time-remaining"
             self.data = dict(
-                time_diff=nice_duration(self.timer.time_until_expiration.seconds)
+                time_diff=nice_duration(self.timer.time_remaining.seconds)
             )
         self._check_for_named_timer()
         self._check_for_ordinal()
@@ -78,7 +78,7 @@ class TimerDialog:
         timer_name = self.timer.name or self.timer.speakable_duration
         self.data = dict(name=timer_name)
 
-    def build_expiration_announcement_dialog(self, timer_count):
+    def build_expiration_announcement_dialog(self, timer_count: int):
         """Build dialog used to announce that a timer has expired."""
         self.name = "timer-expired"
         self.data = dict(duration=self.timer.speakable_duration)
@@ -104,5 +104,5 @@ class TimerDialog:
         """
         if self.timer.ordinal > 1:
             self.name += "-ordinal"
-            speakable_ordinal = get_speakable_ordinal(self.timer, self.language)
+            speakable_ordinal = get_speakable_ordinal(self.timer.ordinal)
             self.data.update(ordinal=speakable_ordinal)
