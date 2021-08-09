@@ -658,14 +658,14 @@ class TimerSkill(MycroftSkill):
         """Display active timers on a device that supports the QT GUI framework."""
         timers_to_display = self._select_timers_to_display(display_max=4)
         display_data = [timer.display_data for timer in timers_to_display]
-        if timers_to_display:
-            self.gui["activeTimers"] = dict(timers=display_data)
-            self.gui["activeTimerCount"] = len(timers_to_display)
         if self.platform == MARK_II:
             page = "timer_mark_ii.qml"
         else:
             page = "timer_scalable.qml"
-        self.gui.show_page(page, override_idle=True)
+        if timers_to_display:
+            self.gui["activeTimers"] = dict(timers=display_data)
+            self.gui["activeTimerCount"] = len(timers_to_display)
+            self.gui.show_page(page, override_idle=True)
 
     def _display_timers_on_faceplate(self):
         """Display one timer on a device that supports and Arduino faceplate."""
