@@ -644,68 +644,6 @@ class TimerSkill(MycroftSkill):
 
         return timer_names
 
-    def handle_wake_word_detected(self, _):
-        self._pause_scheduled_events()
-
-    def handle_speech_recognition_unknown(self, _):
-        """Resume scheduled events paused when the listener started."""
-        self._resume_scheduled_events()
-
-    def handle_speak(self, _):
-        """Pause scheduled events while the device speaking.
-
-        The Mark I needs to wait for two seconds after the speaking is done because
-        there is an automatic display reset at that time.
-        """
-        wait_while_speaking()
-        if self.platform == MARK_I:
-            time.sleep(2)
-        self._resume_scheduled_events()
-
-    def _pause_scheduled_events(self):
-        """Pause scheduled events that interfere with device operations.
-
-        All devices will be beeping if there are one or more expired timers.  Pause
-        the beeping so that the device can listen and respond to a user request.
-
-        The Mark I has mouth events that occur during listening and speaking.  Stop
-        displaying the timer during these events.
-        """
-        self._stop_expiration_check()
-        if self.platform == MARK_I:
-            self._stop_timer_display()
-
-    def _resume_scheduled_events(self):
-        """Resume scheduled events that were paused during listening/speaking."""
-        self._start_expiration_check()
-        if self.platform == MARK_I:
-            self._start_timer_display()
-
-    def _start_timer_display(self):
-        """Start a event repeating every second tp display the timer on a GUI."""
-        if self.active_timers:
-            self.enclosure.mouth_reset()
-            self.schedule_repeating_event(
-                self.display_timers, None, 1, name="ShowTimer"
-            )
-
-    def _stop_timer_display(self):
-        """Stop the repeating event that displays the timer on a GUI interface."""
-        self.cancel_scheduled_event("ShowTimer")
-        self.enclosure.mouth_reset()
-
-    def _start_expiration_check(self):
-        """Start an event repeating every two seconds to check for expired timers."""
-        if self.active_timers:
-            self.schedule_repeating_event(
-                self.check_for_expired_timers, None, 2, name="ExpirationCheck"
-            )
-
-    def _stop_expiration_check(self):
-        """Stop the repeating event that checks for expired timers."""
-        self.log.info("cancelling ExpirationCheck repeating event")
-        self.cancel_scheduled_event("ExpirationCheck")
-
     def display_timers(self):
         """Update the device's display to show the status of active timers.
 
@@ -857,6 +795,68 @@ class TimerSkill(MycroftSkill):
         answer = self.ask_yesno(question)
         if answer == "yes":
             self._cancel_all_timers()
+
+    def handle_wake_word_detected(self, _):
+        self._pause_scheduled_events()
+
+    def handle_speech_recognition_unknown(self, _):
+        """Resume scheduled events paused when the listener started."""
+        self._resume_scheduled_events()
+
+    def handle_speak(self, _):
+        """Pause scheduled events while the device speaking.
+
+        The Mark I needs to wait for two seconds after the speaking is done because
+        there is an automatic display reset at that time.
+        """
+        wait_while_speaking()
+        if self.platform == MARK_I:
+            time.sleep(2)
+        self._resume_scheduled_events()
+
+    def _pause_scheduled_events(self):
+        """Pause scheduled events that interfere with device operations.
+
+        All devices will be beeping if there are one or more expired timers.  Pause
+        the beeping so that the device can listen and respond to a user request.
+
+        The Mark I has mouth events that occur during listening and speaking.  Stop
+        displaying the timer during these events.
+        """
+        self._stop_expiration_check()
+        if self.platform == MARK_I:
+            self._stop_timer_display()
+
+    def _resume_scheduled_events(self):
+        """Resume scheduled events that were paused during listening/speaking."""
+        self._start_expiration_check()
+        if self.platform == MARK_I:
+            self._start_timer_display()
+
+    def _start_timer_display(self):
+        """Start a event repeating every second tp display the timer on a GUI."""
+        if self.active_timers:
+            self.enclosure.mouth_reset()
+            self.schedule_repeating_event(
+                self.display_timers, None, 1, name="ShowTimer"
+            )
+
+    def _stop_timer_display(self):
+        """Stop the repeating event that displays the timer on a GUI interface."""
+        self.cancel_scheduled_event("ShowTimer")
+        self.enclosure.mouth_reset()
+
+    def _start_expiration_check(self):
+        """Start an event repeating every two seconds to check for expired timers."""
+        if self.active_timers:
+            self.schedule_repeating_event(
+                self.check_for_expired_timers, None, 2, name="ExpirationCheck"
+            )
+
+    def _stop_expiration_check(self):
+        """Stop the repeating event that checks for expired timers."""
+        self.log.info("cancelling ExpirationCheck repeating event")
+        self.cancel_scheduled_event("ExpirationCheck")
 
     def _reset_timer_index(self):
         """Use the timers loaded from skill storage to determine the timer index."""
