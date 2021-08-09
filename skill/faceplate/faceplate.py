@@ -28,7 +28,7 @@ class FaceplateRenderer:
     def __init__(self, enclosure, timer):
         self.enclosure = enclosure
         self.timer_index = timer.index
-        self.timer_display = timer.time_remaining or timer.time_since_expiration
+        self.timer_display = timer.display_data["timeDelta"]
         self.multiple_active_timers = False
         self.character_directory = Path(__file__).parent.joinpath("characters")
         self.x_coordinate = 0
@@ -54,7 +54,7 @@ class FaceplateRenderer:
             if character == ":":
                 timer_width += COLON_WIDTH
             elif character == "-":
-                timer_width = HYPHEN_WIDTH
+                timer_width = HYPHEN_WIDTH + SPACING
             else:
                 timer_width += CHARACTER_WIDTH + SPACING
         timer_width -= 1
@@ -67,7 +67,7 @@ class FaceplateRenderer:
             character_width = COLON_WIDTH
         elif character == "-":
             file_name = "negative.png"
-            character_width = HYPHEN_WIDTH
+            character_width = HYPHEN_WIDTH + SPACING
         else:
             file_name = character + ".png"
             character_width = CHARACTER_WIDTH + SPACING

@@ -66,12 +66,16 @@ class TimerSkill(MycroftSkill):
         self._load_timers()
         self._reset_timer_index()
         if self.active_timers:
+            self.log.info("found {} active timers".format(str(len(self.active_timers))))
             self._start_timer_display()
             self._start_expiration_check()
 
         # To prevent beeping while listening
-        self.add_event("recognizer_loop:record_begin", self.handle_listener_started)
-        self.add_event("recognizer_loop:record_end", self.handle_listener_ended)
+        self.add_event("recognizer_loop:wakeword", self.handle_wake_word_detected)
+        self.add_event(
+            'mycroft.speech.recognition.unknown',
+            self.handle_speech_recognition_unknown
+        )
         self.add_event("speak", self.handle_speak)
         self.add_event("skill.timer.stop", self.handle_timer_stop)
 
@@ -189,9 +193,6 @@ class TimerSkill(MycroftSkill):
             timer = self._build_timer(duration, name)
             self.active_timers.append(timer)
             self.active_timers.sort(key=lambda x: x.expiration)
-            if len(self.active_timers) == 1:
-                self._start_timer_display()
-                self._start_expiration_check()
             self._speak_new_timer(timer)
             self._save_timers()
 
@@ -502,6 +503,7 @@ class TimerSkill(MycroftSkill):
         elif active_timer_count > 1:
             self._determine_which_timer_to_cancel(utterance)
         self._save_timers()
+        self.log.info("active_timers: " + str(bool(self.active_timers)))
         if not self.active_timers:
             self._reset()
 
@@ -642,18 +644,22 @@ class TimerSkill(MycroftSkill):
 
         return timer_names
 
-    def handle_listener_started(self, _):
-        """Pause scheduled events that would interfere with the device listening."""
+    def handle_wake_word_detected(self, _):
         self._pause_scheduled_events()
 
-    def handle_listener_ended(self, _):
+    def handle_speech_recognition_unknown(self, _):
         """Resume scheduled events paused when the listener started."""
         self._resume_scheduled_events()
 
     def handle_speak(self, _):
-        """Pause scheduled events while the device speaking."""
-        self._pause_scheduled_events()
+        """Pause scheduled events while the device speaking.
+
+        The Mark I needs to wait for two seconds after the speaking is done because
+        there is an automatic display reset at that time.
+        """
         wait_while_speaking()
+        if self.platform == MARK_I:
+            time.sleep(2)
         self._resume_scheduled_events()
 
     def _pause_scheduled_events(self):
@@ -671,26 +677,33 @@ class TimerSkill(MycroftSkill):
 
     def _resume_scheduled_events(self):
         """Resume scheduled events that were paused during listening/speaking."""
-        self._start_timer_display()
+        self._start_expiration_check()
         if self.platform == MARK_I:
-            self._start_expiration_check()
+            self._start_timer_display()
 
     def _start_timer_display(self):
         """Start a event repeating every second tp display the timer on a GUI."""
-        self.schedule_repeating_event(self.display_timers, None, 1, name="ShowTimer")
+        if self.active_timers:
+            self.enclosure.mouth_reset()
+            self.schedule_repeating_event(
+                self.display_timers, None, 1, name="ShowTimer"
+            )
 
     def _stop_timer_display(self):
         """Stop the repeating event that displays the timer on a GUI interface."""
         self.cancel_scheduled_event("ShowTimer")
+        self.enclosure.mouth_reset()
 
     def _start_expiration_check(self):
-        """Start an even repeating every two seconds to check for expired timers."""
-        self.schedule_repeating_event(
-            self.check_for_expired_timers, None, 2, name="ExpirationCheck"
-        )
+        """Start an event repeating every two seconds to check for expired timers."""
+        if self.active_timers:
+            self.schedule_repeating_event(
+                self.check_for_expired_timers, None, 2, name="ExpirationCheck"
+            )
 
     def _stop_expiration_check(self):
         """Stop the repeating event that checks for expired timers."""
+        self.log.info("cancelling ExpirationCheck repeating event")
         self.cancel_scheduled_event("ExpirationCheck")
 
     def display_timers(self):
@@ -720,9 +733,7 @@ class TimerSkill(MycroftSkill):
     def _display_timers_on_faceplate(self):
         """Display one timer on a device that supports and Arduino faceplate."""
         faceplate_user = self.enclosure.display_manager.get_active()
-        if not faceplate_user:
-            self.enclosure.mouth_reset()
-        elif faceplate_user == "TimerSkill":
+        if faceplate_user == "TimerSkill":
             previous_display_group = self.display_group
             timers_to_display = self._select_timers_to_display(display_max=1)
             if self.display_group != previous_display_group:
@@ -789,6 +800,8 @@ class TimerSkill(MycroftSkill):
             if not timer.expiration_announced:
                 dialog = TimerDialog(timer, self.lang)
                 dialog.build_expiration_announcement_dialog(len(self.active_timers))
+                self._pause_scheduled_events()
+                time.sleep(1)  # give the scheduled event a second to clear
                 self.speak_dialog(dialog.name, dialog.data)
                 timer.expiration_announced = True
                 break
