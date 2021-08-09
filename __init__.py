@@ -73,8 +73,7 @@ class TimerSkill(MycroftSkill):
         # To prevent beeping while listening
         self.add_event("recognizer_loop:wakeword", self.handle_wake_word_detected)
         self.add_event(
-            'mycroft.speech.recognition.unknown',
-            self.handle_speech_recognition_unknown
+            "mycroft.speech.recognition.unknown", self.handle_speech_recognition_unknown
         )
         self.add_event("speak", self.handle_speak)
         self.add_event("skill.timer.stop", self.handle_timer_stop)
@@ -866,7 +865,7 @@ class TimerSkill(MycroftSkill):
 
     def _save_timers(self):
         """Write a serialized version of the data to the specified file name."""
-        with open(self.save_path, 'wb') as data_file:
+        with open(self.save_path, "wb") as data_file:
             pickle.dump(self.active_timers, data_file, pickle.HIGHEST_PROTOCOL)
 
     def _load_timers(self):
@@ -877,7 +876,7 @@ class TimerSkill(MycroftSkill):
         """
         self.active_timers = list()
         if self.save_path.exists():
-            with open(self.save_path, 'rb') as data_file:
+            with open(self.save_path, "rb") as data_file:
                 self.active_timers = pickle.load(data_file)
 
 
