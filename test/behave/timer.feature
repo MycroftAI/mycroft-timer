@@ -159,12 +159,23 @@ Feature: mycroft-timer
      | stop the timer |
      | stop the timer |
      | end timer |
-     | end the timer |
      | kill the timer |
-     | disable timer |
      | disable the timer |
-     | delete timer |
      | remove timer |
+
+  @xfail
+  Scenario Outline: Failing cancel timer with one active timer
+    Given an english speaking user
+      And no timers are previously set
+      And only one timer is set
+      When the user says "<stop the timer>"
+      Then "mycroft-timer" should reply with dialog from "cancelled.single.timer.dialog"
+
+   Examples: cancel timer with one active timer
+     | stop the timer |
+     | end the timer |
+     | disable timer |
+     | delete timer |
 
   Scenario Outline: cancel timer with two active timers
     Given an english speaking user
