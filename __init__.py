@@ -191,7 +191,9 @@ class TimerSkill(MycroftSkill):
         else:
             timer = self._build_timer(duration, name)
             self.active_timers.append(timer)
-            self.active_timers.sort(key=lambda x: x.expiration)
+            self.active_timers.sort(key=lambda tmr: tmr.expiration)
+            if len(self.active_timers) == 1:
+                self._start_timer_display()
             self._speak_new_timer(timer)
             self._save_timers()
 
@@ -649,7 +651,9 @@ class TimerSkill(MycroftSkill):
         Runs once a second via a repeating event to keep the information on the display
         accurate.
         """
+        self.log.info("displaying timers")
         if self.gui.connected:
+            self.log.info("gui is connected")
             self._display_timers_on_gui()
         elif self.platform == MARK_I:
             self._display_timers_on_faceplate()
@@ -657,7 +661,9 @@ class TimerSkill(MycroftSkill):
     def _display_timers_on_gui(self):
         """Display active timers on a device that supports the QT GUI framework."""
         timers_to_display = self._select_timers_to_display(display_max=4)
+        self.log.info("displaying {} timers".format(len(timers_to_display)))
         display_data = [timer.display_data for timer in timers_to_display]
+        self.log.info("display data: " + str(display_data[0]))
         if self.platform == MARK_II:
             page = "timer_mark_ii.qml"
         else:
@@ -835,7 +841,8 @@ class TimerSkill(MycroftSkill):
     def _start_timer_display(self):
         """Start a event repeating every second tp display the timer on a GUI."""
         if self.active_timers:
-            self.enclosure.mouth_reset()
+            if self.platform == MARK_I:
+                self.enclosure.mouth_reset()
             self.schedule_repeating_event(
                 self.display_timers, None, 1, name="ShowTimer"
             )
