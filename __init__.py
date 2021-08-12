@@ -600,8 +600,9 @@ class TimerSkill(MycroftSkill):
         self._stop_timer_display()
         self._stop_expiration_check()
         self.timer_index = 0
-        self.enclosure.eyes_reset()
-        self.enclosure.mouth_reset()
+        if self.platform == MARK_I:
+            self.enclosure.eyes_reset()
+            self.enclosure.mouth_reset()
 
     def _ask_which_timer(
         self, timers: List[CountdownTimer], question: str
@@ -651,9 +652,7 @@ class TimerSkill(MycroftSkill):
         Runs once a second via a repeating event to keep the information on the display
         accurate.
         """
-        self.log.info("displaying timers")
         if self.gui.connected:
-            self.log.info("gui is connected")
             self._display_timers_on_gui()
         elif self.platform == MARK_I:
             self._display_timers_on_faceplate()
@@ -661,9 +660,7 @@ class TimerSkill(MycroftSkill):
     def _display_timers_on_gui(self):
         """Display active timers on a device that supports the QT GUI framework."""
         timers_to_display = self._select_timers_to_display(display_max=4)
-        self.log.info("displaying {} timers".format(len(timers_to_display)))
         display_data = [timer.display_data for timer in timers_to_display]
-        self.log.info("display data: " + str(display_data[0]))
         if self.platform == MARK_II:
             page = "timer_mark_ii.qml"
         else:
@@ -800,6 +797,7 @@ class TimerSkill(MycroftSkill):
         answer = self.ask_yesno(question)
         if answer == "yes":
             self._cancel_all_timers()
+            self._reset()
 
     def handle_wake_word_detected(self, _):
         self._pause_scheduled_events()
@@ -850,7 +848,8 @@ class TimerSkill(MycroftSkill):
     def _stop_timer_display(self):
         """Stop the repeating event that displays the timer on a GUI interface."""
         self.cancel_scheduled_event("ShowTimer")
-        self.enclosure.mouth_reset()
+        if self.platform == MARK_I:
+            self.enclosure.mouth_reset()
 
     def _start_expiration_check(self):
         """Start an event repeating every two seconds to check for expired timers."""
