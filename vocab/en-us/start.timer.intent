@@ -1,8 +1,0 @@
-(another|one more|second|third|fourth|fifth|) timer ((for |){duration}|)
-ping me in {duration}
-timer
-timer for {duration}
-timer (for|called|named) {name}
-timer (for|called|named) {name} for {duration}
-{duration} (second|minute|hour) timer
-{duration} timer (for|called|named) {name}
