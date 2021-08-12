@@ -859,9 +859,13 @@ class TimerSkill(MycroftSkill):
 
     def _reset_timer_index(self):
         """Use the timers loaded from skill storage to determine the timer index."""
-        self.timer_index = max(
-            self.active_timers, key=lambda timer: timer.index, default=0
-        )
+        if self.active_timers:
+            timer_with_max_index = max(
+                self.active_timers, key=lambda timer: timer.index
+            )
+            self.timer_index = timer_with_max_index.index
+        else:
+            self.timer_index = 0
 
     def _save_timers(self):
         """Write a serialized version of the data to the specified file name."""
