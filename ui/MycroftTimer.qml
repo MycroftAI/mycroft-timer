@@ -46,7 +46,7 @@ Rectangle {
     /* Flash the background when the timer expires for a visual cue */
     SequentialAnimation on opacity {
         id: expireAnimation
-        running: timerInfo.expired
+        running: timerInfo ? timerInfo.expired : false
         loops: Animation.Infinite
         PropertyAnimation {
             from: 1;
@@ -86,7 +86,7 @@ Rectangle {
                 }
             }
             font.styleName: "Bold"
-            text: timerInfo.timerName
+            text: timerInfo ? timerInfo.timerName : ""
         }
     }
 
@@ -119,7 +119,7 @@ Rectangle {
                 }
             }
             font.styleName: "Bold"
-            text: timerInfo.timeDelta
+            text: timerInfo ? timerInfo.timeDelta : ""
         }
     }
 
@@ -134,6 +134,6 @@ Rectangle {
         }
         height: gridUnit * 2
         radius: 16
-        width: parent.width * timerInfo.percentRemaining
+        width: timerInfo ? parent.width * timerInfo.percentRemaining : 0
     }
 }

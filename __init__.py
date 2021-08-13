@@ -67,7 +67,8 @@ class TimerSkill(MycroftSkill):
         self._reset_timer_index()
         if self.active_timers:
             self.log.info("found {} active timers".format(str(len(self.active_timers))))
-            self._start_timer_display()
+            self._show_gui()
+            self._start_display_update()
             self._start_expiration_check()
 
         # To prevent beeping while listening
@@ -172,7 +173,7 @@ class TimerSkill(MycroftSkill):
 
     def shutdown(self):
         """Perform any cleanup tasks before skill shuts down."""
-        self.cancel_scheduled_event("ShowTimers")
+        self.cancel_scheduled_event("UpdateTimerDisplay")
         self.cancel_scheduled_event("ExpirationCheck")
         if self.active_timers:
             self.active_timers = []
@@ -191,7 +192,10 @@ class TimerSkill(MycroftSkill):
         else:
             timer = self._build_timer(duration, name)
             self.active_timers.append(timer)
-            self.active_timers.sort(key=lambda x: x.expiration)
+            self.active_timers.sort(key=lambda tmr: tmr.expiration)
+            if len(self.active_timers) == 1:
+                self._show_gui()
+                self._start_display_update()
             self._speak_new_timer(timer)
             self._save_timers()
 
@@ -595,11 +599,12 @@ class TimerSkill(MycroftSkill):
     def _reset(self):
         """There are no active timers so reset all the stateful things."""
         self.gui.release()
-        self._stop_timer_display()
+        self._stop_display_update()
         self._stop_expiration_check()
         self.timer_index = 0
-        self.enclosure.eyes_reset()
-        self.enclosure.mouth_reset()
+        if self.platform == MARK_I:
+            self.enclosure.eyes_reset()
+            self.enclosure.mouth_reset()
 
     def _ask_which_timer(
         self, timers: List[CountdownTimer], question: str
@@ -643,29 +648,38 @@ class TimerSkill(MycroftSkill):
 
         return timer_names
 
-    def display_timers(self):
+    def _show_gui(self):
         """Update the device's display to show the status of active timers.
 
         Runs once a second via a repeating event to keep the information on the display
         accurate.
         """
         if self.gui.connected:
-            self._display_timers_on_gui()
+            self._update_gui()
+            if self.platform == MARK_II:
+                page = "timer_mark_ii.qml"
+            else:
+                page = "timer_scalable.qml"
+            self.gui.show_page(page, override_idle=True)
+
+    def update_display(self):
+        """Update the device's display to show the status of active timers.
+
+        Runs once a second via a repeating event to keep the information on the display
+        accurate.
+        """
+        if self.gui.connected:
+            self._update_gui()
         elif self.platform == MARK_I:
             self._display_timers_on_faceplate()
 
-    def _display_timers_on_gui(self):
+    def _update_gui(self):
         """Display active timers on a device that supports the QT GUI framework."""
         timers_to_display = self._select_timers_to_display(display_max=4)
         display_data = [timer.display_data for timer in timers_to_display]
-        if self.platform == MARK_II:
-            page = "timer_mark_ii.qml"
-        else:
-            page = "timer_scalable.qml"
         if timers_to_display:
             self.gui["activeTimers"] = dict(timers=display_data)
             self.gui["activeTimerCount"] = len(timers_to_display)
-            self.gui.show_page(page, override_idle=True)
 
     def _display_timers_on_faceplate(self):
         """Display one timer on a device that supports and Arduino faceplate."""
@@ -732,14 +746,21 @@ class TimerSkill(MycroftSkill):
         """Announce the expiration of any timers not already announced.
 
         This occurs every two seconds, so only announce one expired timer per pass.
+        Pause the expiration check so the expired timer is not beeping while the
+        expiration announcement is being spoken.
+
+        On the Mark I, pause the display of any active timers so that the mouth can
+        do the "talking".
         """
         for timer in expired_timers:
             if not timer.expiration_announced:
                 dialog = TimerDialog(timer, self.lang)
                 dialog.build_expiration_announcement_dialog(len(self.active_timers))
-                self._pause_scheduled_events()
+                self._stop_expiration_check()
+                if self.platform == MARK_I:
+                    self._stop_display_update()
                 time.sleep(1)  # give the scheduled event a second to clear
-                self.speak_dialog(dialog.name, dialog.data)
+                self.speak_dialog(dialog.name, dialog.data, wait=True)
                 timer.expiration_announced = True
                 break
 
@@ -794,74 +815,87 @@ class TimerSkill(MycroftSkill):
         answer = self.ask_yesno(question)
         if answer == "yes":
             self._cancel_all_timers()
+            self._reset()
 
     def handle_wake_word_detected(self, _):
-        self._pause_scheduled_events()
+        """React to the device detecting the wake word spoken by the user.
 
-    def handle_speech_recognition_unknown(self, _):
-        """Resume scheduled events paused when the listener started."""
-        self._resume_scheduled_events()
+        On any device, the expiration check should be canceled so that expired timers
+        stop beeping while the device handles the request from the user.
 
-    def handle_speak(self, _):
-        """Pause scheduled events while the device speaking.
-
-        The Mark I needs to wait for two seconds after the speaking is done because
-        there is an automatic display reset at that time.
-        """
-        wait_while_speaking()
-        if self.platform == MARK_I:
-            time.sleep(2)
-        self._resume_scheduled_events()
-
-    def _pause_scheduled_events(self):
-        """Pause scheduled events that interfere with device operations.
-
-        All devices will be beeping if there are one or more expired timers.  Pause
-        the beeping so that the device can listen and respond to a user request.
-
-        The Mark I has mouth events that occur during listening and speaking.  Stop
-        displaying the timer during these events.
+        The Mark I performs display events while listening and thinking.  Pause the
+        display of the timer to allow these events to display instead.
         """
         self._stop_expiration_check()
         if self.platform == MARK_I:
-            self._stop_timer_display()
+            self._stop_display_update()
 
-    def _resume_scheduled_events(self):
-        """Resume scheduled events that were paused during listening/speaking."""
+    def handle_speech_recognition_unknown(self, _):
+        """React to no request being spoken after the wake word is activated.
+
+        When the wake word is detected, but no request is uttered by the user, resume
+        checking for expired timers.
+
+        The Mark I display was being used to show listening and thinking events.
+        Resume showing the active timer(s).
+        """
         self._start_expiration_check()
         if self.platform == MARK_I:
-            self._start_timer_display()
+            self._start_display_update()
 
-    def _start_timer_display(self):
-        """Start a event repeating every second tp display the timer on a GUI."""
+    def handle_speak(self, _):
+        """Handle the device speaking a response to a user request.
+
+        Once the device stops speaking, it has finished answering the user's request.
+        Resume checking for expired timers.
+        The Mark I needs to wait for two seconds after the speaking is done to display
+        the active timer(s) because there is an automatic display reset at that time.
+        """
+        wait_while_speaking()
+        self._start_expiration_check()
+        if self.platform == MARK_I:
+            time.sleep(2)
+            self._start_display_update()
+
+    def _start_display_update(self):
+        """Start an event repeating every second to update the timer display."""
         if self.active_timers:
-            self.enclosure.mouth_reset()
+            self.log.info("starting repeating event to update timer display")
+            if self.platform == MARK_I:
+                self.enclosure.mouth_reset()
             self.schedule_repeating_event(
-                self.display_timers, None, 1, name="ShowTimer"
+                self.update_display, None, 1, name="UpdateTimerDisplay"
             )
 
-    def _stop_timer_display(self):
-        """Stop the repeating event that displays the timer on a GUI interface."""
-        self.cancel_scheduled_event("ShowTimer")
-        self.enclosure.mouth_reset()
+    def _stop_display_update(self):
+        """Stop the repeating event that updates the timer on the display."""
+        self.log.info("stopping repeating event to update timer display")
+        self.cancel_scheduled_event("UpdateTimerDisplay")
+        if self.platform == MARK_I:
+            self.enclosure.mouth_reset()
 
     def _start_expiration_check(self):
         """Start an event repeating every two seconds to check for expired timers."""
         if self.active_timers:
+            self.log.info("starting repeating event to check for timer expiration")
             self.schedule_repeating_event(
                 self.check_for_expired_timers, None, 2, name="ExpirationCheck"
             )
 
     def _stop_expiration_check(self):
         """Stop the repeating event that checks for expired timers."""
-        self.log.info("cancelling ExpirationCheck repeating event")
+        self.log.info("stopping repeating event to check for timer expiration")
         self.cancel_scheduled_event("ExpirationCheck")
 
     def _reset_timer_index(self):
         """Use the timers loaded from skill storage to determine the timer index."""
-        self.timer_index = max(
-            self.active_timers, key=lambda timer: timer.index, default=0
-        )
+        if self.active_timers:
+            timer_with_max_index = max(
+                self.active_timers, key=lambda timer: timer.index
+            )
+            self.timer_index = timer_with_max_index.index
+        else:
+            self.timer_index = 0
 
     def _save_timers(self):
         """Write a serialized version of the data to the specified file name."""
