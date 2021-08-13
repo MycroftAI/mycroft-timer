@@ -760,7 +760,7 @@ class TimerSkill(MycroftSkill):
                 if self.platform == MARK_I:
                     self._stop_display_update()
                 time.sleep(1)  # give the scheduled event a second to clear
-                self.speak_dialog(dialog.name, dialog.data)
+                self.speak_dialog(dialog.name, dialog.data, wait=True)
                 timer.expiration_announced = True
                 break
 
