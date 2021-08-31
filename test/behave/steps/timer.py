@@ -91,7 +91,7 @@ def _cancel_all_timers(context):
 def let_timer_expire(context):
     """Start a short timer and let it expire to test expiration logic."""
     emit_utterance(context.bus, "set a 3 second timer")
-    expected_response = ["started.timer"]
+    expected_response = ["started-timer"]
     match_found, speak_messages = wait_for_dialog_match(context.bus, expected_response)
     assert match_found, format_dialog_match_error(expected_response, speak_messages)
     time.sleep(4)
