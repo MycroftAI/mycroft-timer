@@ -1,0 +1,8 @@
+muta
+håll käften
+(stoppa|avsluta|stäng av|avbryt|döda|stäng av (alla|de) (timer|timern|timers|timrar|timrarna|tidtagaren|tidtagarna)
+(stopp | slut | avbryt | avbryt | radera | inaktivera | döda | stäng av) (|) {duration_or_name} (timer | timers)
+stäng av den
+håll käften
+Jag fick det
+avsluta timer

@@ -1,0 +1,8 @@
+timer
+(en annan|ytterligare en|andra|tredje|fjärde|femte|) timer ((för |){duration}|)
+ping mig om {duration}
+timer på {duration}
+timer (for|called|named) {name}
+timer (for|called|named) {name} för {duration}
+{duration} (second|minute|hour) timer
+{duration} timer (för|kallas|namngiven) {name}.

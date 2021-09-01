@@ -1,0 +1,8 @@
+silencio
+cállate
+(elimina|para|finaliza|acaba|aborta|borra|quita|apaga|cancela|termina) (todos los|el) (temporizador|temporizadores)
+(para|termina|cancela|detén|borra|deshabilita|elimina|apaga)(el) {duration_or_name} (temporizador|temporizadores)
+apágalo
+cállate
+Listo
+Temporizador finalizado

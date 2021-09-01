@@ -1,0 +1,8 @@
+silence
+ferme la
+(arrête|annule|abandonne|supprime|laisse tomber|laisse faire) (le|la|les|tout les) (minuteur|minuteurs|minuterie|minuteries)
+(stop|arrete|annule|stoppe|supprime|désactive|coupe)( le|les) (minuteur|minuteurs) (de|pour) {duration_or_name}
+éteindre
+ferme-la|arrête-toi|tais-toi
+J'ai compris
+minuteur terminer

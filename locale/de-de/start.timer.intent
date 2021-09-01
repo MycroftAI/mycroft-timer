@@ -1,0 +1,8 @@
+timer
+(ein | weiterer | zweiter | dritter | vierter | fünfter |) timer ((für |) {duration} |)
+ping mich um {duration}
+timer für {duration}
+timer (für|genannt|benannt) {name} 
+Wecker (für|mit Bezeichnung|namens) {name} über {duration}
+{duration} (Sekunde|Minute|Stunde) Wecker
+{duration} Timer (für|mit Bezeichnung|genannt) {name}
