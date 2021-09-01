@@ -1,0 +1,3 @@
+\b(?P<Name>.*) (izenekoa)
+\b^.* (?P<Name>.*) tenporizadorea
+\b^.* (?P<Name>.*)(?<!a)(?<!bat)(beste?<!)(?<!guztiak)(?<!nire)(?<!beste bat)(?<!gure) tenporizadore$

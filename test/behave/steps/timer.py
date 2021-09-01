@@ -1,89 +1,99 @@
 import time
+from typing import List
 
 from behave import given, then
 
-from mycroft.audio import wait_while_speaking
 from test.integrationtests.voight_kampff import (
-        emit_utterance,
-        wait_for_dialog)
+    emit_utterance,
+    format_dialog_match_error,
+    wait_for_dialog_match,
+)
+
+CANCEL_RESPONSES = (
+    "no-active-timer",
+    "cancel-all",
+    "cancelled-single-timer",
+    "cancelled-timer-named",
+    "cancelled-timer-named-ordinal",
+)
 
 
-@given('a {timer_length} timer is set')
-@given('a timer is set for {timer_length}')
-def given_set_timer_lenght(context, timer_length):
-    emit_utterance(context.bus, 'set a timer for {}'.format(timer_length))
-    wait_for_dialog(context.bus, ['started.timer'])
-    context.bus.clear_messages()
+@given("an active {duration} timer")
+def start_single_timer(context, duration):
+    """Clear any active timers and start a single timer for a specified duration."""
+    _cancel_all_timers(context)
+    _start_a_timer(
+        context.bus, utterance="set a timer for " + duration, response=["started-timer"]
+    )
 
 
-@given('a timer named {name} is set for {time}')
-def given_set_timer_named(context, name, time):
-    emit_utterance(context.bus,
-                   'set a timer for {} time called {}'.format(time, name))
-    wait_for_dialog(context.bus, ['started.timer.with.name'])
-    context.bus.clear_messages()
+@given("an active timer named {name}")
+def start_single_named_timer(context, name):
+    """Clear any active timers and start a single named timer for 90 minutes."""
+    _cancel_all_timers(context)
+    _start_a_timer(
+        context.bus,
+        utterance="set a timer for 90 minutes named " + name,
+        response=["started-timer-named"],
+    )
 
 
-@given('a timer named {name} is set')
-def given_set_named_timer(context, name):
-    emit_utterance(context.bus,
-                   'set a timer for 95 minutes called {}'.format(name))
-    wait_for_dialog(context.bus, ['started.timer'])
-    context.bus.clear_messages()
+@given("an active timer for {duration} named {name}")
+def start_single_named_dialog_timer(context, duration, name):
+    """Clear any active timers and start a single named timer for specified duration."""
+    _cancel_all_timers(context)
+    _start_a_timer(
+        context.bus,
+        utterance=f"set a timer for {duration} named {name}",
+        response=["started-timer-named"],
+    )
 
 
-@given('there is already an active timer')
-def given_set_timer(context):
-    emit_utterance(context.bus, 'set a timer for 100 minutes')
-    wait_for_dialog(context.bus, ['started.timer'])
-    context.bus.clear_messages()
+@given("multiple active timers")
+def start_multiple_timers(context):
+    """Clear any active timers and start multiple timers by duration."""
+    _cancel_all_timers(context)
+    for row in context.table:
+        _start_a_timer(
+            context.bus,
+            utterance="set a timer for " + row["duration"],
+            response=["started-timer", "started-timer-named"],
+        )
 
 
-@given('no timers are active')
-@given('no timers are set')
-@given('no timers are previously set')
-def given_no_timers(context):
-    followups = ['ask.cancel.running.plural',
-                 'ask.cancel.desc.alarm.recurring']
-    no_timers = ['no.active.timer',
-                 'cancel.all',
-                 'cancelled.single.timer',
-                 'cancelled.timer.named',
-                 'cancelled.timer.named.with.ordinal',
-                 'cancelled.timer.with.ordinal']
-    cancelled = ['cancel.all',
-                 'cancelled.single.timer',
-                 'cancelled.timer.named',
-                 'cancelled.timer.named.with.ordinal',
-                 'cancelled.timer.with.ordinal']
+def _start_a_timer(bus, utterance: str, response: List[str]):
+    """Helper function to start a timer.
 
-    emit_utterance(context.bus, 'cancel all timers')
-    for i in range(10):
-        for message in context.bus.get_messages('speak'):
-            if message.data.get('meta', {}).get('dialog') in followups:
-                print('Answering yes!')
-                time.sleep(3)
-                wait_while_speaking()
-                emit_utterance(context.bus, 'yes')
-                wait_for_dialog(context.bus, cancelled)
-                context.bus.clear_messages()
-                return
-            elif message.data.get('meta', {}).get('dialog') in no_timers:
-                context.bus.clear_messages()
-                return
-        time.sleep(1)
+    If one of the expected responses is not spoken, cause the step to error out.
+    """
+    emit_utterance(bus, utterance)
+    match_found, speak_messages = wait_for_dialog_match(bus, response)
+    assert match_found, format_dialog_match_error(response, speak_messages)
 
 
-@given('only one timer is set')
-def given_single_timer(context):
-    given_no_timers(context)
-    given_set_timer(context)
+@given("no active timers")
+def reset_timers(context):
+    """Cancel all active timers to test how skill behaves when no timers are set."""
+    _cancel_all_timers(context)
 
 
-@given('a timer is expired')
-def given_expired_timer(context):
-    emit_utterance(context.bus, 'set a 3 second timer')
-    wait_for_dialog(context.bus, ['started.timer'])
+def _cancel_all_timers(context):
+    """Cancel all active timers.
+
+    If one of the expected responses is not spoken, cause the step to error out.
+    """
+    emit_utterance(context.bus, "cancel all timers")
+    match_found, speak_messages = wait_for_dialog_match(context.bus, CANCEL_RESPONSES)
+    assert match_found, format_dialog_match_error(CANCEL_RESPONSES, speak_messages)
+
+
+@given("a timer is expired")
+def let_timer_expire(context):
+    """Start a short timer and let it expire to test expiration logic."""
+    emit_utterance(context.bus, "set a 3 second timer")
+    expected_response = ["started-timer"]
+    match_found, speak_messages = wait_for_dialog_match(context.bus, expected_response)
+    assert match_found, format_dialog_match_error(expected_response, speak_messages)
     time.sleep(4)
 
 
@@ -91,8 +101,9 @@ def given_expired_timer(context):
 def then_stop_beeping(context):
     # TODO: Better check!
     import psutil
+
     for i in range(10):
-        if 'paplay' not in [p.name() for p in psutil.process_iter()]:
+        if "paplay" not in [p.name() for p in psutil.process_iter()]:
             break
         time.sleep(1)
     else:

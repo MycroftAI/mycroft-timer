@@ -1,0 +1,3 @@
+En {ordinal} timer på {duration} har startats för {name}
+Okej, Jag har startat en {ordinal} timer på {duration} för {name}
+Jag startar en {ordinal} timer på {duration} för {name}

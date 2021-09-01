@@ -1,6 +1,8 @@
 # <img src='https://raw.githack.com/FortAwesome/Font-Awesome/master/svgs/solid/stopwatch.svg' card_color='#40DBB0' width='50' height='50' style='vertical-align:bottom'/> Timer
 Set named timers for cooking, watering plants, brewing tea and more. 
 
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 ## About 
 Use Mycroft when your hands are messy or you need more that the one timer in your kitchen.  Multiple timers are easy to set and track with conversational interactions.
 

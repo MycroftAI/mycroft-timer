@@ -11,1012 +11,909 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""A skill to set one or more timers for things like a kitchen timer."""
 import time
 import pickle
-import re
-from datetime import datetime, timedelta
-from os.path import join, isfile, abspath, dirname
-from num2words import num2words
+from datetime import timedelta
+from pathlib import Path
+from typing import List, Optional
 
-from adapt.intent import IntentBuilder
 from mycroft import MycroftSkill, intent_handler
-from mycroft.audio import wait_while_speaking, is_speaking
-from mycroft.configuration import LocalConf, SYSTEM_CONFIG
+from mycroft.audio import wait_while_speaking
+from mycroft.skills.intent_service import AdaptIntent
 from mycroft.messagebus.message import Message
 from mycroft.util import play_wav
 from mycroft.util.format import pronounce_number, nice_duration, join_list
-from mycroft.util.parse import extract_number, fuzzy_match, extract_duration
-from mycroft.util.time import now_local
+from mycroft.util.parse import extract_duration
+from mycroft.util.time import now_utc, now_local
+from .skill import (
+    CountdownTimer,
+    extract_timer_duration,
+    extract_timer_name,
+    FaceplateRenderer,
+    get_timers_matching_reply,
+    get_timers_matching_utterance,
+    remove_conjunction,
+    TimerDialog,
+)
 
-try:
-    from mycroft.skills.skill_data import to_alnum
-except ImportError:
-    from mycroft.skills.skill_data import to_letters as to_alnum
-
-from .util.bus import wait_for_message
+ONE_DAY = 86400
+MARK_I = "mycroft_mark_1"
+MARK_II = "mycroft_mark_2"
 
 
-ONE_HOUR = 3600
-ONE_MINUTE = 60
-BACKGROUND_COLORS = ('#22A7F0', '#40DBB0', '#BDC3C7', '#4DE0FF')
+class TimerValidationException(Exception):
+    """This is not really for errors, just a handy way to tidy up the initial checks."""
 
-
-# TESTS
-#  0: cancel all timers
-#  1: start a timer > 1 minute
-#  2: cancel timer
-#  3: start a 30 second timer
-#  4: cancel timer
-#  5: start a 1 hour timer
-#  6: start a 20 minute timer
-#  7: how much time is left
-#  8: start a 1 hour timer
-#  9: start a 20 minute timer
-# 10: how much time is left > first
-# 11: how much time is left on 5 minute timer
-# 12: how much is left on the five minute timer
-# 13: start a 7 minute timer called lasagna
-# 14: how much is left on the lasagna timer
-# 15: set a 1 and a half minute timer
-# 16: set a timer for 3 hours 45 minutes
-
-#####################################################################
+    pass
 
 
 class TimerSkill(MycroftSkill):
     def __init__(self):
-        super(TimerSkill, self).__init__("TimerSkill")
+        """Constructor"""
+        super().__init__(self.__class__.__name__)
         self.active_timers = []
-        self.beep_repeat_period = 10
-        self.sound_file = join(abspath(dirname(__file__)), 'snd',
-                               'twoBeep.wav')
-        self.beep_repeat_period = 5
-
-        self.displaying_timer = None
-        self.beep_process = None
-        self.mute = False
+        self.sound_file_path = Path(__file__).parent.joinpath("sounds", "two-beep.wav")
+        self.platform = self.config_core["enclosure"].get("platform", "unknown")
         self.timer_index = 0
-        self.display_idx = None
-
-        # Threshold score for Fuzzy Logic matching for Timer Name
-        self.threshold = 0.7
-
-        self.screen_showing = False
+        self.display_group = 0
+        self.regex_file_path = self.find_resource("name.rx", "regex")
+        self.all_timers_words = [word.strip() for word in self.translate_list("all")]
+        self.save_path = Path(self.file_system.path).joinpath("save_timers")
 
     def initialize(self):
-        self.unpickle()
-
-        # Invoke update_display in one second to allow it to disable the
-        # cancel intent, since there are no timers to cancel yet!
-        if not self.gui.connected:
-            self.schedule_repeating_event(self.update_display,
-                                          None, 1, name='ShowTimer')
+        """Initialization steps to execute after the skill is loaded."""
+        self._load_timers()
+        self._reset_timer_index()
+        if self.active_timers:
+            self.log.info("found {} active timers".format(str(len(self.active_timers))))
+            self._show_gui()
+            self._start_display_update()
+            self._start_expiration_check()
 
         # To prevent beeping while listening
-        self.is_listening = False
-        self.add_event('recognizer_loop:record_begin',
-                       self.handle_listener_started)
-        self.add_event('recognizer_loop:record_end',
-                       self.handle_listener_ended)
-        self.add_event('skill.mycrofttimer.verify.cancel',
-                       self.handle_verify_stop_timer)
-        self.gui.register_handler('skill.mycrofttimer.expiredtimer', self.handle_expired_timer)
+        self.add_event("recognizer_loop:wakeword", self.handle_wake_word_detected)
+        self.add_event(
+            "mycroft.speech.recognition.unknown", self.handle_speech_recognition_unknown
+        )
+        self.add_event("speak", self.handle_speak)
+        self.add_event("skill.timer.stop", self.handle_timer_stop)
 
-    def pickle(self):
-        # Save the timers for reload
-        self.do_pickle('save_timers', self.active_timers)
-
-    def unpickle(self):
-        # Reload any saved timers
-        self.active_timers = self.do_unpickle('save_timers', [])
-
-        # Reset index
-        self.timer_index = 0
-        for timer in self.active_timers:
-            if timer["index"] > self.timer_index:
-                self.timer_index = timer["index"]
-
-    # TODO: Implement util.is_listening() to replace this
-    def is_not_listening(self):
-        self.is_listening = False
-
-    def handle_listener_started(self, message):
-        self.is_listening = True
-
-    def handle_listener_ended(self, message):
-        if self.beep_process is not None:
-            self.bus.on('recognizer_loop:speech.recognition.unknown',
-                        self.is_not_listening)
-            speak_msg_detected = wait_for_message(self.bus, 'speak')
-            self.bus.remove('recognizer_loop:speech.recognition.unknown',
-                            self.is_not_listening)
-        self.is_not_listening()
-
-    def _extract_duration(self, text):
-        """Extract duration in seconds.
+    @intent_handler(AdaptIntent().optionally("start").require("timer"))
+    def handle_start_timer_generic(self, message: Message):
+        """Start a timer with no name or duration.
 
         Args:
-            text (str): Full request, e.g. "set a 30 second timer"
-        Returns:
-            (int): Seconds requested, or None
-            (str): Remainder of utterance
+            message: Message Bus event information from the intent parser
         """
-        if not text:
-            return None, None
+        self._start_new_timer(message)
 
-        # Some STT engines return "30-second timer" not "30 second timer"
-        # Deal with that before calling extract_duration().
-        # TODO: Fix inside parsers
-        utt = text.replace("-", " ")
-        duration, str_remainder = extract_duration(utt, self.lang)
-        if duration:
-            # Remove "  and" left behind from "for 1 hour and 30 minutes"
-            # prevents it being interpreted as a name "for  and"
-            str_remainder = re.sub(r'\s\sand', '', str_remainder, flags=re.I)
-            return duration.total_seconds(), str_remainder
+    @intent_handler(AdaptIntent().optionally("start").require("timer").require("name"))
+    def handle_start_timer_named(self, message: Message):
+        """Start a timer with no name or duration.
 
-        return None, text
-
-    def _extract_ordinal(self, text):
-        """Extract ordinal from text.
-
-        Remove once extract_number supports short ordinal format eg '2nd'
+        Args:
+            message: Message Bus event information from the intent parser
         """
-        num = None
-        if text is None or len(text) == 0:
-            return None
+        self._start_new_timer(message)
 
+    @intent_handler(
+        AdaptIntent()
+        .optionally("start")
+        .require("timer")
+        .require("duration")
+        .optionally("name")
+    )
+    def handle_start_timer(self, message: Message):
+        """Common handler for start_timer intents.
+
+        Args:
+            message: Message Bus event information from the intent parser
+        """
+        self._start_new_timer(message)
+
+    @intent_handler("start.timer.intent")
+    def handle_start_timer_padatious(self, message: Message):
+        """Handles custom timer start phrases (e.g. "ping me in 5 minutes").
+
+        Args:
+            message: Message Bus event information from the intent parser
+        """
+        self._start_new_timer(message)
+
+    @intent_handler("timer.status.intent")
+    def handle_status_timer_padatious(self, message: Message):
+        """Handles custom status phrases (e.g. "How much time left?").
+
+        Args:
+            message: Message Bus event information from the intent parser
+        """
+        self._communicate_timer_status(message)
+
+    @intent_handler(
+        AdaptIntent()
+        .require("query")
+        .optionally("status")
+        .require("timer")
+        .optionally("all")
+    )
+    def handle_query_status_timer(self, message: Message):
+        """Handles timer status requests (e.g. "what is the status of the timers").
+
+        Args:
+            message: Message Bus event information from the intent parser
+        """
+        self._communicate_timer_status(message)
+
+    @intent_handler(
+        AdaptIntent()
+        .optionally("query")
+        .require("status")
+        .one_of("timer", "time")
+        .optionally("all")
+        .optionally("duration")
+        .optionally("name")
+    )
+    def handle_status_timer(self, message: Message):
+        """Handles timer status requests (e.g. "timer status", "status of timers").
+
+        Args:
+            message: Message Bus event information from the intent parser
+        """
+        self._communicate_timer_status(message)
+
+    @intent_handler(AdaptIntent().require("cancel").require("timer").optionally("all"))
+    def handle_cancel_timer(self, message):
+        """Handles cancelling active timers.
+
+        Args:
+            message: Message Bus event information from the intent parser
+        """
+        self._cancel_timers(message)
+
+    def shutdown(self):
+        """Perform any cleanup tasks before skill shuts down."""
+        self.cancel_scheduled_event("UpdateTimerDisplay")
+        self.cancel_scheduled_event("ExpirationCheck")
+        if self.active_timers:
+            self.active_timers = []
+
+    def _start_new_timer(self, message):
+        """Start a new timer as requested by the user.
+
+        Args:
+            message: Message Bus event information from the intent parser
+        """
+        utterance = message.data["utterance"]
         try:
-            num = extract_number(text, self.lang, ordinals=True)
-            # attempt to remove extracted ordinal
-            spoken_ord = num2words(int(num), to="ordinal", lang=self.lang)
-            utt = text.replace(spoken_ord,"")
-        except:
-            self.log.debug('_extract_ordinal: Error in extract_number method')
-            pass
-        if not num:
-            try:
-                # Should be removed if the extract_number() function can
-                # parse ordinals already e.g. 1st, 3rd, 69th, etc.
-                regex = re.compile(r'\b((?P<Numeral>\d+)(st|nd|rd|th))\b')
-                result = re.search(regex, text)
-                if result and (result['Numeral']):
-                    num = result['Numeral']
-                    utt = text.replace(result, "")
-            except:
-                self.log.debug('_extract_ordinal: Error in regex search')
-                pass
-        return int(num), utt
-
-    def _get_timer_name(self, utt):
-        """Get the timer name using regex on an utterance."""
-        self.log.debug("Utterance being searched: " + utt)
-        rx_file = self.find_resource('name.rx', 'regex')
-        if utt and rx_file:
-            with open(rx_file) as f:
-                for pat in f.read().splitlines():
-                    pat = pat.strip()
-                    self.log.debug("Regex pattern: " + pat)
-                    if pat and pat[0] == "#":
-                        continue
-                    res = re.search(pat, utt)
-                    if res:
-                        try:
-                            name = res.group("Name").strip()
-                            self.log.debug('Regex name extracted: '
-                                           + name)
-                            if name and len(name.strip()) > 0:
-                                return name
-                        except IndexError:
-                            pass
-        return None
-
-    def _get_next_timer(self):
-        """Retrieve the next timer set to trigger."""
-        next_timer = None
-        for timer in self.active_timers:
-            if not next_timer or timer["expires"] < next_timer["expires"]:
-                next_timer = timer
-        return next_timer
-
-    def _get_ordinal_of_new_timer(self, duration, timers=None):
-        """Get ordinal based on existing timer durations."""
-        timers = timers or self.active_timers
-        timer_count = sum(1 for t in timers if t["duration"] == duration)
-        return timer_count + 1
-
-    def _get_speakable_ordinal(self, timer):
-        """Get speakable ordinal if other timers exist with same duration."""
-        timers = self.active_timers
-        ordinal = timer['ordinal']
-        duration = timer['duration']
-        timer_count = sum(1 for t in timers if t["duration"] == duration)
-        if timer_count > 1 or ordinal > 1:
-            return num2words(ordinal, to="ordinal", lang=self.lang)
+            duration, name = self._validate_requested_timer(utterance)
+        except TimerValidationException as exc:
+            self.log.info(str(exc))
         else:
-            return ""
+            timer = self._build_timer(duration, name)
+            self.active_timers.append(timer)
+            self.active_timers.sort(key=lambda tmr: tmr.expiration)
+            if len(self.active_timers) == 1:
+                self._show_gui()
+                self._start_display_update()
+            self._speak_new_timer(timer)
+            self._save_timers()
 
-    def _get_speakable_timer_list(self, timer_list):
-        """Get timer list as speakable string."""
-        speakable_timer_list = []
-        for timer in timer_list:
-            dialog = 'timer.details'
-            if timer['name'] is not None:
-                dialog += '.named'
-            ordinal = (None if timer['ordinal'] <= 1
-                       else self._get_speakable_ordinal(timer))
-            if ordinal is not None:
-                dialog += '.with.ordinal'
-            data = {'ordinal': ordinal,
-                    'duration': nice_duration(timer["duration"]),
-                    'name': timer['name']}
-            speakable_timer_list.append(self.translate(dialog, data))
-        names = join_list(speakable_timer_list, self.translate("and"))
-        return names
+    def _validate_requested_timer(self, utterance: str):
+        """Don't create a timer unless the request has the necessary information.
 
-    def _get_timer_matches(self, utt, timers=None, max_results=1,
-                           dialog='ask.which.timer', is_response=False):
-        """Get list of timers that match based on a user utterance.
+        Args:
+            utterance: the text representing the user's request for a timer
 
-            Args:
-                utt (str): string spoken by the user
-                timers (list): list of timers to match against
-                max_results (int): max number of results desired
-                dialog (str): name of dialog file used for disambiguation
-                is_response (bool): is this being called by get_response
-            Returns:
-                (str): ["All", "Matched", "No Match Found", or "User Cancelled"]
-                (list): list of matched timers
+        Returns:
+            The duration of the timer and the name, if one is specified.
+
+        Raises:
+            TimerValidationError when any of the checks do not pass.
         """
-        timers = timers or self.active_timers
-        all_words = self.translate_list('all')
-        if timers is None or len(timers) == 0:
-            self.log.error("Cannot get match. No active timers.")
-            return "No Match Found", None
-        elif utt and any(i.strip() in utt for i in all_words):
-            return "All", None
+        duration, remaining_utterance = self._determine_timer_duration(utterance)
+        name = extract_timer_name(remaining_utterance, self.regex_file_path)
+        duplicate_timer = self._check_for_duplicate_name(name)
+        if duplicate_timer:
+            self._handle_duplicate_name_error(duplicate_timer)
+        if duration.total_seconds() >= ONE_DAY:
+            answer = self.ask_yesno("timer-too-long-alarm-instead")
+            if answer == "yes":
+                self._convert_to_alarm(duration)
 
-        extracted_duration = self._extract_duration(utt)
-        if extracted_duration:
-            duration, utt = extracted_duration
+        return duration, name
+
+    def _determine_timer_duration(self, utterance: str):
+        """Interrogate the utterance to determine the duration of the timer.
+
+        If the duration of the timer cannot be determined when interrogating the
+        initial utterance, the user will be asked to specify one.
+
+        Args:
+            utterance: the text representing the user's request for a timer
+
+        Returns:
+            The duration of the timer and the remainder of the utterance after the
+            duration has been extracted.
+
+        Raises:
+            TimerValidationException when no duration can be determined.
+        """
+        duration, remaining_utterance = extract_timer_duration(utterance)
+        if duration == 1:  # prevent "set one timer" doing 1 sec timer
+            duration, remaining_utterance = extract_timer_duration(remaining_utterance)
+        if duration is None:
+            duration = self._request_duration()
         else:
-            duration = extracted_duration
+            conjunction = self.translate("and")
+            remaining_utterance = remove_conjunction(conjunction, remaining_utterance)
 
-        extracted_ordinal = self._extract_ordinal(utt)
-        if extracted_ordinal:
-            ordinal, utt = extracted_ordinal
-        else:
-            ordinal = extracted_ordinal
+        return duration, remaining_utterance
 
-        timers_have_ordinals = any(t['ordinal'] > 1 for t in timers)
-        name = self._get_timer_name(utt)
+    def _request_duration(self) -> timedelta:
+        """The utterance did not include a timer duration so ask for one.
 
-        if is_response and name is None:
-            # Catch direct naming of a timer when asked eg "pasta"
-            name = utt
+        Returns:
+            amount of time specified by the user
 
-        duration_matches, name_matches = None, None
-        if duration:
-            duration_matches = [t for t in timers if duration == t['duration']]
-
-        if name:
-            name_matches = [t for t in timers if t['name'] and
-                            self._fuzzy_match_word_from_phrase(t['name'],
-                                                               name,
-                                                               self.threshold)
-                            ]
-
-        if name or duration:
-            if duration_matches and name_matches:
-                matches = [t for t in name_matches if duration == t['duration']]
-            elif duration_matches or name_matches:
-                matches = duration_matches or name_matches
-            elif ordinal > 0 and not(duration_matches or name_matches):
-                matches = timers
-            else:
-                return "No Match Found", None
-        else:
-            matches = timers
-
-        if ordinal and len(matches) > 1:
-            for idx, match in enumerate(matches):
-                # should instead set to match['index'] if index gets reported
-                # in timer description.
-                if timers_have_ordinals and duration_matches:
-                    ord_to_match = match['ordinal']
-                else: 
-                    ord_to_match = idx + 1
-                if ordinal == ord_to_match:
-                    return "Match Found", [match]
-        elif len(matches) <= max_results:
-            return "Match Found", matches
-        elif len(matches) > max_results:
-            # TODO additional = the current group eg "5 minute timers"
-            additional = ""
-            speakable_matches = self._get_speakable_timer_list(matches)
-            reply = self.get_response(dialog,
-                                      data={"count": len(matches),
-                                            "names": speakable_matches,
-                                            "additional": additional})
-            if reply:
-                return self._get_timer_matches(reply,
-                                               timers=matches,
-                                               dialog=dialog,
-                                               max_results=max_results,
-                                               is_response=True)
-            else:
-                return "User Cancelled", None
-        return "No Match Found", None
-
-    @staticmethod
-    def _fuzzy_match_word_from_phrase(word, phrase, threshold):
-        matched = False
-        score = 0
-        phrase_split = phrase.split(' ')
-        word_split_len = len(word.split(' '))
-
-        for i in range(len(phrase_split) - word_split_len, -1, -1):
-            phrase_comp = ' '.join(phrase_split[i:i + word_split_len])
-            score_curr = fuzzy_match(phrase_comp, word.lower())
-
-            if score_curr > score and score_curr >= threshold:
-                score = score_curr
-                matched = True
-
-        return matched
-
-    def update_display(self, _):
-        # Get the next triggering timer
-        timer = self._get_next_timer()
-        if not timer:
-            # No active timers, clean up
-            self.cancel_scheduled_event('ShowTimer')
-            self.displaying_timer = None
-            self.disable_intent("handle_mute_timer")
-            self._stop_beep()
-            self.enclosure.eyes_reset()
-            self.enclosure.mouth_reset()
-            return
-
-        # Check if there is an expired timer
-        now = datetime.now()
-        flash = False
-        for timer in self.active_timers:
-            if timer["expires"] < now:
-                flash = True
-                break
-        if flash:
-            if now.second % 2 == 1:
-                self.enclosure.eyes_on()
-            else:
-                self.enclosure.eyes_off()
-
-        if is_speaking():
-            # Don't overwrite mouth visemes
-            return
-
-        if len(self.active_timers) > 1:
-            # This code will display each timer for 5 passes of this
-            # screen update (5 seconds), then move on to display next timer.
-            if not self.display_idx:
-                self.display_idx = 1.0
-            else:
-                self.display_idx += 0.2
-            if int(self.display_idx-1) >= len(self.active_timers):
-                self.display_idx = 1.0
-
-            timer = self.active_timers[int(self.display_idx)-1]
-            idx = timer["index"]
-        else:
-            if self.display_idx:
-                self.enclosure.mouth_reset()
-            self.display_idx = None
-            idx = None
-
-        # Check if the display frequency is set correctly for closest timer.
-        if timer != self.displaying_timer:
-            self.cancel_scheduled_event('ShowTimer')
-            self.schedule_repeating_event(self.update_display,
-                                          None, 1,
-                                          name='ShowTimer')
-            self.displaying_timer = timer
-
-        # Calc remaining time and show using faceplate
-        if timer["expires"] > now:
-            # Timer still running
-            remaining = (timer["expires"] - now).seconds
-            self.render_timer(idx, remaining)
-        else:
-            # Timer has expired but not been cleared, flash eyes
-            overtime = (now - timer["expires"]).seconds
-            self.render_timer(idx, overtime)
-
-            if timer["announced"]:
-                # beep again every 10 seconds
-                if overtime % self.beep_repeat_period == 0 and not self.mute:
-                    self._play_beep()
-            else:
-                # if only timer, just beep
-                if len(self.active_timers) == 1:
-                    self._play_beep()
-                else:
-                    duration = nice_duration(timer["duration"])
-                    name = timer['name']
-                    speakable_ord = self._get_speakable_ordinal(timer)
-                    dialog = 'timer.expired'
-                    if name:
-                        dialog += '.named'
-                    if speakable_ord != "":
-                        dialog += '.ordinal'
-                    self.speak_dialog(dialog,
-                                      data={"duration": duration,
-                                            "name": name,
-                                            "ordinal": speakable_ord})
-                timer["announced"] = True
-
-    def render_qt_timer(self, ct):
-        self.gui["remove_timer"] = ""
-        self.gui["cancelAllTimers"] = False
-        self.gui['timer_data'] = ct
-
-        if not self.screen_showing:
-            self.gui.show_page('timer.qml', override_idle=True)
-            self.screen_showing = True
-
-    def render_timer(self, idx, seconds):
-        display_owner = self.enclosure.display_manager.get_active()
-        if display_owner == "":
-            self.enclosure.mouth_reset()  # clear any leftover bits
-        elif display_owner != "TimerSkill":
-            return
-
-        # convert seconds to m:ss or h:mm:ss
-        if seconds <= 0:
-            expired = True
-            seconds *= -1
-        else:
-            expired = False
-
-        remaining_time = self._build_time_remaining_string(seconds)
-        if seconds > ONE_HOUR:
-            # account of colons being smaller
-            pixel_width = len(remaining_time)*4 - 2*2 + 6
-        else:
-            # account of colons being smaller
-            pixel_width = len(remaining_time)*4 - 2 + 6
-
-        x = (4*8 - pixel_width) // 2  # centers on display
-        if expired:
-            remaining_time = "-" + remaining_time
-        else:
-            remaining_time = " " + remaining_time
-
-        if idx:
-            # If there is an index to show, display at the left
-            png = join(abspath(dirname(__file__)), "anim",
-                       str(int(idx))+".png")
-            self.enclosure.mouth_display_png(png, x=3, y=2, refresh=False)
-            x += 6
-
-        # draw on the display
-        for ch in remaining_time:
-            # deal with some odd characters that can break filesystems
-            if ch == ":":
-                png = "colon.png"
-            elif ch == " ":
-                png = "blank.png"
-            elif ch == "-":
-                png = "negative.png"
-            else:
-                png = ch+".png"
-
-            png = join(abspath(dirname(__file__)), 'anim',  png)
-            self.enclosure.mouth_display_png(png, x=x, y=2, refresh=False)
-            if ch == ':':
-                x += 2
-            else:
-                x += 4
-
-    @staticmethod
-    def _build_time_remaining_string(remaining_seconds):
-        """Convert number of seconds into a displayable time string."""
-        hours = abs(remaining_seconds) // ONE_HOUR
-        hours_remainder = abs(remaining_seconds) % ONE_HOUR
-        minutes = hours_remainder // ONE_MINUTE
-        seconds = hours_remainder % ONE_MINUTE
-        if hours:
-            # convert to H:MM:SS
-            remaining_time = [
-                str(hours),
-                str(minutes).zfill(2),
-                str(seconds).zfill(2)
-            ]
-        else:
-            # convert to MM:SS
-            remaining_time = [
-                str(minutes).zfill(2),
-                str(seconds).zfill(2)
-            ]
-
-        return ':'.join(remaining_time)
-
-    def _speak_timer(self, timer):
-        """Speak the status of an individual timer - remaining or elapsed."""
-        # If _speak_timer receives timer = None, it assumes that
-        # timer wasn't found, and not there was no active timers
-        if timer is None:
-            self.speak_dialog("timer.not.found")
-            return
-
-        # TODO: speak_dialog should have option to not show mouth
-        # For now, just deactiveate.  The sleep() is to allow the
-        # message to make it across the bus first.
-        self.enclosure.deactivate_mouth_events()
-        time.sleep(0.25)
-
-        now = datetime.now()
-        duration = nice_duration(timer["duration"])
-        name = timer["name"]
-        ordinal = timer["ordinal"]
-
-        if timer and timer["expires"] < now:
-            # expired, speak how long since it triggered
-            time_diff = nice_duration((now - timer["expires"]).seconds)
-            dialog = 'time.elapsed'
-        else:
-            # speak remaining time
-            time_diff = nice_duration((timer["expires"] - now).seconds)
-            dialog = 'time.remaining'
-
-        if name:
-            dialog += '.named'
-        speakable_ord = self._get_speakable_ordinal(timer)
-        if speakable_ord != "":
-            dialog += '.with.ordinal'
-
-        self.speak_dialog(dialog, {"duration": duration,
-                                   "name": name,
-                                   "time_diff": time_diff,
-                                   "ordinal": speakable_ord})
-        wait_while_speaking()
-        self.enclosure.activate_mouth_events()
-
-    def _speak_timer_status(self, timer_name, has_all):
-        """Determine which timers to speak - all or specific timer."""
-        # Check if utterance has "All"
-        if timer_name is None or has_all:
-            for timer in self.active_timers:
-                self._speak_timer(timer)
-            return
-        # Just speak status of given timer
-        result, timers = self._get_timer_matches(timer_name)
-        if result == "No Match Found":
-            self.speak_dialog('timer.not.found')
-        return self._speak_timer(timers[0])
-
-    ######################################################################
-    # INTENT HANDLERS
-
-    @intent_handler(IntentBuilder("start.timer").require("Timer")
-                    .require("Start").optionally("Connector"))
-    def handle_start_timer(self, message):
-        """Common handler for start_timer intents."""
+        Raises:
+            TimerValidationException when the user does not supply a duration
+        """
 
         def validate_duration(string):
             """Check that extract_duration returns a valid duration."""
-            res = extract_duration(string, self.lang)
-            return res and res[0]
+            extracted_duration = None
+            extract = extract_duration(string, self.lang)
+            if extract is not None:
+                extracted_duration = extract[0]
+            return extracted_duration is not None
 
-        utt = message.data["utterance"]
-        # GET TIMER DURATION
-        secs, utt_remaining = self._extract_duration(utt)
-        if secs and secs == 1:  # prevent "set one timer" doing 1 sec timer
-            utt_remaining = message.data["utterance"]
-
-        if secs is None: # no duration found, request from user
-            req_duration = self.get_response('ask.how.long',
-                                             validator=validate_duration)
-            secs, _ = self._extract_duration(req_duration)
-            if secs is None:
-                return  # user cancelled
-
-        # GET TIMER NAME
-        if utt_remaining is not None and len(utt_remaining) > 0:
-            timer_name = self._get_timer_name(utt_remaining)
-            if timer_name:
-                if self._check_duplicate_timer_name(timer_name):
-                    return # make another timer with a different name
+        response = self.get_response("ask-how-long", validator=validate_duration)
+        if response is None:
+            raise TimerValidationException("No response to request for timer duration.")
         else:
-            timer_name = None
+            duration, _ = extract_timer_duration(response)
+            if duration is None:
+                raise TimerValidationException("No duration specified")
 
-        # SHOULD IT BE AN ALARM?
-        # TODO: add name of alarm if available?
-        if secs >= 60*60*24:  # 24 hours in seconds
-            if self.ask_yesno("timer.too.long.alarm.instead") == 'yes':
-                alarm_time = now_local() + timedelta(seconds=secs)
-                phrase = self.translate('set.alarm',
-                                        {'date': alarm_time.strftime('%B %d %Y'),
-                                         'time': alarm_time.strftime('%I:%M%p')})
-                self.bus.emit(Message("recognizer_loop:utterance",
-                                      {"utterances": [phrase], "lang": "en-us"}))
-            return
+        return duration
 
-        # CREATE TIMER
-        self.timer_index += 1
-        time_expires = datetime.now() + timedelta(seconds=secs)
-        timer = {"name": timer_name,
-                 "index": self.timer_index,
-                 # keep track of ordinal until all timers of that name expire
-                 "ordinal": self._get_ordinal_of_new_timer(secs),
-                 "duration": secs,
-                 "expires": time_expires,
-                 "announced": False}
-        self.active_timers.append(timer)
-        self.log.debug("-------------TIMER-CREATED-------------")
-        for key in timer:
-            self.log.debug('creating timer: {}: {}'.format(key, timer[key]))
-        self.log.debug("---------------------------------------")
-        
-        if self.gui.connected:
-            if self.timer_index is None or self.timer_index == 1:
-                timer_id = 1
-            else:
-                timer_id = self.timer_index
-            
-            now = datetime.now()
-            remaining = (timer["expires"] - now).seconds
-            ct = self._build_timer_display(timer_id, timer, remaining)
-            self.render_qt_timer(ct)
-            self.screen_showing = True
-            
-        # INFORM USER
-        if timer['ordinal'] > 1:
-            dialog = 'started.ordinal.timer'
-        else:
-            dialog = 'started.timer'
-        if timer['name'] is not None:
-            dialog += '.with.name'
-
-        self.speak_dialog(dialog,
-                          data={"duration": nice_duration(timer["duration"]),
-                                "name": timer["name"],
-                                "ordinal": self._get_speakable_ordinal(timer)})
-
-        # CLEANUP
-        self.pickle()
-        wait_while_speaking()
-        self.enable_intent("handle_mute_timer")
-        # Start showing the remaining time on the faceplate
-        if not self.gui.connected:
-            self.update_display(None)
-        # reset the mute flag with a new timer
-        self.mute = False
-
-    def _check_duplicate_timer_name(self, name):
-        for timer in self.active_timers:
-            if timer['name'] and (name.lower() == timer['name'].lower()):
-                now = datetime.now()
-                time_diff = nice_duration((timer['expires'] - now).seconds)
-                self.speak_dialog('timer.duplicate.name',
-                                  data={"name": timer["name"],
-                                        "duration": time_diff})
-                return True
-        return False
-
-    # Handles custom start phrases eg "ping me in 5 minutes"
-    # Also over matches Common Play for "start timer" utterances
-    @intent_handler('start.timer.intent')
-    def handle_start_timer_padatious(self, message):
-        self.handle_start_timer(message)
-
-    # Handles custom status phrases eg 'How much time left'
-    @intent_handler('timer.status.intent')
-    def handle_status_timer_padatious(self, message):
-        self.handle_status_timer(message)
-
-    # Handles "do I have any timers" etc
-    @intent_handler(IntentBuilder("status.timer.query").require("Query").
-                    optionally("Status").require("Timer").optionally("All"))
-    def handle_query_status_timer(self, message):
-        self.handle_status_timer(message)
-
-    # Handles "timer status", "status of timers" etc
-    @intent_handler(IntentBuilder("status.timer").optionally("Query").
-                    require("Status").one_of("Timer", "Time").
-                    optionally("All").optionally("Duration").
-                    optionally("Name"))
-    def handle_status_timer(self, message):
-        if not self.active_timers:
-            self.speak_dialog("no.active.timer")
-            return
-
-        utt = message.data["utterance"]
-
-        # If asking about all, or only 1 timer exists then speak
-        if len(self.active_timers) == 1:
-            timer_matches = self.active_timers
-        else:
-            # get max 2 matches, unless user explicitly asks for all
-            result, timer_matches = self._get_timer_matches(utt, max_results=2)
-            if result == "User Cancelled":
-                return
-
-        # Speak the relevant dialog
-        if timer_matches is None:
-            self.speak_dialog('timer.not.found')
-        else:
-            number_of_timers = len(timer_matches)
-            if number_of_timers > 1:
-                num = pronounce_number(number_of_timers)
-                self.speak_dialog('number.of.timers', {'num': num})
-            for timer in timer_matches:
-                self._speak_timer(timer)
-
-    @intent_handler(IntentBuilder("").require("Mute").require("Timer"))
-    def handle_mute_timer(self, message):
-        self.mute = True
-
-    @intent_handler('stop.timer.intent')
-    def handle_stop_timer(self, message):
-        timer = self._get_next_timer()
-        if timer and timer["expires"] < datetime.now():
-            # Timer is beeping requiring no confirmation reaction,
-            # treat it like a stop button press
-            self.stop()
-        elif message and message.data.get('utterance') == "cancel":
-            # No expired timers to clear
-            # Don't cancel active timers with only "cancel" as utterance
-            return
-        else:
-            self.handle_cancel_timer(message)
-
-    @intent_handler(IntentBuilder("").require("Cancel").require("Timer")
-                    .optionally("Connector").optionally("All"))
-    def handle_cancel_timer(self, message=None):
-        if message:
-            utt = message.data['utterance']
-            all_words = self.translate_list('all')
-            has_all = any(i.strip() in utt for i in all_words) \
-                      or message.data.get('All')
-        num_timers = len(self.active_timers)
-
-        if num_timers == 0:
-            self.gui.remove_page("timer.qml")
-            self.speak_dialog("no.active.timer")
-
-        elif not message or has_all:
-            if num_timers == 1:
-                # Either "cancel all" or from Stop button
-                timer = self._get_next_timer()
-                self.speak_dialog("cancelled.single.timer")
-            else:
-                self.gui.remove_page("timer.qml")
-                self.gui["cancelAllTimers"] = True
-                self.speak_dialog('cancel.all', data={"count": num_timers})
-            
-            # get duplicate so we can walk the list
-            active_timers = list(self.active_timers)
-            for timer in active_timers:
-                self.cancel_timer(timer)
-            self.pickle()   # save to disk
-
-        elif num_timers == 1:
-            # Check if utt included details and it is a mismatch
-            # E.g. "Cancel the 5 minute timer" when it's a 7 minute timer
-            result, timer = self._get_timer_matches(utt, max_results=1)
-            if timer is not None:
-                timer = timer[0]
-            else:
-                # If mismatched confirm to cancel the current timer
-                next_timer = self._get_next_timer()
-                duration = nice_duration(next_timer["duration"])
-                name = next_timer["name"] or duration
-                if self.ask_yesno('confirm.timer.to.cancel',
-                                  data={"name": name}) == 'yes':
-                    timer = next_timer
-            if timer is not None:
-                self.cancel_timer(timer)
-                self.speak_dialog("cancelled.single.timer")
-                self.pickle()   # save to disk
-
-        elif num_timers > 1:
-            dialog = 'ask.which.timer.cancel'
-            result, timer = self._get_timer_matches(utt, dialog=dialog,
-                                                    max_results=1)
-            if result == "User Cancelled":
-                self.log.debug("User cancelled or did not respond")
-                return
-            if timer:
-                timer = timer[0]
-                self.cancel_timer(timer)
-                duration = nice_duration(timer["duration"])
-                name = timer["name"] or duration
-                speakable_ord = self._get_speakable_ordinal(timer)
-                name = timer["name"]
-                dialog = "cancelled.timer"
-                if name:
-                    dialog += '.named'
-                if speakable_ord != "":
-                    dialog += '.with.ordinal'
-                self.speak_dialog(dialog,
-                                  data={"duration": duration,
-                                        "name": name,
-                                        "ordinal": speakable_ord})
-                self.pickle()   # save to disk
-
-            else:
-                self.speak_dialog("timer.not.found")
-
-        # NOTE: This allows 'ShowTimer' to continue running, it will clean up
-        #       after itself nicely.
-
-    def handle_expired_timer(self, message):
-        #if only timer, just beep        
-        if len(self.active_timers) == 1:
-            self._play_beep()
-        else:
-            duration = nice_duration(message.data["duration"])
-            name = message.data['name']
-            timer = {"name": message.data['name'],
-                 "index": message.data['index'],
-                 "ordinal": message.data['ordinal'],
-                 "duration": message.data['duration'],
-                 "announced": message.data['announced']}
-            speakable_ord = self._get_speakable_ordinal(timer)
-            dialog = 'timer.expired'
-            if name:
-                dialog += '.named'
-            if speakable_ord != "":
-                dialog += '.ordinal'
-            self.speak_dialog(dialog,
-                                data={"duration": duration,
-                                    "name": name,
-                                    "ordinal": speakable_ord})        
-
-    def cancel_timer(self, timer):
-        """Actually cancels the given timer."""
-        # Cancel given timer
-        if timer:
-            self.gui["remove_timer"] = {"index": timer["index"], "duration": timer["duration"]}
-            self.active_timers.remove(timer)
-            if len(self.active_timers) == 0:
-                if self.screen_showing:
-                    self.gui.release()
-                    self.screen_showing = False
-                self.timer_index = 0  # back to zero timers
-                self.enclosure.eyes_on()  # reset just in case
-
-    def shutdown(self):
-        # Clear the timer list, this fixes issues when stop() gets called
-        # on shutdown.
-        if len(self.active_timers) > 0:
-            active_timers = list(self.active_timers)
-            for timer in active_timers:
-                self.cancel_timer(timer)
-
-    def converse(self, utterances, lang="en-us"):
-        timer = self._get_next_timer()
-        if timer and timer["expires"] < datetime.now():
-            # A timer is going off
-            if utterances and self.voc_match(utterances[0], "StopBeeping"):
-                # Stop the timer
-                self.stop()
-                return True  # and consume this phrase
-
-    # This is a little odd. This actually does the work for the Stop button,
-    # which prevents blocking during the Stop handler when input from the
-    # user is needed.
-    def handle_verify_stop_timer(self, message):
-        # Confirm cancel of live timers...
-        prompt = ('ask.cancel.running' if len(self.active_timers) == 1
-                  else 'ask.cancel.running.plural')
-        if self.ask_yesno(prompt) == 'yes':
-            self.handle_cancel_timer()
-
-    def stop(self):
-        timer = self._get_next_timer()
-        now = datetime.now()
-        if timer and timer["expires"] < now:
-            # stop the expired timer(s)
-            while timer and timer["expires"] < now:
-                self.cancel_timer(timer)
-                timer = self._get_next_timer()
-            self.pickle()   # save to disk
-            return True
-
-        elif self.active_timers:
-            # This is a little tricky.  We shouldn't initiate dialog
-            # during Stop handling (there is confusion between stopping speech
-            # and starting new conversations). Instead, we'll just consider
-            # this Stop consumed and post a message that will immediately
-            # be handled to ask the user if they want to cancel.
-            self.bus.emit(Message("skill.mycrofttimer.verify.cancel"))
-            return True
-
-        return False
-
-    ######################################################################
-    # Audio feedback
-
-    def _play_beep(self):
-        # Play the beep sound
-        if not self._is_playing_beep() and not self.is_listening:
-            self.beep_process = play_wav(self.sound_file)
-
-    def _is_playing_beep(self):
-        # Check if the WAV is still playing
-        if self.beep_process:
-            self.beep_process.poll()
-            if self.beep_process.returncode:
-                # The playback has ended
-                self.beep_process = None
-
-    def _stop_beep(self):
-        if self._is_playing_beep():
-            self.beep_process.kill()
-            self.beep_process = None
-            
-    def _build_timer_display(self, idx, timer, remaining_time):
-        color_idx = 0 if idx is None else idx % 4 - 1
-        elapsed_time = timer['duration'] - remaining_time
-        remaining_time_display = self._build_time_remaining_string(
-            remaining_time
-        )
-        if datetime.now() > timer['expires']:
-            percent_elapsed = 1
-            remaining_time_display = '-' + remaining_time_display
-            timer_expd = True
-        else:
-            percent_elapsed = elapsed_time / timer['duration']
-            timer_expd = False
-            
-        remain_time_in_ms = remaining_time * 1000
-        
-        timer_id = idx or 1
-        if timer['name']:
-            timer_name = timer['name'].capitalize()
-        else:
-            if idx is None or idx == 1:
-                timer_name = 'Timer'
-            else:
-                timer_name = 'Timer ' + str(idx)
-            
-        timer_duration = timer['duration']
-        timer_data = {"timer_color": BACKGROUND_COLORS[color_idx], "timer_name": timer_name, "time_remaining": remain_time_in_ms, "timer_duration": timer_duration, "timer_id": timer_id, "timer_ordinal": timer["ordinal"], "timer_announced": timer["announced"], "timer_index": timer["index"]}
-        
-        return timer_data
-
-    ######################################################################
-    # TODO:Move to MycroftSkill
-
-    def do_pickle(self, name, data):
-        """Serialize the data under the name.
+    def _check_for_duplicate_name(self, timer_name: str) -> Optional[CountdownTimer]:
+        """Determine if the requested timer name is already in use.
 
         Args:
-            name (string): reference name of the pickled data
-            data (any): the data to store
-        """
-
-        with self.file_system.open(name, 'wb') as f:
-            pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
-
-    def do_unpickle(self, name, default):
-        """Load previously saved data under name.
-
-        Args:
-            name (string): reference name of the pickled data
-            default (any): default if data isn't found
+            timer_name: The name of the newly requested timer
 
         Returns:
-            (any): Picked data or the default
+            The timer with the same name as the requested timer or None if there is
+            no duplicate.
         """
-        try:
-            with self.file_system.open(name, 'rb') as f:
-                return pickle.load(f)
-        except:
-            return default
+        duplicate_timer = None
+        if timer_name is not None:
+            for timer in self.active_timers:
+                if timer_name.lower() == timer.name.lower():
+                    duplicate_timer = timer
+
+        return duplicate_timer
+
+    def _handle_duplicate_name_error(self, duplicate_timer: CountdownTimer):
+        """Communicate the duplicated timer name error to the user.
+
+        Args:
+            duplicate_timer: The timer that has the same name as the requested timer.
+
+        Raises:
+            TimerValidationError so that no more validations are done.
+        """
+        time_remaining = duplicate_timer.expiration - now_utc()
+        self.speak_dialog(
+            "timer-duplicate-name",
+            data=dict(
+                name=duplicate_timer.name, duration=nice_duration(time_remaining)
+            ),
+        )
+        raise TimerValidationException("Requested timer name already exists")
+
+    def _convert_to_alarm(self, duration: timedelta):
+        """Generate a message bus event to pass the user's request to the alarm skill.
+
+        Args:
+            duration: timer duration requested by user
+
+        Raises:
+            TimerValidationError indicating that the user's request was converted
+            to an alarm.
+        """
+        # TODO: add name of alarm if available?
+        alarm_time = now_local() + duration
+        alarm_data = dict(
+            date=alarm_time.strftime("%B %d %Y"), time=alarm_time.strftime("%I:%M%p")
+        )
+        phrase = self.translate("set-alarm", alarm_data)
+        message = Message(
+            "recognizer_loop:utterance", dict(utterances=[phrase], lang="en-us")
+        )
+        self.bus.emit(message)
+        raise TimerValidationException("Timer converted to alarm")
+
+    def _build_timer(self, duration: timedelta, requested_name: str) -> CountdownTimer:
+        """Generate a timer object based on the validated user request.
+
+        Args:
+            duration: amount of time requested for the timer
+            requested_name: name requested for the timer
+
+        Returns:
+            Newly generated timer object.
+        """
+        self.timer_index += 1
+        timer = CountdownTimer(duration, requested_name)
+        if timer.name is None:
+            timer.name = self._assign_timer_name()
+        timer.index = self.timer_index
+        timer.ordinal = self._calculate_ordinal(timer.duration)
+
+        return timer
+
+    def _assign_timer_name(self) -> str:
+        """Assign a name to a timer when the user does not specify one.
+
+        All timers will have a name. If the user does not request one, assign a name
+        using the "Timer <unnamed timer number>" convention.
+
+        When there is only one timer active and it is assigned a name, the name
+        "Timer" will be used.  If another timer without a requested name is added,
+        the timer named "Timer" will have its name changed to "Timer 1" and the new
+        timer will be named "Timer 2"
+
+        Returns:
+            The name assigned to the timer.
+        """
+        if self.active_timers:
+            max_assigned_number = 0
+            for timer in self.active_timers:
+                if timer.name == "Timer":
+                    timer.name = "Timer 1"
+                    max_assigned_number = 1
+                elif timer.name.startswith("Timer "):
+                    _, name_number = timer.name.split()
+                    name_number = int(name_number)
+                    if name_number > max_assigned_number:
+                        max_assigned_number = name_number
+            new_timer_number = max_assigned_number + 1
+            timer_name = "Timer " + str(new_timer_number)
+        else:
+            timer_name = "Timer"
+
+        return timer_name
+
+    def _calculate_ordinal(self, duration: timedelta) -> int:
+        """Get ordinal based on existing timer durations.
+
+        Args:
+            duration: amount of time requested for the timer
+
+        Returns:
+            The ordinal of the new timer based on other active timers with the
+            same duration
+        """
+        timer_count = sum(
+            1 for timer in self.active_timers if timer.duration == duration
+        )
+
+        return timer_count + 1
+
+    def _speak_new_timer(self, timer: CountdownTimer):
+        """Speak a confirmation to the user that the new timer has been added.
+
+        Args:
+            timer: new timer requested by the user
+        """
+        dialog = TimerDialog(timer, self.lang)
+        timer_count = len(self.active_timers)
+        dialog.build_add_dialog(timer_count)
+        self.speak_dialog(dialog.name, dialog.data, wait=True)
+
+    def _communicate_timer_status(self, message: Message):
+        """Speak response to the user's request for status of timer(s).
+
+        Args:
+            message: Message Bus event information from the intent parser
+        """
+        if self.active_timers:
+            utterance = message.data["utterance"]
+            matches = self._get_timer_status_matches(utterance)
+            if matches is not None:
+                self._speak_timer_status_matches(matches)
+        else:
+            self.speak_dialog("no-active-timer")
+
+    def _get_timer_status_matches(self, utterance: str) -> List[CountdownTimer]:
+        """Determine which active timer(s) match the user's status request.
+
+        Args:
+            utterance: The user's request for status of timer(s)
+
+        Returns:
+            Active timer(s) matching the user's request
+        """
+        if len(self.active_timers) == 1:
+            matches = self.active_timers
+        else:
+            matches = get_timers_matching_utterance(
+                utterance, self.active_timers, self.regex_file_path
+            )
+            if matches is None:
+                matches = self.active_timers
+
+        while matches is not None and len(matches) > 2:
+            matches = self._ask_which_timer(matches, question="ask-which-timer")
+
+        return matches
+
+    def _speak_timer_status_matches(self, matches: List[CountdownTimer]):
+        """Construct and speak the dialog(s) communicating timer status to the user.
+
+        Args:
+            matches: the active timers that matched the user's request for timer status
+        """
+        if matches:
+            number_of_timers = len(matches)
+            if number_of_timers > 1:
+                speakable_number = pronounce_number(number_of_timers)
+                dialog_data = dict(number=speakable_number)
+                self.speak_dialog("number-of-timers", dialog_data)
+            for timer in matches:
+                self._speak_timer_status(timer)
+        else:
+            self.speak_dialog("timer-not-found")
+
+    def _speak_timer_status(self, timer: CountdownTimer):
+        """Speak the status of an individual timer - remaining or elapsed.
+
+        Args:
+            timer: timer the status will be communicated for
+        """
+        # TODO: stop beeping before speaking
+        # TODO: speak_dialog should have option to not show mouth
+        # For now, just deactivate.  The sleep() is to allow the
+        # message to make it across the bus first.
+        self.enclosure.deactivate_mouth_events()
+        time.sleep(0.25)
+        dialog = TimerDialog(timer, self.lang)
+        dialog.build_status_dialog()
+        self.speak_dialog(dialog.name, dialog.data, wait=True)
+        self.enclosure.activate_mouth_events()
+
+    def _cancel_timers(self, message: Message):
+        """Handle a user's request to cancel one or more timers.
+
+        Args:
+            message: Message Bus event information from the intent parser
+        """
+        utterance = message.data["utterance"]
+        cancel_all = any(
+            word in utterance for word in self.all_timers_words
+        ) or message.data.get("all")
+        active_timer_count = len(self.active_timers)
+
+        if not self.active_timers:
+            self.speak_dialog("no-active-timer")
+        elif cancel_all:
+            self._cancel_all_timers()
+        elif active_timer_count == 1:
+            self._cancel_single_timer(utterance)
+        elif active_timer_count > 1:
+            self._determine_which_timer_to_cancel(utterance)
+        self._save_timers()
+        self.log.info("active_timers: " + str(bool(self.active_timers)))
+        if not self.active_timers:
+            self._reset()
+
+    def _cancel_all_timers(self):
+        """Handle a user's request to cancel all active timers."""
+        if len(self.active_timers) == 1:
+            self.speak_dialog("cancelled-single-timer")
+        else:
+            self.speak_dialog("cancel-all", data={"count": len(self.active_timers)})
+        self.active_timers = list()
+
+    def _cancel_single_timer(self, utterance: str):
+        """Cancel the only active timer.
+
+        The cancellation request may contain a timer name or duration.  Don't cancel
+        a "chicken" timer when the user asked to cancel a "pasta" timer.  Don't cancel
+        a ten minute timer when the user requested to cancel a twenty minute timer.
+
+        Args:
+            utterance: The words the user spoke to request timer cancellation.
+        """
+        timer = self.active_timers[0]
+        utterance_mismatch = self._match_cancel_request(utterance)
+        if utterance_mismatch:
+            reply = self._ask_to_confirm_cancel(timer)
+            if reply == "no":
+                timer = None
+        if timer is not None:
+            self.active_timers.remove(timer)
+            self.speak_dialog("cancelled-single-timer")
+
+    def _match_cancel_request(self, utterance: str) -> bool:
+        """Determine if the only active timer matches what the user requested.
+
+        Args:
+            utterance: The timer cancellation request made by the user.
+
+        Returns:
+            An indicator of whether or not a match was found.
+        """
+        matches = get_timers_matching_utterance(
+            utterance, self.active_timers, self.regex_file_path
+        )
+        match_criteria_in_utterance = matches is not None
+        if match_criteria_in_utterance:
+            timer_matched_criteria = len(matches) == 1
+        else:
+            timer_matched_criteria = False
+
+        return match_criteria_in_utterance and not timer_matched_criteria
+
+    def _ask_to_confirm_cancel(self, timer) -> str:
+        """If the only active timer does not match the request, confirm cancel request.
+
+        Args:
+            timer: The only active timer
+
+        Returns:
+            "Yes" or "no" reply from the user.
+        """
+        dialog = TimerDialog(timer, self.lang)
+        dialog.build_cancel_confirm_dialog()
+        reply = self.ask_yesno(dialog.name, dialog.data)
+
+        return reply
+
+    def _determine_which_timer_to_cancel(self, utterance: str):
+        """Cancel timer(s) based on the user's request.
+
+        Args:
+            utterance: The timer cancellation request made by the user.
+        """
+        matches = get_timers_matching_utterance(
+            utterance, self.active_timers, self.regex_file_path
+        )
+        if matches is None:
+            matches = self.active_timers
+        while matches is not None and len(matches) > 1:
+            matches = self._ask_which_timer(matches, question="ask-which-timer-cancel")
+
+        if matches:
+            timer = matches[0]
+            self.active_timers.remove(timer)
+            dialog = TimerDialog(timer, self.lang)
+            dialog.build_cancel_dialog()
+            self.speak_dialog(dialog.name, dialog.data)
+        else:
+            self.speak_dialog("timer-not-found")
+
+    def _reset(self):
+        """There are no active timers so reset all the stateful things."""
+        self.gui.release()
+        self._stop_display_update()
+        self._stop_expiration_check()
+        self.timer_index = 0
+        if self.platform == MARK_I:
+            self.enclosure.eyes_reset()
+            self.enclosure.mouth_reset()
+
+    def _ask_which_timer(
+        self, timers: List[CountdownTimer], question: str
+    ) -> List[CountdownTimer]:
+        """Ask the user to provide more information about the timer(s) requested.
+
+        Args:
+            timers: list of timers that needs to be filtered using the answer
+            question: name of the dialog file containing the question to be asked
+
+        Returns:
+            timers filtered based on the answer to the question.
+        """
+        filtered_timers = None
+        speakable_matches = self._get_speakable_timer_details(timers)
+        reply = self.get_response(
+            dialog=question, data=dict(count=len(timers), names=speakable_matches)
+        )
+        if reply is not None:
+            filtered_timers = get_timers_matching_reply(
+                reply, timers, self.regex_file_path
+            )
+
+        return filtered_timers
+
+    def _get_speakable_timer_details(self, timers: List[CountdownTimer]) -> str:
+        """Get timer list as speakable string.
+
+        Args:
+            timers: the timers to be converted
+
+        Returns:
+            names of the specified timers to be passed to TTS engine for speaking
+        """
+        speakable_timer_details = []
+        for timer in timers:
+            dialog = TimerDialog(timer, self.lang)
+            dialog.build_details_dialog()
+            speakable_timer_details.append(self.translate(dialog.name, dialog.data))
+        timer_names = join_list(speakable_timer_details, self.translate("and"))
+
+        return timer_names
+
+    def _show_gui(self):
+        """Update the device's display to show the status of active timers.
+
+        Runs once a second via a repeating event to keep the information on the display
+        accurate.
+        """
+        if self.gui.connected:
+            self._update_gui()
+            if self.platform == MARK_II:
+                page = "timer_mark_ii.qml"
+            else:
+                page = "timer_scalable.qml"
+            self.gui.show_page(page, override_idle=True)
+
+    def update_display(self):
+        """Update the device's display to show the status of active timers.
+
+        Runs once a second via a repeating event to keep the information on the display
+        accurate.
+        """
+        if self.gui.connected:
+            self._update_gui()
+        elif self.platform == MARK_I:
+            self._display_timers_on_faceplate()
+
+    def _update_gui(self):
+        """Display active timers on a device that supports the QT GUI framework."""
+        timers_to_display = self._select_timers_to_display(display_max=4)
+        display_data = [timer.display_data for timer in timers_to_display]
+        if timers_to_display:
+            self.gui["activeTimers"] = dict(timers=display_data)
+            self.gui["activeTimerCount"] = len(timers_to_display)
+
+    def _display_timers_on_faceplate(self):
+        """Display one timer on a device that supports and Arduino faceplate."""
+        faceplate_user = self.enclosure.display_manager.get_active()
+        if faceplate_user == "TimerSkill":
+            previous_display_group = self.display_group
+            timers_to_display = self._select_timers_to_display(display_max=1)
+            if self.display_group != previous_display_group:
+                self.enclosure.mouth_reset()
+            if timers_to_display:
+                timer_to_display = timers_to_display[0]
+                renderer = FaceplateRenderer(self.enclosure, timer_to_display)
+                if len(self.active_timers) > 1:
+                    renderer.multiple_active_timers = True
+                renderer.render()
+
+    def _select_timers_to_display(self, display_max: int) -> List[CountdownTimer]:
+        """Determine which timers will populate the display.
+
+        If there are more timers than fit on a screen or faceplate, change which
+        timers are displayed every ten seconds.
+
+        Args:
+            display_max: maximum number of timers that can be displayed at once
+
+        Returns:
+            The timer(s) to be displayed.
+        """
+        if len(self.active_timers) <= display_max:
+            timers_to_display = self.active_timers
+        else:
+            if not now_utc().second % 10:
+                if (self.display_group * display_max) < len(self.active_timers):
+                    self.display_group += 1
+                else:
+                    self.display_group = 1
+
+            start_index = (self.display_group - 1) * display_max
+            end_index = self.display_group * display_max
+            timers_to_display = self.active_timers[start_index:end_index]
+
+        return timers_to_display
+
+    def check_for_expired_timers(self):
+        """Provide a audible and visual indicator when one or more timers expire.
+
+        Runs once every two seconds via a repeating event.
+        """
+        expired_timers = [timer for timer in self.active_timers if timer.expired]
+        if expired_timers:
+            play_wav(str(self.sound_file_path))
+            if self.platform == MARK_I:
+                self._flash_eyes()
+            self._speak_expired_timer(expired_timers)
+
+    def _flash_eyes(self):
+        """Flash the eyes (if supported) as a visual indicator that a timer expired."""
+        if 1 <= now_utc().second % 4 <= 2:
+            self.enclosure.eyes_on()
+        else:
+            self.enclosure.eyes_off()
+
+    def _speak_expired_timer(self, expired_timers):
+        """Announce the expiration of any timers not already announced.
+
+        This occurs every two seconds, so only announce one expired timer per pass.
+        Pause the expiration check so the expired timer is not beeping while the
+        expiration announcement is being spoken.
+
+        On the Mark I, pause the display of any active timers so that the mouth can
+        do the "talking".
+        """
+        for timer in expired_timers:
+            if not timer.expiration_announced:
+                dialog = TimerDialog(timer, self.lang)
+                dialog.build_expiration_announcement_dialog(len(self.active_timers))
+                self._stop_expiration_check()
+                if self.platform == MARK_I:
+                    self._stop_display_update()
+                time.sleep(1)  # give the scheduled event a second to clear
+                self.speak_dialog(dialog.name, dialog.data, wait=True)
+                timer.expiration_announced = True
+                break
+
+    def stop(self) -> bool:
+        """Handle a stop command issued by the user.
+
+        When a user says "stop" while one or more expired timers are beeping, cancel
+        the expired timers.  If there are no expired timers, but some active timers,
+        ask the user if the stop command was intended to cancel all active timers.
+
+        Returns:
+            A boolean indicating if the stop message was consumed by this skill.
+        """
+        stop_handled = False
+        expired_timers = [timer for timer in self.active_timers if timer.expired]
+        if expired_timers:
+            self._clear_expired_timers(expired_timers)
+            stop_handled = True
+        elif self.active_timers:
+            # We shouldn't initiate dialog during Stop handling because there is
+            # a conflict between stopping speech and starting new conversations.
+            # Instead, we'll just consider this Stop consumed and emit an event.
+            # The event handler will ask the user if they want to cancel active timers.
+            self.bus.emit(Message("skill.timer.stop"))
+            stop_handled = True
+
+        return stop_handled
+
+    def _clear_expired_timers(self, expired_timers: List[CountdownTimer]):
+        """The user wants the beeping to stop so cancel all expired timers.
+
+        Args:
+            expired_timers: list of timer objects representing expired timers
+        """
+        for timer in expired_timers:
+            self.active_timers.remove(timer)
+        self._save_timers()
+        if not self.active_timers:
+            self._reset()
+
+    def handle_timer_stop(self, _):
+        """Event handler for the stop command when timers are active.
+
+        This is a little odd. This actually does the work for the Stop command/button,
+        which prevents blocking during the Stop handler when input from the
+        user is needed.
+        """
+        if len(self.active_timers) == 1:
+            question = "ask-cancel-running-single"
+        else:
+            question = "ask-cancel-running-multiple"
+        answer = self.ask_yesno(question)
+        if answer == "yes":
+            self._cancel_all_timers()
+            self._reset()
+
+    def handle_wake_word_detected(self, _):
+        """React to the device detecting the wake word spoken by the user.
+
+        On any device, the expiration check should be canceled so that expired timers
+        stop beeping while the device handles the request from the user.
+
+        The Mark I performs display events while listening and thinking.  Pause the
+        display of the timer to allow these events to display instead.
+        """
+        self._stop_expiration_check()
+        if self.platform == MARK_I:
+            self._stop_display_update()
+
+    def handle_speech_recognition_unknown(self, _):
+        """React to no request being spoken after the wake word is activated.
+
+        When the wake word is detected, but no request is uttered by the user, resume
+        checking for expired timers.
+
+        The Mark I display was being used to show listening and thinking events.
+        Resume showing the active timer(s).
+        """
+        self._start_expiration_check()
+        if self.platform == MARK_I:
+            self._start_display_update()
+
+    def handle_speak(self, _):
+        """Handle the device speaking a response to a user request.
+
+        Once the device stops speaking, it has finished answering the user's request.
+        Resume checking for expired timers.
+        The Mark I needs to wait for two seconds after the speaking is done to display
+        the active timer(s) because there is an automatic display reset at that time.
+        """
+        wait_while_speaking()
+        self._start_expiration_check()
+        if self.platform == MARK_I:
+            time.sleep(2)
+            self._start_display_update()
+
+    def _start_display_update(self):
+        """Start an event repeating every second to update the timer display."""
+        if self.active_timers:
+            self.log.info("starting repeating event to update timer display")
+            if self.platform == MARK_I:
+                self.enclosure.mouth_reset()
+            self.schedule_repeating_event(
+                self.update_display, None, 1, name="UpdateTimerDisplay"
+            )
+
+    def _stop_display_update(self):
+        """Stop the repeating event that updates the timer on the display."""
+        self.log.info("stopping repeating event to update timer display")
+        self.cancel_scheduled_event("UpdateTimerDisplay")
+        if self.platform == MARK_I:
+            self.enclosure.mouth_reset()
+
+    def _start_expiration_check(self):
+        """Start an event repeating every two seconds to check for expired timers."""
+        if self.active_timers:
+            self.log.info("starting repeating event to check for timer expiration")
+            self.schedule_repeating_event(
+                self.check_for_expired_timers, None, 2, name="ExpirationCheck"
+            )
+
+    def _stop_expiration_check(self):
+        """Stop the repeating event that checks for expired timers."""
+        self.log.info("stopping repeating event to check for timer expiration")
+        self.cancel_scheduled_event("ExpirationCheck")
+
+    def _reset_timer_index(self):
+        """Use the timers loaded from skill storage to determine the timer index."""
+        if self.active_timers:
+            timer_with_max_index = max(
+                self.active_timers, key=lambda timer: timer.index
+            )
+            self.timer_index = timer_with_max_index.index
+        else:
+            self.timer_index = 0
+
+    def _save_timers(self):
+        """Write a serialized version of the data to the specified file name."""
+        with open(self.save_path, "wb") as data_file:
+            pickle.dump(self.active_timers, data_file, pickle.HIGHEST_PROTOCOL)
+
+    def _load_timers(self):
+        """Load any saved timers into the active timers list.
+
+        Returns:
+            None if the file does not exist or the deserialized data in the file.
+        """
+        self.active_timers = list()
+        if self.save_path.exists():
+            with open(self.save_path, "rb") as data_file:
+                self.active_timers = pickle.load(data_file)
 
 
 def create_skill():
+    """Instantiate the timer skill."""
     return TimerSkill()
