@@ -1,5 +1,0 @@
-\bfor.* (chamado|para|con nome)(?P<Name>.*)
-\b(chamado|para|con nome) (?P<Name>.*) para
-\b(chamado|para|con nome) (?P<Name>.*)
-\b^.*(un|de|o) (?P<Name>.*) temporizador
-\b^.* (?P<Name>.*)(?<!un)(?<!unha)(?<!outro)(?<!calquera)(?<!meu)(?<!máis un)(?<!noso)(?<!o) temporizador$

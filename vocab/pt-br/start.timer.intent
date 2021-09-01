@@ -1,8 +1,0 @@
-(temporizador|alarme)
-(outro|mais um|segundo|terceiro|quarto|quinto|) temporizador ((para|) {duration}|)
-Me dê um toque em {duration}
-(Temporizador|Alarme) (de|para|) {duration}.
-
-
-
-(Temporizador|Alarme) (de|para) {duration} (chamado|com nome|para) (o|a) {name}.
