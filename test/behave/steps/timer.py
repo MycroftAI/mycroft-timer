@@ -77,6 +77,19 @@ def reset_timers(context):
     _cancel_all_timers(context)
 
 
+@given("an expired timer")
+def let_timer_expire(context):
+    """Start a short timer and let it expire to test expiration logic."""
+    _cancel_all_timers(context)
+    emit_utterance(context.bus, "set a 3 second timer")
+    expected_response = ["started-timer"]
+    match_found, speak_messages = wait_for_dialog_match(context.bus, expected_response)
+    assert match_found, format_dialog_match_error(expected_response, speak_messages)
+    expected_response = ["timer-expired"]
+    match_found, speak_messages = wait_for_dialog_match(context.bus, expected_response)
+    assert match_found, format_dialog_match_error(expected_response, speak_messages)
+
+
 def _cancel_all_timers(context):
     """Cancel all active timers.
 
@@ -87,17 +100,7 @@ def _cancel_all_timers(context):
     assert match_found, format_dialog_match_error(CANCEL_RESPONSES, speak_messages)
 
 
-@given("a timer is expired")
-def let_timer_expire(context):
-    """Start a short timer and let it expire to test expiration logic."""
-    emit_utterance(context.bus, "set a 3 second timer")
-    expected_response = ["started-timer"]
-    match_found, speak_messages = wait_for_dialog_match(context.bus, expected_response)
-    assert match_found, format_dialog_match_error(expected_response, speak_messages)
-    time.sleep(4)
-
-
-@then('"mycroft-timer" should stop beeping')
+@then('the expired timer should stop beeping')
 def then_stop_beeping(context):
     # TODO: Better check!
     import psutil
