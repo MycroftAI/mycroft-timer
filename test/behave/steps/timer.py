@@ -1,3 +1,4 @@
+from threading import Event
 import time
 from typing import List
 
@@ -7,6 +8,7 @@ from test.integrationtests.voight_kampff import (
     emit_utterance,
     format_dialog_match_error,
     wait_for_dialog_match,
+    then_wait
 )
 
 CANCEL_RESPONSES = (
@@ -99,12 +101,18 @@ def let_timer_expire(context):
 
 @then('"mycroft-timer" should stop beeping')
 def then_stop_beeping(context):
-    # TODO: Better check!
-    import psutil
+    """Listen on the bus for beep requests and ensure it stops."""
+    played_beeps = 0
+    failed_event = Event()
+    def count_played_beeps(_):
+        nonlocal played_beeps
+        nonlocal failed_event
+        played_beeps += 1
+        if played_beeps >= 2:
+            failed_event.set()
 
-    for i in range(10):
-        if "paplay" not in [p.name() for p in psutil.process_iter()]:
-            break
-        time.sleep(1)
-    else:
-        assert False, "Timer is still ringing"
+    context.bus.on("skill.timer.play_beep", count_played_beeps)
+    failed_event.wait(timeout=5.0)
+    context.bus.remove("skill.timer.play_beep", count_played_beeps)
+    if failed_event.is_set():
+        assert false, "The beeping didn't stop"

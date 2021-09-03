@@ -78,6 +78,7 @@ class TimerSkill(MycroftSkill):
         )
         self.add_event("speak", self.handle_speak)
         self.add_event("skill.timer.stop", self.handle_timer_stop)
+        self.add_event("skill.timer.play_beep", self.handle_play_beep)
 
     @intent_handler(AdaptIntent().optionally("start").require("timer"))
     def handle_start_timer_generic(self, message: Message):
@@ -723,6 +724,11 @@ class TimerSkill(MycroftSkill):
 
         return timers_to_display
 
+    def handle_play_beep(self, _):
+        """Event handler for starting event playback."""
+        play_proc = play_wav(str(self.sound_file_path))
+        play_proc.wait()
+
     def check_for_expired_timers(self):
         """Provide a audible and visual indicator when one or more timers expire.
 
@@ -730,11 +736,10 @@ class TimerSkill(MycroftSkill):
         """
         expired_timers = [timer for timer in self.active_timers if timer.expired]
         if expired_timers:
-            play_proc = play_wav(str(self.sound_file_path))
+            self.bus.emit(Message("skill.timer.play_beep"))
             if self.platform == MARK_I:
                 self._flash_eyes()
             self._speak_expired_timer(expired_timers)
-            play_proc.wait()
 
     def _flash_eyes(self):
         """Flash the eyes (if supported) as a visual indicator that a timer expired."""
