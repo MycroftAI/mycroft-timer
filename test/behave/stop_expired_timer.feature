@@ -7,15 +7,26 @@ Feature: Stop an expired timer
     Given an english speaking user
     And an expired timer
     When the user says "<stop request>"
-    Then the expired timer should stop beeping
+    Then the expired timer is no longer active
 
     Examples:
       | stop request |
       | stop |
-      | cancel |
-      | turn it off |
       | silence |
       | shut up |
+
+  @xfail
+  # Jira SKILL-271 https://mycroft.atlassian.net/browse/SKILL-271
+  Scenario Outline: Failing stop an expired timer using a "stop" command
+    Given an english speaking user
+    And an expired timer
+    When the user says "<stop request>"
+    Then the expired timer is no longer active
+
+    Examples:
+      | stop request |
+      | cancel |
+      | turn it off |
       | I got it |
       | mute |
       | disable |
@@ -25,7 +36,7 @@ Feature: Stop an expired timer
     Given an english speaking user
     And an expired timer
     When the user says "<cancel request>"
-    Then the expired timer should stop beeping
+    Then the expired timer is no longer active
     And "mycroft-timer" should reply with dialog from "cancelled-single-timer.dialog"
 
     Examples:

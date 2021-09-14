@@ -61,6 +61,10 @@ class TimerSkill(MycroftSkill):
         self.all_timers_words = [word.strip() for word in self.translate_list("all")]
         self.save_path = Path(self.file_system.path).joinpath("save_timers")
 
+    @property
+    def expired_timers(self):
+        return [timer for timer in self.active_timers if timer.expired]
+
     def initialize(self):
         """Initialization steps to execute after the skill is loaded."""
         self._load_timers()
@@ -516,6 +520,8 @@ class TimerSkill(MycroftSkill):
             self.speak_dialog("cancelled-single-timer")
         else:
             self.speak_dialog("cancel-all", data={"count": len(self.active_timers)})
+        if self.expired_timers:
+            self.bus.emit(Message("timer.stopped-expired"))
         self.active_timers = list()
 
     def _cancel_single_timer(self, utterance: str):
@@ -535,6 +541,8 @@ class TimerSkill(MycroftSkill):
             if reply == "no":
                 timer = None
         if timer is not None:
+            if timer in self.expired_timers:
+                self.bus.emit(Message("timer.stopped-expired"))
             self.active_timers.remove(timer)
             self.speak_dialog("cancelled-single-timer")
 
@@ -589,6 +597,8 @@ class TimerSkill(MycroftSkill):
 
         if matches:
             timer = matches[0]
+            if timer in self.expired_timers:
+                self.bus.emit(Message("timer.stopped-expired"))
             self.active_timers.remove(timer)
             dialog = TimerDialog(timer, self.lang)
             dialog.build_cancel_dialog()
@@ -728,12 +738,11 @@ class TimerSkill(MycroftSkill):
 
         Runs once every two seconds via a repeating event.
         """
-        expired_timers = [timer for timer in self.active_timers if timer.expired]
-        if expired_timers:
+        if self.expired_timers:
             play_proc = play_wav(str(self.sound_file_path))
             if self.platform == MARK_I:
                 self._flash_eyes()
-            self._speak_expired_timer(expired_timers)
+            self._speak_expired_timer()
             play_proc.wait()
 
     def _flash_eyes(self):
@@ -743,7 +752,7 @@ class TimerSkill(MycroftSkill):
         else:
             self.enclosure.eyes_off()
 
-    def _speak_expired_timer(self, expired_timers):
+    def _speak_expired_timer(self):
         """Announce the expiration of any timers not already announced.
 
         This occurs every two seconds, so only announce one expired timer per pass.
@@ -753,7 +762,7 @@ class TimerSkill(MycroftSkill):
         On the Mark I, pause the display of any active timers so that the mouth can
         do the "talking".
         """
-        for timer in expired_timers:
+        for timer in self.expired_timers:
             if not timer.expiration_announced:
                 dialog = TimerDialog(timer, self.lang)
                 dialog.build_expiration_announcement_dialog(len(self.active_timers))
@@ -776,9 +785,8 @@ class TimerSkill(MycroftSkill):
             A boolean indicating if the stop message was consumed by this skill.
         """
         stop_handled = False
-        expired_timers = [timer for timer in self.active_timers if timer.expired]
-        if expired_timers:
-            self._clear_expired_timers(expired_timers)
+        if self.expired_timers:
+            self._clear_expired_timers()
             stop_handled = True
         elif self.active_timers:
             # We shouldn't initiate dialog during Stop handling because there is
@@ -790,14 +798,11 @@ class TimerSkill(MycroftSkill):
 
         return stop_handled
 
-    def _clear_expired_timers(self, expired_timers: List[CountdownTimer]):
-        """The user wants the beeping to stop so cancel all expired timers.
-
-        Args:
-            expired_timers: list of timer objects representing expired timers
-        """
-        for timer in expired_timers:
+    def _clear_expired_timers(self):
+        """The user wants the beeping to stop so cancel all expired timers."""
+        for timer in self.expired_timers:
             self.active_timers.remove(timer)
+        self.bus.emit(Message("timer.stopped-expired"))
         self._save_timers()
         if not self.active_timers:
             self._reset()
