@@ -4,18 +4,16 @@ from typing import Any, List
 from behave import given, then
 
 from test.integrationtests.voight_kampff import (
-    emit_utterance,
-    VoightKampffDialogMatcher,
-    VoightKampffEventMatcher,
+    emit_utterance, match_dialog, match_message
 )
 
-CANCEL_RESPONSES = (
+CANCEL_RESPONSES = [
     "no-active-timer",
     "cancel-all",
     "cancelled-single-timer",
     "cancelled-timer-named",
     "cancelled-timer-named-ordinal",
-)
+]
 
 
 @given("an active {duration} timer")
@@ -67,9 +65,8 @@ def _start_a_timer(context, utterance: str, response: List[str]):
     If one of the expected responses is not spoken, cause the step to error out.
     """
     emit_utterance(context.bus, utterance)
-    dialog_matcher = VoightKampffDialogMatcher(context, response)
-    dialog_matcher.match()
-    assert dialog_matcher.match_found, dialog_matcher.error_message
+    match_found, error_message = match_dialog(context, response)
+    assert match_found, error_message
 
 
 @given("no active timers")
@@ -84,13 +81,11 @@ def let_timer_expire(context: Any):
     _cancel_all_timers(context)
     emit_utterance(context.bus, "set a 3 second timer")
     expected_response = ["started-timer"]
-    dialog_matcher = VoightKampffDialogMatcher(context, expected_response)
-    dialog_matcher.match()
-    assert dialog_matcher.match_found, dialog_matcher.error_message
+    match_found, error_message = match_dialog(context, expected_response)
+    assert match_found, error_message
     expected_response = ["timer-expired"]
-    dialog_matcher = VoightKampffDialogMatcher(context, expected_response)
-    dialog_matcher.match()
-    assert dialog_matcher.match_found, dialog_matcher.error_message
+    match_found, error_message = match_dialog(context, expected_response)
+    assert match_found, error_message
 
 
 def _cancel_all_timers(context: Any):
@@ -99,15 +94,13 @@ def _cancel_all_timers(context: Any):
     If one of the expected responses is not spoken, cause the step to error out.
     """
     emit_utterance(context.bus, "cancel all timers")
-    dialog_matcher = VoightKampffDialogMatcher(context, CANCEL_RESPONSES)
-    dialog_matcher.match()
-    assert dialog_matcher.match_found, dialog_matcher.error_message
+    match_found, error_message = match_dialog(context, CANCEL_RESPONSES)
+    assert match_found, error_message
 
 
 @then("the expired timer is no longer active")
 def check_expired_timer_removal(context: Any):
     """Confirm that expired timers have been cleared when requested."""
     expected_event = "timer.stopped-expired"
-    event_matcher = VoightKampffEventMatcher(expected_event, context)
-    event_matcher.match()
-    assert event_matcher.match_found, event_matcher.error_message
+    match_found, error_message = match_message(expected_event, context)
+    assert match_found, error_message
