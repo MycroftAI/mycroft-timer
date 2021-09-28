@@ -521,7 +521,7 @@ class TimerSkill(MycroftSkill):
         else:
             self.speak_dialog("cancel-all", data={"count": len(self.active_timers)})
         if self.expired_timers:
-            self.bus.emit(Message("timer.stopped-expired"))
+            self.bus.emit(Message("skill.timer.stopped-expired"))
         self.active_timers = list()
 
     def _cancel_single_timer(self, utterance: str):
@@ -542,7 +542,7 @@ class TimerSkill(MycroftSkill):
                 timer = None
         if timer is not None:
             if timer in self.expired_timers:
-                self.bus.emit(Message("timer.stopped-expired"))
+                self.bus.emit(Message("skill.timer.stopped-expired"))
             self.active_timers.remove(timer)
             self.speak_dialog("cancelled-single-timer")
 
@@ -598,7 +598,7 @@ class TimerSkill(MycroftSkill):
         if matches:
             timer = matches[0]
             if timer in self.expired_timers:
-                self.bus.emit(Message("timer.stopped-expired"))
+                self.bus.emit(Message("skill.timer.stopped-expired"))
             self.active_timers.remove(timer)
             dialog = TimerDialog(timer, self.lang)
             dialog.build_cancel_dialog()
@@ -802,7 +802,7 @@ class TimerSkill(MycroftSkill):
         """The user wants the beeping to stop so cancel all expired timers."""
         for timer in self.expired_timers:
             self.active_timers.remove(timer)
-        self.bus.emit(Message("timer.stopped-expired"))
+        self.bus.emit(Message("skill.timer.stopped-expired"))
         self._save_timers()
         if not self.active_timers:
             self._reset()

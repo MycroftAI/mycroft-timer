@@ -4,7 +4,7 @@ from typing import Any, List
 from behave import given, then
 
 from test.integrationtests.voight_kampff import (
-    emit_utterance, match_dialog, match_message
+    emit_utterance, VoightKampffDialogMatcher, VoightKampffMessageMatcher
 )
 
 CANCEL_RESPONSES = [
@@ -65,7 +65,8 @@ def _start_a_timer(context, utterance: str, response: List[str]):
     If one of the expected responses is not spoken, cause the step to error out.
     """
     emit_utterance(context.bus, utterance)
-    match_found, error_message = match_dialog(context, response)
+    dialog_matcher = VoightKampffDialogMatcher(context, response)
+    match_found, error_message = dialog_matcher.match()
     assert match_found, error_message
 
 
@@ -81,10 +82,12 @@ def let_timer_expire(context: Any):
     _cancel_all_timers(context)
     emit_utterance(context.bus, "set a 3 second timer")
     expected_response = ["started-timer"]
-    match_found, error_message = match_dialog(context, expected_response)
+    dialog_matcher = VoightKampffDialogMatcher(context, expected_response)
+    match_found, error_message = dialog_matcher.match()
     assert match_found, error_message
     expected_response = ["timer-expired"]
-    match_found, error_message = match_dialog(context, expected_response)
+    dialog_matcher = VoightKampffDialogMatcher(context, expected_response)
+    match_found, error_message = dialog_matcher.match()
     assert match_found, error_message
 
 
@@ -94,7 +97,8 @@ def _cancel_all_timers(context: Any):
     If one of the expected responses is not spoken, cause the step to error out.
     """
     emit_utterance(context.bus, "cancel all timers")
-    match_found, error_message = match_dialog(context, CANCEL_RESPONSES)
+    dialog_matcher = VoightKampffDialogMatcher(context, CANCEL_RESPONSES)
+    match_found, error_message = dialog_matcher.match()
     assert match_found, error_message
 
 
@@ -102,5 +106,6 @@ def _cancel_all_timers(context: Any):
 def check_expired_timer_removal(context: Any):
     """Confirm that expired timers have been cleared when requested."""
     expected_event = "timer.stopped-expired"
-    match_found, error_message = match_message(expected_event, context)
+    message_matcher = VoightKampffMessageMatcher(expected_event, context)
+    match_found, error_message = message_matcher.match()
     assert match_found, error_message
