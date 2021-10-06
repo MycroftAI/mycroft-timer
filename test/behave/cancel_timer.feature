@@ -122,7 +122,7 @@ Feature: Cancel Timers
 
   @xfail
   # Jira MS-61 https://mycroft.atlassian.net/browse/MS-61
-  Scenario Outline: Failing cancel a specific timer
+  Scenario Outline: Failing cancel a timer specifying duration
     Given an english speaking user
     And multiple active timers
       | duration   |
@@ -136,6 +136,7 @@ Feature: Cancel Timers
       | disable 5 minute timer |
       | end 5 minute timer |
       | end the 5 minute timer |
+      | disable 5 minute timer |
 
   Scenario Outline: cancel a timer specifying name
     Given an english speaking user
