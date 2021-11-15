@@ -494,8 +494,9 @@ class TimerSkill(MycroftSkill):
             message: Message Bus event information from the intent parser
         """
         utterance = message.data["utterance"]
+        utterance_words = utterance.split()
         cancel_all = any(
-            word in utterance for word in self.all_timers_words
+            word in utterance_words for word in self.all_timers_words
         ) or message.data.get("all")
         active_timer_count = len(self.active_timers)
 
