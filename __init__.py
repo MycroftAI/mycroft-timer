@@ -782,6 +782,11 @@ class TimerSkill(MycroftSkill):
         if expired_timers:
             self._clear_expired_timers(expired_timers)
             stop_handled = True
+
+            if self.active_timers:
+                # Don't hide GUI if there are still active timers
+                self._show_gui()
+
         elif self.active_timers:
             # We shouldn't initiate dialog during Stop handling because there is
             # a conflict between stopping speech and starting new conversations.
