@@ -171,6 +171,14 @@ class TimerSkill(MycroftSkill):
         """
         self._cancel_timers(message)
 
+    @intent_handler(AdaptIntent().require("show").require("timer"))
+    def handle_show_timers(self, _):
+        """Handles showing the timers screen if it is hidden."""
+        if self.active_timers:
+            self._show_gui()
+        else:
+            self.speak_dialog("no-active-timer")
+
     def shutdown(self):
         """Perform any cleanup tasks before skill shuts down."""
         self.cancel_scheduled_event("UpdateTimerDisplay")
