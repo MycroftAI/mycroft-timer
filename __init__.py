@@ -60,6 +60,7 @@ class TimerSkill(MycroftSkill):
         self.regex_file_path = self.find_resource("name.rx", "regex")
         self.all_timers_words = [word.strip() for word in self.translate_list("all")]
         self.save_path = Path(self.file_system.path).joinpath("save_timers")
+        self.showing_expired_timers = False
 
     def initialize(self):
         """Initialization steps to execute after the skill is loaded."""
@@ -750,11 +751,17 @@ class TimerSkill(MycroftSkill):
         """
         expired_timers = [timer for timer in self.active_timers if timer.expired]
         if expired_timers:
+            # Only call _show_gui once until no more expired timers.
+            if not self.showing_expired_timers and self.gui.connected:
+                self._show_gui()
+                self.showing_expired_timers = True
             play_proc = play_wav(str(self.sound_file_path))
             if self.platform == MARK_I:
                 self._flash_eyes()
             self._speak_expired_timer(expired_timers)
             play_proc.wait()
+        else:
+            self.showing_expired_timers = False
 
     def _flash_eyes(self):
         """Flash the eyes (if supported) as a visual indicator that a timer expired."""
