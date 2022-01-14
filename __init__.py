@@ -198,17 +198,20 @@ class TimerSkill(MycroftSkill):
         except TimerValidationException as exc:
             self.log.info(str(exc))
         else:
-            timer = self._build_timer(duration, name)
-            self.active_timers.append(timer)
-            self.active_timers.sort(key=lambda tmr: tmr.expiration)
-            if len(self.active_timers) == 1:
-                # the expiration checker isn't started here because it is started
-                # in a speech event handler and the new timer is not spoken until
-                # after the display starts.
-                self._show_gui()
-                self._start_display_update()
-            self._speak_new_timer(timer)
-            self._save_timers()
+            # duration should only be None here if the user was asked for
+            # timer duration and responded with "nevermind"
+            if duration is not None:
+                timer = self._build_timer(duration, name)
+                self.active_timers.append(timer)
+                self.active_timers.sort(key=lambda tmr: tmr.expiration)
+                if len(self.active_timers) == 1:
+                    # the expiration checker isn't started here because it is started
+                    # in a speech event handler and the new timer is not spoken until
+                    # after the display starts.
+                    self._show_gui()
+                    self._start_display_update()
+                self._speak_new_timer(timer)
+                self._save_timers()
 
     def _validate_requested_timer(self, utterance: str):
         """Don't create a timer unless the request has the necessary information.
@@ -227,7 +230,7 @@ class TimerSkill(MycroftSkill):
         duplicate_timer = self._check_for_duplicate_name(name)
         if duplicate_timer:
             self._handle_duplicate_name_error(duplicate_timer)
-        if duration.total_seconds() >= ONE_DAY:
+        if duration is not None and duration.total_seconds() >= ONE_DAY:
             answer = self.ask_yesno("timer-too-long-alarm-instead")
             if answer == "yes":
                 self._convert_to_alarm(duration)
@@ -264,6 +267,9 @@ class TimerSkill(MycroftSkill):
     def _request_duration(self) -> timedelta:
         """The utterance did not include a timer duration so ask for one.
 
+        Allows the user to respond with "nevermind" if the skill was invoked
+        by accident or user changes their mind.
+
         Returns:
             amount of time specified by the user
 
@@ -274,9 +280,12 @@ class TimerSkill(MycroftSkill):
         def validate_duration(string):
             """Check that extract_duration returns a valid duration."""
             extracted_duration = None
-            extract = extract_duration(string, self.lang)
-            if extract is not None:
-                extracted_duration = extract[0]
+            if self.translate("nevermind") in string.replace(" ", ""):
+                extracted_duration = "nevermind"
+            else:
+                extract = extract_duration(string, self.lang)
+                if extract is not None:
+                    extracted_duration = extract[0]
             return extracted_duration is not None
 
         response = self.get_response("ask-how-long", validator=validate_duration)
@@ -284,7 +293,8 @@ class TimerSkill(MycroftSkill):
             raise TimerValidationException("No response to request for timer duration.")
         else:
             duration, _ = extract_timer_duration(response)
-            if duration is None:
+            nevermind = self.translate("nevermind") in response.replace(" ", "")
+            if duration is None and not nevermind:
                 raise TimerValidationException("No duration specified")
 
         return duration
