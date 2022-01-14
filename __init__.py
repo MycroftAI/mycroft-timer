@@ -38,6 +38,8 @@ from .skill import (
 )
 
 ONE_DAY = 86400
+ONE_HOUR = 3600
+ONE_MINUTE = 60
 MARK_I = "mycroft_mark_1"
 MARK_II = "mycroft_mark_2"
 
@@ -517,11 +519,14 @@ class TimerSkill(MycroftSkill):
             word in utterance for word in self.all_timers_words
         ) or message.data.get("all")
         active_timer_count = len(self.active_timers)
-
+        duration, remaining_utterance = extract_timer_duration(utterance)
         if not self.active_timers:
             self.speak_dialog("no-active-timer")
         elif cancel_all:
-            self._cancel_all_timers()
+            if duration:
+                self._cancel_all_ordinal(duration)
+            else:
+                self._cancel_all()
         elif active_timer_count == 1:
             self._cancel_single_timer(utterance)
         elif active_timer_count > 1:
@@ -531,12 +536,52 @@ class TimerSkill(MycroftSkill):
         if not self.active_timers:
             self._reset()
 
-    def _cancel_all_timers(self):
+    def _cancel_all_ordinal(self, duration: timedelta):
+        """Cancel all timers with an original duration matching the utterance.
+
+        Args:
+            duration: the amount of time a timer was set for
+        """
+        timers = [timer for timer in self.active_timers if timer.duration == duration]
+        self.log.info(
+            f"Cancelling all ({len(timers)}) timers with a duration of {duration}"
+        )
+        for timer in timers:
+            self.active_timers.remove(timer)
+        speakable_duration = self._build_speakable_duration(duration)
+        self.speak_dialog("cancel-all-ordinal", data=dict(duration=speakable_duration))
+
+    def _build_speakable_duration(self, duration: timedelta) -> str:
+        """Build a string representing the timer duration that can be passed to TTS.
+
+        Args:
+            duration: the amount of time a timer was set for
+
+        Returns:
+            a string representation of the duration for STT purposes.
+        """
+        hours_word = self.translate("hours")
+        minutes_word = self.translate("minutes")
+        and_word = self.translate("and")
+        hours = int(duration.total_seconds() / ONE_HOUR)
+        minutes = int((duration.total_seconds() - (hours * ONE_HOUR)) / ONE_MINUTE)
+        if hours and minutes:
+            speakable_duration = (
+                f"{hours} {hours_word} {and_word} {minutes} {minutes_word}"
+            )
+        elif hours and not minutes:
+            speakable_duration = f"{hours} {hours_word}"
+        else:
+            speakable_duration = f"{minutes} {minutes_word}"
+
+        return speakable_duration
+
+    def _cancel_all(self):
         """Handle a user's request to cancel all active timers."""
         if len(self.active_timers) == 1:
             self.speak_dialog("cancelled-single-timer")
         else:
-            self.speak_dialog("cancel-all", data={"count": len(self.active_timers)})
+            self.speak_dialog("cancel-all", data=dict(count=len(self.active_timers)))
         self.active_timers = list()
 
     def _cancel_single_timer(self, utterance: str):
@@ -847,7 +892,7 @@ class TimerSkill(MycroftSkill):
             question = "ask-cancel-running-multiple"
         answer = self.ask_yesno(question)
         if answer == "yes":
-            self._cancel_all_timers()
+            self._cancel_all()
             self._reset()
 
     def handle_wake_word_detected(self, _):
