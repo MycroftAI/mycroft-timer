@@ -64,6 +64,10 @@ class TimerSkill(MycroftSkill):
         self.save_path = Path(self.file_system.path).joinpath("save_timers")
         self.showing_expired_timers = False
 
+    @property
+    def expired_timers(self):
+        return [timer for timer in self.active_timers if timer.expired]
+
     def initialize(self):
         """Initialization steps to execute after the skill is loaded."""
         self._load_timers()
@@ -529,6 +533,8 @@ class TimerSkill(MycroftSkill):
                 self._cancel_all()
         elif active_timer_count == 1:
             self._cancel_single_timer(utterance)
+        elif self.expired_timers:
+            self._clear_expired_timers(self.expired_timers)
         elif active_timer_count > 1:
             self._determine_which_timer_to_cancel(utterance)
         self._save_timers()
@@ -794,8 +800,7 @@ class TimerSkill(MycroftSkill):
 
         Runs once every two seconds via a repeating event.
         """
-        expired_timers = [timer for timer in self.active_timers if timer.expired]
-        if expired_timers:
+        if self.expired_timers:
             # Only call _show_gui once until no more expired timers.
             if not self.showing_expired_timers and self.gui.connected:
                 self._show_gui()
@@ -803,7 +808,7 @@ class TimerSkill(MycroftSkill):
             play_proc = play_wav(str(self.sound_file_path))
             if self.platform == MARK_I:
                 self._flash_eyes()
-            self._speak_expired_timer(expired_timers)
+            self._speak_expired_timer(self.expired_timers)
             play_proc.wait()
         else:
             self.showing_expired_timers = False
@@ -848,9 +853,8 @@ class TimerSkill(MycroftSkill):
             A boolean indicating if the stop message was consumed by this skill.
         """
         stop_handled = False
-        expired_timers = [timer for timer in self.active_timers if timer.expired]
-        if expired_timers:
-            self._clear_expired_timers(expired_timers)
+        if self.expired_timers:
+            self._clear_expired_timers(self.expired_timers)
             stop_handled = True
         elif self.active_timers:
             # We shouldn't initiate dialog during Stop handling because there is
