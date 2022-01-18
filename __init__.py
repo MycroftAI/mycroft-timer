@@ -93,7 +93,8 @@ class TimerSkill(MycroftSkill):
         Args:
             message: Message Bus event information from the intent parser
         """
-        self._start_new_timer(message)
+        with self.activity():
+            self._start_new_timer(message)
 
     @intent_handler(AdaptIntent().optionally("start").require("timer").require("name"))
     def handle_start_timer_named(self, message: Message):
@@ -102,7 +103,8 @@ class TimerSkill(MycroftSkill):
         Args:
             message: Message Bus event information from the intent parser
         """
-        self._start_new_timer(message)
+        with self.activity():
+            self._start_new_timer(message)
 
     @intent_handler(
         AdaptIntent()
@@ -117,7 +119,8 @@ class TimerSkill(MycroftSkill):
         Args:
             message: Message Bus event information from the intent parser
         """
-        self._start_new_timer(message)
+        with self.activity():
+            self._start_new_timer(message)
 
     @intent_handler("start.timer.intent")
     def handle_start_timer_padatious(self, message: Message):
@@ -126,7 +129,8 @@ class TimerSkill(MycroftSkill):
         Args:
             message: Message Bus event information from the intent parser
         """
-        self._start_new_timer(message)
+        with self.activity():
+            self._start_new_timer(message)
 
     @intent_handler("timer.status.intent")
     def handle_status_timer_padatious(self, message: Message):
@@ -135,7 +139,8 @@ class TimerSkill(MycroftSkill):
         Args:
             message: Message Bus event information from the intent parser
         """
-        self._communicate_timer_status(message)
+        with self.activity():
+            self._communicate_timer_status(message)
 
     @intent_handler(
         AdaptIntent()
@@ -150,7 +155,8 @@ class TimerSkill(MycroftSkill):
         Args:
             message: Message Bus event information from the intent parser
         """
-        self._communicate_timer_status(message)
+        with self.activity():
+            self._communicate_timer_status(message)
 
     @intent_handler(
         AdaptIntent()
@@ -167,7 +173,8 @@ class TimerSkill(MycroftSkill):
         Args:
             message: Message Bus event information from the intent parser
         """
-        self._communicate_timer_status(message)
+        with self.activity():
+            self._communicate_timer_status(message)
 
     @intent_handler(AdaptIntent().require("cancel").require("timer").optionally("all"))
     def handle_cancel_timer(self, message):
@@ -176,15 +183,17 @@ class TimerSkill(MycroftSkill):
         Args:
             message: Message Bus event information from the intent parser
         """
-        self._cancel_timers(message)
+        with self.activity():
+            self._cancel_timers(message)
 
     @intent_handler(AdaptIntent().require("show").require("timer"))
     def handle_show_timers(self, _):
         """Handles showing the timers screen if it is hidden."""
-        if self.active_timers:
-            self._show_gui()
-        else:
-            self.speak_dialog("no-active-timer")
+        with self.activity():
+            if self.active_timers:
+                self._show_gui()
+            else:
+                self.speak_dialog("no-active-timer", wait=True)
 
     def shutdown(self):
         """Perform any cleanup tasks before skill shuts down."""
@@ -339,6 +348,7 @@ class TimerSkill(MycroftSkill):
             data=dict(
                 name=duplicate_timer.name, duration=nice_duration(time_remaining)
             ),
+            wait=True
         )
         raise TimerValidationException("Requested timer name already exists")
 
@@ -454,7 +464,7 @@ class TimerSkill(MycroftSkill):
             if matches is not None:
                 self._speak_timer_status_matches(matches)
         else:
-            self.speak_dialog("no-active-timer")
+            self.speak_dialog("no-active-timer", wait=True)
 
     def _get_timer_status_matches(self, utterance: str) -> List[CountdownTimer]:
         """Determine which active timer(s) match the user's status request.
@@ -490,11 +500,11 @@ class TimerSkill(MycroftSkill):
             if number_of_timers > 1:
                 speakable_number = pronounce_number(number_of_timers)
                 dialog_data = dict(number=speakable_number)
-                self.speak_dialog("number-of-timers", dialog_data)
+                self.speak_dialog("number-of-timers", dialog_data, wait=True)
             for timer in matches:
                 self._speak_timer_status(timer)
         else:
-            self.speak_dialog("timer-not-found")
+            self.speak_dialog("timer-not-found", wait=True)
 
     def _speak_timer_status(self, timer: CountdownTimer):
         """Speak the status of an individual timer - remaining or elapsed.
@@ -525,7 +535,7 @@ class TimerSkill(MycroftSkill):
         active_timer_count = len(self.active_timers)
         duration, remaining_utterance = extract_timer_duration(utterance)
         if not self.active_timers:
-            self.speak_dialog("no-active-timer")
+            self.speak_dialog("no-active-timer", wait=True)
         elif cancel_all:
             if duration:
                 self._cancel_all_ordinal(duration)
@@ -555,7 +565,7 @@ class TimerSkill(MycroftSkill):
         for timer in timers:
             self.active_timers.remove(timer)
         speakable_duration = self._build_speakable_duration(duration)
-        self.speak_dialog("cancel-all-ordinal", data=dict(duration=speakable_duration))
+        self.speak_dialog("cancel-all-ordinal", data=dict(duration=speakable_duration), wait=True)
 
     def _build_speakable_duration(self, duration: timedelta) -> str:
         """Build a string representing the timer duration that can be passed to TTS.
@@ -585,9 +595,9 @@ class TimerSkill(MycroftSkill):
     def _cancel_all(self):
         """Handle a user's request to cancel all active timers."""
         if len(self.active_timers) == 1:
-            self.speak_dialog("cancelled-single-timer")
+            self.speak_dialog("cancelled-single-timer", wait=True)
         else:
-            self.speak_dialog("cancel-all", data=dict(count=len(self.active_timers)))
+            self.speak_dialog("cancel-all", data=dict(count=len(self.active_timers)), wait=True)
         self.active_timers = list()
 
     def _cancel_single_timer(self, utterance: str):
@@ -608,7 +618,7 @@ class TimerSkill(MycroftSkill):
                 timer = None
         if timer is not None:
             self.active_timers.remove(timer)
-            self.speak_dialog("cancelled-single-timer")
+            self.speak_dialog("cancelled-single-timer", wait=True)
 
     def _match_cancel_request(self, utterance: str) -> bool:
         """Determine if the only active timer matches what the user requested.
@@ -664,9 +674,9 @@ class TimerSkill(MycroftSkill):
             self.active_timers.remove(timer)
             dialog = TimerDialog(timer, self.lang)
             dialog.build_cancel_dialog()
-            self.speak_dialog(dialog.name, dialog.data)
+            self.speak_dialog(dialog.name, dialog.data, wait=True)
         else:
-            self.speak_dialog("timer-not-found")
+            self.speak_dialog("timer-not-found", wait=True)
 
     def _reset(self):
         """There are no active timers so reset all the stateful things."""
