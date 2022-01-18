@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Logic to match one or more timers to a user's request."""
-from typing import List
+from typing import List, Optional
 
 from mycroft.util.log import LOG
 from mycroft.util.parse import fuzzy_match
@@ -31,8 +31,39 @@ class TimerMatcher:
         self.timers = timers
         self.matches = None
         self.requested_duration, _ = extract_timer_duration(self.utterance)
-        self.requested_name = extract_timer_name(self.utterance, regex_path)
+        self.requested_name = self._extract_timer_name(regex_path)
         self.requested_ordinal = extract_ordinal(self.utterance)
+
+    def _extract_timer_name(self, regex_path) -> Optional[str]:
+        """Attempts to extract a timer name from an utterance.
+
+        If the regex name matching logic returns no matches, it might be
+        a cancel timer request.  In this case, make another attempt to find the
+        timer name in the utterance by removing the first word ("cancel" or some
+        variation) then the second word ("timer").
+
+        Args:
+            regex_path: The file system path to a file containing regular expressions
+                used to find a timer name in the utterance.
+
+        Returns:
+            a matched timer name or None if no match found
+        """
+        timer_name = extract_timer_name(self.utterance, regex_path)
+        if timer_name is None:
+            # Attempt to extract a name from a "cancel timer" utterance
+            words = self.utterance.split()
+            possible_name = " ".join(words[1:])
+            if possible_name in [timer.name for timer in self.timers]:
+                timer_name = possible_name
+            else:
+                possible_name = " ".join(words[2:])
+                if possible_name in [timer.name for timer in self.timers]:
+                    timer_name = possible_name
+            if timer_name is not None:
+                LOG.info(f"Extracted timer name \"{timer_name}\" from utterance")
+
+        return timer_name
 
     def match(self):
         """Main method to perform the matching"""
