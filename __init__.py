@@ -73,10 +73,10 @@ class TimerSkill(MycroftSkill):
         self._load_timers()
         self._reset_timer_index()
         if self.active_timers:
-            self.log.info("found {} active timers".format(str(len(self.active_timers))))
-            self._show_gui()
-            self._start_display_update()
-            self._start_expiration_check()
+            if self.skill_service_initializing:
+                self.add_event("mycroft.ready", self.handle_mycroft_ready)
+            else:
+                self._initialize_active_timers()
 
         # To prevent beeping while listening
         self.add_event("recognizer_loop:wakeword", self.handle_wake_word_detected)
@@ -85,6 +85,15 @@ class TimerSkill(MycroftSkill):
         )
         self.add_event("speak", self.handle_speak)
         self.add_event("skill.timer.stop", self.handle_timer_stop)
+
+    def handle_mycroft_ready(self, _):
+        self._initialize_active_timers()
+
+    def _initialize_active_timers(self):
+        self.log.info("Loaded {} active timers".format(str(len(self.active_timers))))
+        self._show_gui()
+        self._start_display_update()
+        self._start_expiration_check()
 
     @intent_handler(AdaptIntent().optionally("start").require("timer"))
     def handle_start_timer_generic(self, message: Message):
