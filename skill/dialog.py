@@ -37,7 +37,7 @@ class TimerDialog:
         """
         self.name = "started-timer"
         self.data = dict(duration=self.timer.speakable_duration)
-        if timer_count > 1 or self.timer.name != "Timer":
+        if timer_count > 1 or self.timer.name != "timer":
             self.name += "-named"
             self.data.update(name=self.timer.name)
             self._check_for_ordinal()

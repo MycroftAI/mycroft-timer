@@ -31,7 +31,7 @@ class TimerMatcher:
         self.timers = timers
         self.matches = None
         self.requested_duration, _ = extract_timer_duration(self.utterance)
-        self.requested_name = self._extract_timer_name(regex_path)
+        self.requested_name = extract_timer_name(self.utterance, regex_path)
         self.requested_ordinal = extract_ordinal(self.utterance)
 
     def _extract_timer_name(self, regex_path) -> Optional[str]:
@@ -70,7 +70,6 @@ class TimerMatcher:
         if self.requested_duration is not None or self.requested_name is not None:
             duration_matches = self._match_timers_to_duration()
             name_matches = self._match_timers_to_name()
-            print(name_matches)
             if duration_matches and name_matches:
                 self.matches = [
                     timer for timer in name_matches if timer in duration_matches
@@ -97,17 +96,34 @@ class TimerMatcher:
         """If the utterance includes a timer name, find timers that match it."""
         name_matches = []
         if self.requested_name is not None:
-            best_score = 0
+            best_confidence = 0
             for timer in self.timers:
-                score = fuzzy_match(self.requested_name, timer.name.lower())
-                if score == 1.0:
+                confidence = self._determine_name_match_confidence(timer.name)
+                if confidence == 1.0:
                     name_matches = [timer]
                     break
-                elif score >= FUZZY_MATCH_THRESHOLD and score > best_score:
+                elif confidence > best_confidence:
                     name_matches.insert(0, timer)
             LOG.info("Found {} name matches".format(len(name_matches)))
 
         return name_matches
+
+    def _determine_name_match_confidence(self, timer_name: str):
+        """Determines how likely a timer's name matches the name requested by the user.
+
+        Args:
+            timer_name: the name of the timer to compare to the user requested name
+        """
+        confidence = 0
+        if timer_name.startswith("timer"):
+            if timer_name == self.requested_name:
+                confidence = 1.0
+        else:
+            fuzzy_confidence = fuzzy_match(self.requested_name, timer_name)
+            if fuzzy_confidence > FUZZY_MATCH_THRESHOLD:
+                confidence = fuzzy_confidence
+
+        return confidence
 
     def _match_ordinal(self):
         """If the utterance includes a ordinal, find timers that match it."""
@@ -129,25 +145,3 @@ class TimerMatcher:
             ordinal_match_value = index + 1
             if self.requested_ordinal == ordinal_match_value:
                 self.matches = [timer]
-
-
-def get_timers_matching_utterance(
-    utterance: str, timers: List[CountdownTimer], regex_path: str
-) -> List[CountdownTimer]:
-    """Match timers to an utterance that matched a timer intent."""
-    matcher = TimerMatcher(utterance, timers, regex_path)
-    matcher.match()
-
-    return matcher.matches
-
-
-def get_timers_matching_reply(
-    reply: str, timers: List[CountdownTimer], regex_path: str
-) -> List[CountdownTimer]:
-    """Match timers to a reply for clarification of which timers to select."""
-    matcher = TimerMatcher(reply, timers, regex_path)
-    if matcher.requested_name is None:
-        matcher.requested_name = reply
-    matcher.match()
-
-    return matcher.matches

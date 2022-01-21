@@ -31,6 +31,18 @@ class TimerNameExtractor:
         if self.regex_file_path:
             regex_patterns = self._get_timer_name_search_patterns()
             self._search_for_timer_name(regex_patterns)
+            self._handle_timer_name_oddities()
+
+    def _handle_timer_name_oddities(self):
+        """Deals with potential STT and regex issues with extracting the timer name."""
+        if self.extracted_name in ("timer", "timers"):
+            self.extracted_name = None
+        elif self.extracted_name.startswith("timer number"):
+            self.extracted_name = self.extracted_name[6:]
+        elif self.extracted_name == "timer to":
+            self.extracted_name = "timer 2"
+        elif self.extracted_name == "timer for":
+            self.extracted_name = "timer 4"
 
     def _get_timer_name_search_patterns(self) -> List[str]:
         """Read a file containing one or more regular expressions to find timer name."""

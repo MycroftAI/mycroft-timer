@@ -13,7 +13,7 @@
 # limitations under the License.
 from .dialog import TimerDialog
 from .faceplate import FaceplateRenderer
-from .match import get_timers_matching_reply, get_timers_matching_utterance
+from .match import TimerMatcher
 from .name_extractor import extract_timer_name
 from .timer import CountdownTimer
 from .util import (

@@ -31,10 +31,9 @@ from .skill import (
     extract_timer_duration,
     extract_timer_name,
     FaceplateRenderer,
-    get_timers_matching_reply,
-    get_timers_matching_utterance,
     remove_conjunction,
     TimerDialog,
+    TimerMatcher,
 )
 
 ONE_DAY = 86400
@@ -352,13 +351,10 @@ class TimerSkill(MycroftSkill):
             TimerValidationError so that no more validations are done.
         """
         time_remaining = duplicate_timer.expiration - now_utc()
-        self.speak_dialog(
-            "timer-duplicate-name",
-            data=dict(
-                name=duplicate_timer.name, duration=nice_duration(time_remaining)
-            ),
-            wait=True
+        dialog_data = dict(
+            name=duplicate_timer.name, duration=nice_duration(time_remaining)
         )
+        self.speak_dialog("timer-duplicate-name", data=dialog_data)
         raise TimerValidationException("Requested timer name already exists")
 
     def _convert_to_alarm(self, duration: timedelta):
@@ -419,18 +415,18 @@ class TimerSkill(MycroftSkill):
         if self.active_timers:
             max_assigned_number = 0
             for timer in self.active_timers:
-                if timer.name == "Timer":
-                    timer.name = "Timer 1"
+                if timer.name == "timer":
+                    timer.name = "timer 1"
                     max_assigned_number = 1
-                elif timer.name.startswith("Timer "):
+                elif timer.name.startswith("timer "):
                     _, name_number = timer.name.split()
                     name_number = int(name_number)
                     if name_number > max_assigned_number:
                         max_assigned_number = name_number
             new_timer_number = max_assigned_number + 1
-            timer_name = "Timer " + str(new_timer_number)
+            timer_name = "timer " + str(new_timer_number)
         else:
-            timer_name = "Timer"
+            timer_name = "timer"
 
         return timer_name
 
@@ -487,19 +483,16 @@ class TimerSkill(MycroftSkill):
         if len(self.active_timers) == 1:
             matches = self.active_timers
         else:
-            matches = get_timers_matching_utterance(
-                utterance, self.active_timers, self.regex_file_path
-            )
-            if matches is None:
-                matches = self.active_timers
-
+            matcher = TimerMatcher(utterance, self.active_timers, self.regex_file_path)
+            matcher.match()
+            matches = matcher.matches or self.active_timers
         while matches is not None and len(matches) > 2:
             matches = self._ask_which_timer(matches, question="ask-which-timer")
 
         return matches
 
     def _speak_timer_status_matches(self, matches: List[CountdownTimer]):
-        """Construct and speak the dialog(s) communicating timer status to the user.
+        """Constructs and speaks the dialog(s) communicating timer status to the user.
 
         Args:
             matches: the active timers that matched the user's request for timer status
@@ -516,7 +509,7 @@ class TimerSkill(MycroftSkill):
             self.speak_dialog("timer-not-found", wait=True)
 
     def _speak_timer_status(self, timer: CountdownTimer):
-        """Speak the status of an individual timer - remaining or elapsed.
+        """Speaks the status of an individual timer - remaining or elapsed.
 
         Args:
             timer: timer the status will be communicated for
@@ -532,37 +525,33 @@ class TimerSkill(MycroftSkill):
         self.enclosure.activate_mouth_events()
 
     def _cancel_timers(self, message: Message):
-        """Handle a user's request to cancel one or more timers.
+        """Handles a user's request to cancel one or more timers.
 
         Args:
             message: Message Bus event information from the intent parser
         """
         utterance = message.data["utterance"]
-        cancel_all = any(
-            word in utterance for word in self.all_timers_words
-        ) or message.data.get("all")
-        active_timer_count = len(self.active_timers)
-        duration, remaining_utterance = extract_timer_duration(utterance)
+        utterance_words = utterance.split()
         if not self.active_timers:
             self.speak_dialog("no-active-timer", wait=True)
-        elif cancel_all:
-            if duration:
-                self._cancel_all_ordinal(duration)
-            else:
-                self._cancel_all()
-        elif active_timer_count == 1:
-            self._cancel_single_timer(utterance)
-        elif self.expired_timers:
-            self._clear_expired_timers(self.expired_timers)
-        elif active_timer_count > 1:
-            self._determine_which_timer_to_cancel(utterance)
+        elif any(word in utterance_words for word in self.all_timers_words):
+            self._cancel_all(utterance)
+        else:
+            self._determine_which_timers_to_cancel(utterance)
         self._save_timers()
-        self.log.info("active_timers: " + str(bool(self.active_timers)))
         if not self.active_timers:
             self._reset()
 
+    def _cancel_all(self, utterance):
+        """Handles a user's request to cancel all active timers."""
+        duration, _ = extract_timer_duration(utterance)
+        if duration:
+            self._cancel_all_ordinal(duration)
+        else:
+            self._cancel_each_and_every_one()
+
     def _cancel_all_ordinal(self, duration: timedelta):
-        """Cancel all timers with an original duration matching the utterance.
+        """Cancels all timers with an original duration matching the utterance.
 
         Args:
             duration: the amount of time a timer was set for
@@ -574,10 +563,20 @@ class TimerSkill(MycroftSkill):
         for timer in timers:
             self.active_timers.remove(timer)
         speakable_duration = self._build_speakable_duration(duration)
-        self.speak_dialog("cancel-all-ordinal", data=dict(duration=speakable_duration), wait=True)
+        self.speak_dialog("cancel-all-ordinal", data=dict(duration=speakable_duration))
+
+    def _cancel_each_and_every_one(self):
+        """Cancels every active timer."""
+        if len(self.active_timers) == 1:
+            self.speak_dialog("cancelled-single-timer", wait=True)
+        else:
+            self.speak_dialog(
+                "cancel-all", data=dict(count=len(self.active_timers)), wait=True
+            )
+        self.active_timers = list()
 
     def _build_speakable_duration(self, duration: timedelta) -> str:
-        """Build a string representing the timer duration that can be passed to TTS.
+        """Builds a string representing the timer duration that can be passed to TTS.
 
         Args:
             duration: the amount of time a timer was set for
@@ -601,83 +600,60 @@ class TimerSkill(MycroftSkill):
 
         return speakable_duration
 
-    def _cancel_all(self):
-        """Handle a user's request to cancel all active timers."""
-        if len(self.active_timers) == 1:
-            self.speak_dialog("cancelled-single-timer", wait=True)
-        else:
-            self.speak_dialog("cancel-all", data=dict(count=len(self.active_timers)), wait=True)
-        self.active_timers = list()
+    def _determine_which_timers_to_cancel(self, utterance: str):
+        """Cancels timer(s) based on the user's request.
 
-    def _cancel_single_timer(self, utterance: str):
-        """Cancel the only active timer.
+        Args:
+            utterance: The timer cancellation request made by the user.
+        """
+        matcher = TimerMatcher(utterance, self.active_timers, self.regex_file_path)
+        if matcher.requested_name is None and matcher.requested_duration is None:
+            if len(self.active_timers) == 1:
+                self.speak_dialog("cancelled-single-timer")
+            elif self.expired_timers:
+                self._cancel_expired_timers()
+            else:
+                self._cancel_matching_timer(matcher)
+        else:
+            if len(self.active_timers) == 1:
+                self._cancel_single_timer(matcher)
+            else:
+                self._cancel_matching_timer(matcher)
+
+    def _cancel_expired_timers(self):
+        """Cancel all expired timers if a user says "cancel timers"."""
+        if self.expired_timers:
+            self.speak_dialog("cancel-all", data=dict(count=len(self.expired_timers)))
+            for timer in self.expired_timers:
+                self.active_timers.remove(timer)
+
+    def _cancel_single_timer(self, matcher: TimerMatcher):
+        """Cancels the only active timer.
 
         The cancellation request may contain a timer name or duration.  Don't cancel
         a "chicken" timer when the user asked to cancel a "pasta" timer.  Don't cancel
         a ten minute timer when the user requested to cancel a twenty minute timer.
 
         Args:
-            utterance: The words the user spoke to request timer cancellation.
+            matcher: instance of TimerMatcher for matching timers to user request
         """
-        timer = self.active_timers[0]
-        utterance_mismatch = self._match_cancel_request(utterance)
-        if utterance_mismatch:
-            reply = self._ask_to_confirm_cancel(timer)
-            if reply == "no":
-                timer = None
-        if timer is not None:
-            self.active_timers.remove(timer)
-            self.speak_dialog("cancelled-single-timer", wait=True)
-
-    def _match_cancel_request(self, utterance: str) -> bool:
-        """Determine if the only active timer matches what the user requested.
-
-        Args:
-            utterance: The timer cancellation request made by the user.
-
-        Returns:
-            An indicator of whether or not a match was found.
-        """
-        matches = get_timers_matching_utterance(
-            utterance, self.active_timers, self.regex_file_path
-        )
-        match_criteria_in_utterance = matches is not None
-        if match_criteria_in_utterance:
-            timer_matched_criteria = len(matches) == 1
+        matcher.match()
+        if matcher.matches is None:
+            self.speak_dialog("timer-not-found")
         else:
-            timer_matched_criteria = False
+            self.active_timers = list()
+            self.speak_dialog("cancelled-single-timer")
 
-        return match_criteria_in_utterance and not timer_matched_criteria
-
-    def _ask_to_confirm_cancel(self, timer) -> str:
-        """If the only active timer does not match the request, confirm cancel request.
-
-        Args:
-            timer: The only active timer
-
-        Returns:
-            "Yes" or "no" reply from the user.
-        """
-        dialog = TimerDialog(timer, self.lang)
-        dialog.build_cancel_confirm_dialog()
-        reply = self.ask_yesno(dialog.name, dialog.data)
-
-        return reply
-
-    def _determine_which_timer_to_cancel(self, utterance: str):
-        """Cancel timer(s) based on the user's request.
+    def _cancel_matching_timer(self, matcher: TimerMatcher):
+        """Cancels the timer requested by the user when there are multiple active.
 
         Args:
-            utterance: The timer cancellation request made by the user.
+            matcher: instance of TimerMatcher for matching timers to user request
         """
-        matches = get_timers_matching_utterance(
-            utterance, self.active_timers, self.regex_file_path
-        )
-        if matches is None:
-            matches = self.active_timers
+        matcher.match()
+        matches = self.active_timers if matcher.matches is None else matcher.matches
         while matches is not None and len(matches) > 1:
             matches = self._ask_which_timer(matches, question="ask-which-timer-cancel")
-
         if matches:
             timer = matches[0]
             self.active_timers.remove(timer)
@@ -686,16 +662,6 @@ class TimerSkill(MycroftSkill):
             self.speak_dialog(dialog.name, dialog.data, wait=True)
         else:
             self.speak_dialog("timer-not-found", wait=True)
-
-    def _reset(self):
-        """There are no active timers so reset all the stateful things."""
-        self.gui.release()
-        self._stop_display_update()
-        self._stop_expiration_check()
-        self.timer_index = 0
-        if self.platform == MARK_I:
-            self.enclosure.eyes_reset()
-            self.enclosure.mouth_reset()
 
     def _ask_which_timer(
         self, timers: List[CountdownTimer], question: str
@@ -715,9 +681,11 @@ class TimerSkill(MycroftSkill):
             dialog=question, data=dict(count=len(timers), names=speakable_matches)
         )
         if reply is not None:
-            filtered_timers = get_timers_matching_reply(
-                reply, timers, self.regex_file_path
-            )
+            nevermind = self.translate("nevermind") in reply.replace(" ", "")
+            if not nevermind:
+                matcher = TimerMatcher(reply, self.active_timers, self.regex_file_path)
+                matcher.match()
+                filtered_timers = matcher.matches
 
         return filtered_timers
 
@@ -873,7 +841,9 @@ class TimerSkill(MycroftSkill):
         """
         stop_handled = False
         if self.expired_timers:
-            self._clear_expired_timers(self.expired_timers)
+            self._clear_expired_timers()
+            if not self.active_timers:
+                self._reset()
             stop_handled = True
         elif self.active_timers:
             # We shouldn't initiate dialog during Stop handling because there is
@@ -885,17 +855,11 @@ class TimerSkill(MycroftSkill):
 
         return stop_handled
 
-    def _clear_expired_timers(self, expired_timers: List[CountdownTimer]):
-        """The user wants the beeping to stop so cancel all expired timers.
-
-        Args:
-            expired_timers: list of timer objects representing expired timers
-        """
-        for timer in expired_timers:
+    def _clear_expired_timers(self):
+        """The user wants the beeping to stop so cancel all expired timers."""
+        for timer in self.expired_timers:
             self.active_timers.remove(timer)
         self._save_timers()
-        if not self.active_timers:
-            self._reset()
 
     def handle_timer_stop(self, _):
         """Event handler for the stop command when timers are active.
@@ -910,8 +874,18 @@ class TimerSkill(MycroftSkill):
             question = "ask-cancel-running-multiple"
         answer = self.ask_yesno(question)
         if answer == "yes":
-            self._cancel_all()
+            self._cancel_each_and_every_one()
             self._reset()
+
+    def _reset(self):
+        """There are no active timers so reset all the stateful things."""
+        self.gui.release()
+        self._stop_display_update()
+        self._stop_expiration_check()
+        self.timer_index = 0
+        if self.platform == MARK_I:
+            self.enclosure.eyes_reset()
+            self.enclosure.mouth_reset()
 
     def handle_wake_word_detected(self, _):
         """React to the device detecting the wake word spoken by the user.
