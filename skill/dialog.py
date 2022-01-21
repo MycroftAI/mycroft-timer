@@ -40,7 +40,6 @@ class TimerDialog:
         if timer_count > 1 or self.timer.name != "timer":
             self.name += "-named"
             self.data.update(name=self.timer.name)
-            self._check_for_ordinal()
 
     def build_status_dialog(self):
         """Build dialog for communicating the status of active timers."""
@@ -55,7 +54,6 @@ class TimerDialog:
                 time_diff=nice_duration(self.timer.time_remaining.seconds)
             )
         self._check_for_named_timer()
-        self._check_for_ordinal()
         self.data.update(duration=self.timer.speakable_duration)
 
     def build_details_dialog(self):
@@ -63,14 +61,12 @@ class TimerDialog:
         self.name = "timer-details"
         self.data = dict(duration=self.timer.speakable_duration)
         self._check_for_named_timer()
-        self._check_for_ordinal()
 
     def build_cancel_dialog(self):
         """Build dialog used to confirm the cancellation of a timer."""
         self.name = "cancelled-timer"
         self.data = dict(duration=self.timer.speakable_duration)
         self._check_for_named_timer()
-        self._check_for_ordinal()
 
     def build_cancel_confirm_dialog(self):
         """Build dialog used to confirm which timer will be cancelled."""
@@ -85,7 +81,6 @@ class TimerDialog:
         if timer_count > 1:
             self.name += "-named"
             self.data.update(name=self.timer.name)
-            self._check_for_ordinal()
 
     def _check_for_named_timer(self):
         """Add the timer name to the dialog data, if one is available.
@@ -96,13 +91,3 @@ class TimerDialog:
         if self.timer.name != SINGLE_UNNAMED_TIMER_NAME:
             self.name += "-named"
             self.data.update(name=self.timer.name)
-
-    def _check_for_ordinal(self):
-        """Add the timer's ordinal value if one is available.
-
-        This would occur if there are multiple timers with the same starting duration.
-        """
-        if self.timer.ordinal > 1:
-            self.name += "-ordinal"
-            speakable_ordinal = get_speakable_ordinal(self.timer.ordinal)
-            self.data.update(ordinal=speakable_ordinal)

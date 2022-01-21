@@ -545,11 +545,11 @@ class TimerSkill(MycroftSkill):
         """Handles a user's request to cancel all active timers."""
         duration, _ = extract_timer_duration(utterance)
         if duration:
-            self._cancel_all_ordinal(duration)
+            self._cancel_all_duration(duration)
         else:
             self._cancel_each_and_every_one()
 
-    def _cancel_all_ordinal(self, duration: timedelta):
+    def _cancel_all_duration(self, duration: timedelta):
         """Cancels all timers with an original duration matching the utterance.
 
         Args:
@@ -562,7 +562,7 @@ class TimerSkill(MycroftSkill):
         for timer in timers:
             self.active_timers.remove(timer)
         speakable_duration = self._build_speakable_duration(duration)
-        self.speak_dialog("cancel-all-ordinal", data=dict(duration=speakable_duration))
+        self.speak_dialog("cancel-all-duration", data=dict(duration=speakable_duration))
 
     def _build_speakable_duration(self, duration: timedelta) -> str:
         """Builds a string representing the timer duration that can be passed to TTS.
