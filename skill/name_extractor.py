@@ -37,7 +37,7 @@ class TimerNameExtractor:
         """Deals with potential STT and regex issues with extracting the timer name."""
         if self.extracted_name in ("timer", "timers"):
             self.extracted_name = None
-        elif self.extracted_name.startswith("timer number"):
+        elif self.extracted_name and self.extracted_name.startswith("timer number"):
             self.extracted_name = self.extracted_name[6:]
         elif self.extracted_name == "timer to":
             self.extracted_name = "timer 2"

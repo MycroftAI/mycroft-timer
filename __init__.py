@@ -792,11 +792,13 @@ class TimerSkill(MycroftSkill):
             if not self.showing_expired_timers and self.gui.connected:
                 self._show_gui()
                 self.showing_expired_timers = True
-            play_proc = play_wav(str(self.sound_file_path))
+
+            sound_uri = f"file://{self.sound_file_path}"
+            self.play_sound_uri(sound_uri)
+
             if self.platform == MARK_I:
                 self._flash_eyes()
             self._speak_expired_timer(self.expired_timers)
-            play_proc.wait()
         else:
             self.showing_expired_timers = False
 
