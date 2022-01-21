@@ -93,6 +93,6 @@ class CountdownTimer:
             backgroundColor=BACKGROUND_COLORS[color_index],
             expired=self.expired,
             percentRemaining=self.percent_remaining,
-            timerName=self.name,
+            timerName=self.name.title(),
             timeDelta=expiration_delta,
         )
