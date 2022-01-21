@@ -32,17 +32,14 @@ class TimerNameExtractor:
             regex_patterns = self._get_timer_name_search_patterns()
             self._search_for_timer_name(regex_patterns)
             self._handle_timer_name_oddities()
+        self._log_extraction_result()
 
     def _handle_timer_name_oddities(self):
         """Deals with potential STT and regex issues with extracting the timer name."""
-        if self.extracted_name in ("timer", "timers"):
-            self.extracted_name = None
-        elif self.extracted_name and self.extracted_name.startswith("timer number"):
-            self.extracted_name = self.extracted_name[6:]
-        elif self.extracted_name == "timer to":
-            self.extracted_name = "timer 2"
-        elif self.extracted_name == "timer for":
-            self.extracted_name = "timer 4"
+        if self.extracted_name == "to":
+            self.extracted_name = "2"
+        elif self.extracted_name == "for":
+            self.extracted_name = "4"
 
     def _get_timer_name_search_patterns(self) -> List[str]:
         """Read a file containing one or more regular expressions to find timer name."""
@@ -63,7 +60,6 @@ class TimerNameExtractor:
                 self._handle_pattern_match(pattern_match)
                 if self.extracted_name is not None:
                     break
-        self._log_extraction_result()
 
     def _handle_pattern_match(self, pattern_match):
         """Extract the timer name from the utterance."""
