@@ -59,7 +59,10 @@ class TimerSkill(MycroftSkill):
         self.timer_index = 0
         self.display_group = 0
         self.regex_file_path = self.find_resource("name.rx", "regex")
-        self.all_timers_words = [word.strip() for word in self.translate_list("all")]
+        self.all_timers_words = set(
+            word.strip() for word_list in ("all", "timers")
+            for word in self.translate_list(word_list)
+        )
         self.save_path = Path(self.file_system.path).joinpath("save_timers")
         self.showing_expired_timers = False
 
@@ -202,6 +205,11 @@ class TimerSkill(MycroftSkill):
                 self._show_gui()
             else:
                 self.speak_dialog("no-active-timer", wait=True)
+
+    @intent_handler(AdaptIntent().require("showtimers"))
+    def handle_showtimers(self, message):
+        """Hack for STT giving 'showtimers' for 'show timers'"""
+        self.handle_show_timers(message)
 
     def shutdown(self):
         """Perform any cleanup tasks before skill shuts down."""
