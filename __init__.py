@@ -63,6 +63,7 @@ class TimerSkill(MycroftSkill):
             word.strip() for word_list in ("all", "timers")
             for word in self.translate_list(word_list)
         )
+        self.both_timers_words = set(word.strip() for word in self.translate_list("both"))
         self.save_path = Path(self.file_system.path).joinpath("save_timers")
         self.showing_expired_timers = False
 
@@ -541,11 +542,19 @@ class TimerSkill(MycroftSkill):
         utterance_words = utterance.split()
         if not self.active_timers:
             self.speak_dialog("no-active-timer", wait=True)
-        elif any(word in utterance_words for word in self.all_timers_words):
-            self._cancel_all(utterance)
         else:
-            self._determine_which_timers_to_cancel(utterance)
-        self._save_timers()
+            has_both_word = any(word in utterance_words for word in self.both_timers_words)
+            has_all_word = any(word in utterance_words for word in self.all_timers_words)
+
+            if (len(self.active_timers) == 2) and has_both_word:
+                # Special case for "cancel both timers"
+                self._cancel_all(utterance)
+            elif has_all_word and (not has_both_word):
+                self._cancel_all(utterance)
+            else:
+                self._determine_which_timers_to_cancel(utterance)
+            self._save_timers()
+
         if not self.active_timers:
             self._reset()
 
