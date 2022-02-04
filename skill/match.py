@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Logic to match one or more timers to a user's request."""
+import re
 from typing import List, Optional
 
 from mycroft.util.log import LOG
@@ -31,7 +32,8 @@ class TimerMatcher:
         self.timers = timers
         self.matches = None
         self.requested_duration, _ = extract_timer_duration(self.utterance)
-        self.requested_name = extract_timer_name(self.utterance, regex_path)
+        self.requested_name = extract_timer_name(self.utterance, regex_path) or utterance
+        self.normalized_name = self._get_normalized_name()
         self.requested_ordinal = extract_ordinal(self.utterance)
 
     def match(self):
@@ -74,6 +76,8 @@ class TimerMatcher:
                 timer.name == self.utterance
                 or timer.name == self.requested_name
                 or timer.name == "timer " + str(self.requested_name)
+                or timer.name == self.normalized_name
+                or timer.name == "timer " + str(self.normalized_name)
             )
             if match:
                 matched_timer = timer
@@ -102,3 +106,10 @@ class TimerMatcher:
             ordinal_match_value = index + 1
             if self.requested_ordinal == ordinal_match_value:
                 self.matches = [timer]
+
+    def _get_normalized_name(self) -> str:
+        """Replace STT oddities"""
+        name = self.requested_name
+        name = re.sub(r"\bto\b", "2", name)
+        name = re.sub(r"\bfor\b", "4", name)
+        return name
