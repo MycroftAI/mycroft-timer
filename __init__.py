@@ -174,7 +174,7 @@ class TimerSkill(MycroftSkill):
         AdaptIntent()
         .optionally("query")
         .require("status")
-        .one_of("timer", "time")
+        .require("timer")
         .optionally("all")
         .optionally("duration")
         .optionally("name")
