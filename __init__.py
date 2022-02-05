@@ -60,10 +60,13 @@ class TimerSkill(MycroftSkill):
         self.display_group = 0
         self.regex_file_path = self.find_resource("name.rx", "regex")
         self.all_timers_words = set(
-            word.strip() for word_list in ("all", "timers")
+            word.strip()
+            for word_list in ("all", "timers")
             for word in self.translate_list(word_list)
         )
-        self.both_timers_words = set(word.strip() for word in self.translate_list("both"))
+        self.both_timers_words = set(
+            word.strip() for word in self.translate_list("both")
+        )
         self.save_path = Path(self.file_system.path).joinpath("save_timers")
         self.showing_expired_timers = False
 
@@ -98,7 +101,7 @@ class TimerSkill(MycroftSkill):
         self._start_display_update()
         self._start_expiration_check()
 
-    @intent_handler(AdaptIntent().optionally("start").require("timer"))
+    @intent_handler(AdaptIntent().require("start").require("timer"))
     def handle_start_timer_generic(self, message: Message):
         """Start a timer with no name or duration.
 
@@ -106,9 +109,10 @@ class TimerSkill(MycroftSkill):
             message: Message Bus event information from the intent parser
         """
         with self.activity():
+            self.log.info("Handling Adapt start generic timer intent")
             self._start_new_timer(message)
 
-    @intent_handler(AdaptIntent().optionally("start").require("timer").require("name"))
+    @intent_handler(AdaptIntent().require("start").require("timer").require("name"))
     def handle_start_timer_named(self, message: Message):
         """Start a timer with no name or duration.
 
@@ -116,11 +120,12 @@ class TimerSkill(MycroftSkill):
             message: Message Bus event information from the intent parser
         """
         with self.activity():
+            self.log.info("Handling Adapt start named timer intent")
             self._start_new_timer(message)
 
     @intent_handler(
         AdaptIntent()
-        .optionally("start")
+        .require("start")
         .require("timer")
         .require("duration")
         .optionally("name")
@@ -132,6 +137,7 @@ class TimerSkill(MycroftSkill):
             message: Message Bus event information from the intent parser
         """
         with self.activity():
+            self.log.info("Handling Adapt start timer intent")
             self._start_new_timer(message)
 
     @intent_handler("start.timer.intent")
@@ -142,6 +148,7 @@ class TimerSkill(MycroftSkill):
             message: Message Bus event information from the intent parser
         """
         with self.activity():
+            self.log.info("Handling Padatious start timer intent")
             self._start_new_timer(message)
 
     @intent_handler("timer.status.intent")
@@ -196,12 +203,14 @@ class TimerSkill(MycroftSkill):
             message: Message Bus event information from the intent parser
         """
         with self.activity():
+            self.log.info("Handling Adapt start timer intent")
             self._cancel_timers(message)
 
     @intent_handler(AdaptIntent().require("show").require("timer"))
     def handle_show_timers(self, _):
         """Handles showing the timers screen if it is hidden."""
         with self.activity():
+            self.log.info("Handling show timer intent")
             if self.active_timers:
                 self._show_gui()
             else:
@@ -210,6 +219,7 @@ class TimerSkill(MycroftSkill):
     @intent_handler(AdaptIntent().require("showtimers"))
     def handle_showtimers(self, message):
         """Hack for STT giving 'showtimers' for 'show timers'"""
+        self.log.info("Handling Adapt showtimers intent")
         self.handle_show_timers(message)
 
     def shutdown(self):
@@ -543,8 +553,12 @@ class TimerSkill(MycroftSkill):
         if not self.active_timers:
             self.speak_dialog("no-active-timer", wait=True)
         else:
-            has_both_word = any(word in utterance_words for word in self.both_timers_words)
-            has_all_word = any(word in utterance_words for word in self.all_timers_words)
+            has_both_word = any(
+                word in utterance_words for word in self.both_timers_words
+            )
+            has_all_word = any(
+                word in utterance_words for word in self.all_timers_words
+            )
 
             if (len(self.active_timers) == 2) and has_both_word:
                 # Special case for "cancel both timers"
