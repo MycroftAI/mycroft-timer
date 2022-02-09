@@ -246,11 +246,11 @@ class TimerSkill(MycroftSkill):
             if duration is not None:
                 timer = self._build_timer(duration, name)
                 self.active_timers.append(timer)
+                self._show_gui()
                 if len(self.active_timers) == 1:
                     # the expiration checker isn't started here because it is started
                     # in a speech event handler and the new timer is not spoken until
                     # after the display starts.
-                    self._show_gui()
                     self._start_display_update()
                 self._speak_new_timer(timer)
                 self._save_timers()
