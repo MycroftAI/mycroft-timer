@@ -93,6 +93,7 @@ class TimerSkill(MycroftSkill):
         self.add_event("skill.timer.stop", self.handle_timer_stop)
 
     def handle_mycroft_ready(self, _):
+        self._clear_expired_timers()
         self._initialize_active_timers()
 
     def _initialize_active_timers(self):
