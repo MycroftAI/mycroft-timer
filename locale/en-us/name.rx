@@ -3,6 +3,6 @@
 \b(called|for|named) (?P<Name>.*)
 \b^.*(a|of|the) (?P<Name>.*) timer
 \b^.* (?P<Name>.*)(?<!a)(?<!an)(?<!another)(?<!any)(?<!my)(?<!one more)(?<!our)(?<!the) timer$
-^cancel (?P<Name>.*) timer$
+^cancel (?P<Name>.*)(?<!the) timer$
 ^cancel timer (?P<Name>.*)$
 ^timer (?P<Name>.*)$
