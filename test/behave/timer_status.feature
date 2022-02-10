@@ -18,6 +18,7 @@ Feature: Timer Status
       | what timers do I have |
       | when does the timer end |
       | timer status |
+      | what timers are set |
 
   @xfail
   Scenario Outline: failing status of a single timer
@@ -46,6 +47,7 @@ Feature: Timer Status
       | are there any timers |
       | what timers do I have |
       | timer status |
+      | what timers are set |
 
   Scenario Outline: status of named timer
     Given an english speaking user

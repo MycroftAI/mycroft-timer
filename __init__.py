@@ -101,7 +101,7 @@ class TimerSkill(MycroftSkill):
         self._start_display_update()
         self._start_expiration_check()
 
-    @intent_handler(AdaptIntent().require("start").require("timer"))
+    @intent_handler(AdaptIntent().require("start").require("timer").exclude("query"))
     def handle_start_timer_generic(self, message: Message):
         """Start a timer with no name or duration.
 
@@ -112,7 +112,7 @@ class TimerSkill(MycroftSkill):
             self.log.info("Handling Adapt start generic timer intent")
             self._start_new_timer(message)
 
-    @intent_handler(AdaptIntent().require("start").require("timer").require("name"))
+    @intent_handler(AdaptIntent().require("start").require("timer").require("name").exclude("query"))
     def handle_start_timer_named(self, message: Message):
         """Start a timer with no name or duration.
 
@@ -129,6 +129,7 @@ class TimerSkill(MycroftSkill):
         .require("timer")
         .require("duration")
         .optionally("name")
+        .exclude("query")
     )
     def handle_start_timer(self, message: Message):
         """Common handler for start_timer intents.
