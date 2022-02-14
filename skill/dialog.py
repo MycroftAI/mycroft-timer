@@ -50,10 +50,9 @@ class TimerDialog:
             )
         else:
             self.name = "time-remaining"
-            self.data = dict(
-                time_diff=nice_duration(self.timer.time_remaining.seconds)
-            )
-        self._check_for_named_timer()
+            self.data = dict(time_diff=nice_duration(self.timer.time_remaining.seconds))
+        if self.timer.name != "timer":
+            self._check_for_named_timer()
         self.data.update(duration=self.timer.speakable_duration)
 
     def build_details_dialog(self):

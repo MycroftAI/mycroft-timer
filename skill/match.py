@@ -12,51 +12,63 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Logic to match one or more timers to a user's request."""
+from copy import copy
 from typing import List
 
 from mycroft.util.log import LOG
-from .name_extractor import extract_timer_name
 from .timer import CountdownTimer
-from .util import extract_ordinal, extract_timer_duration
-
-FUZZY_MATCH_THRESHOLD = 0.7
+from .util import extract_ordinal, extract_timer_duration, extract_timer_name
 
 
 class TimerMatcher:
     """Matches timers to a request made by the user."""
 
-    def __init__(self, utterance: str, timers: List[CountdownTimer], regex_path: str):
+    def __init__(self, utterance: str, timers: List[CountdownTimer], static_resources):
         self.utterance = utterance
         self.timers = timers
-        self.matches = None
-        self.requested_duration, _ = extract_timer_duration(self.utterance)
-        self.requested_name = extract_timer_name(self.utterance, regex_path)
+        self.static_resources = static_resources
+        self.matches = []
+        self.requested_duration, remaining_utterance = extract_timer_duration(
+            self.utterance
+        )
+        self.requested_name = extract_timer_name(remaining_utterance, static_resources)
         self.requested_ordinal = extract_ordinal(self.utterance)
+        utterance_words = self.utterance.split()
+        self.requested_all = any(
+            word in utterance_words for word in static_resources.all_words
+        )
+
+    @property
+    def no_match_criteria(self) -> bool:
+        """Returns a boolean indicating if any criteria was found in the utterance."""
+        return (
+            self.requested_name is None
+            and self.requested_duration is None
+            and not self.requested_all
+        )
 
     def match(self):
-        """Main method to perform the matching"""
-        name_match = self._match_timer_to_name()
-        if name_match:
-            self.matches = [name_match]
-        else:
-            duration_matches = self._match_timers_to_duration()
-            if duration_matches:
-                self.matches = duration_matches
-        if self.requested_ordinal is not None:
+        """Main method to perform the matching."""
+        if self.requested_all:
+            # uses a copy of the passed alarms to avoid issues in the skill with
+            # timers iterating over themselves
+            self.matches = copy(self.timers)
+        if self.requested_name is not None:
+            self._match_timer_to_name()
+        elif self.requested_duration is not None:
+            self._match_timers_to_duration()
+        elif self.requested_ordinal:
             self._match_ordinal()
 
-    def _match_timers_to_duration(self) -> List[CountdownTimer]:
+    def _match_timers_to_duration(self):
         """If the utterance includes a duration, find timers that match it."""
-        duration_matches = []
         if self.requested_duration is not None:
             for timer in self.timers:
                 if self.requested_duration == timer.duration:
-                    duration_matches.append(timer)
-            LOG.info("Found {} duration matches".format(len(duration_matches)))
+                    self.matches.append(timer)
+            LOG.info("Found {} duration matches".format(len(self.matches)))
 
-        return duration_matches
-
-    def _match_timer_to_name(self) -> CountdownTimer:
+    def _match_timer_to_name(self):
         """Finds a timer that matches the name requested by the user.
 
         In a conversation mode, when the user is asked "which timer?" the answer
@@ -67,17 +79,14 @@ class TimerMatcher:
         Returns:
             Timer matching the name requested by the user.
         """
-        matched_timer = None
         for timer in self.timers:
             match = timer.name == self.requested_name or timer.name == "timer " + str(
                 self.requested_name
             )
             if match:
-                matched_timer = timer
-                LOG.info(f"Match found for timer name '{matched_timer.name}'")
+                self.matches.append(timer)
+                LOG.info(f"Match found for timer name '{timer.name}'")
                 break
-
-        return matched_timer
 
     def _match_ordinal(self):
         """If the utterance includes a ordinal, find timers that match it."""

@@ -4,12 +4,10 @@ Feature: mycroft-timer
     Given an english speaking user
     And no active timers
     When the user says "<set timer request>"
-    Then "mycroft-timer" should reply with dialog from "started-timer.dialog"
+    Then "mycroft-timer" should reply with dialog from "started-timer"
 
     Examples: set a timer for for a specified duration
       | set timer request |
-      | timer 10 minutes |
-      | timer 30 seconds |
       | set a timer for 5 minutes |
       | start a 1 minute timer |
       | start a timer for 1 minute and 30 seconds |
@@ -23,11 +21,10 @@ Feature: mycroft-timer
     Given an english speaking user
     And an active 90 minute timer
     When the user says "<set timer request>"
-    Then "mycroft-timer" should reply with dialog from "started-timer-named.dialog"
+    Then "mycroft-timer" should reply with dialog from "started-timer-named"
 
     Examples: set a second timer for a specified duration
       | set timer request |
-      | second timer 20 minutes |
       | start another timer for 5 minutes |
       | set one more timer for 10 minutes |
       | set a timer for 2 minutes |
@@ -37,7 +34,7 @@ Feature: mycroft-timer
     Given an English speaking user
     And no active timers
     When the user says "<set timer request>"
-    Then "mycroft-timer" should reply with dialog from "started-timer-named.dialog"
+    Then "mycroft-timer" should reply with dialog from "started-timer-named"
 
     Examples: set a named timer for a specified duration
       | set timer request |
@@ -50,7 +47,7 @@ Feature: mycroft-timer
     Given an English speaking user
     And an active 10 minute timer
     When the user says "<set timer request>"
-    Then "mycroft-timer" should reply with dialog from "started-timer-named-ordinal.dialog"
+    Then "mycroft-timer" should reply with dialog from "started-timer-named"
 
     Examples: set a second timer with the same duration as an existing timer
       | set timer request |
@@ -61,37 +58,20 @@ Feature: mycroft-timer
     Given an english speaking user
     And no active timers
     When the user says "<set timer request>"
-    Then "mycroft-timer" should reply with dialog from "ask-how-long.dialog"
+    Then "mycroft-timer" should reply with dialog from "ask-how-long"
     And the user replies with "5 minutes"
-    And "mycroft-timer" should reply with dialog from "started-timer.dialog"
+    And "mycroft-timer" should reply with dialog from "started-timer"
 
     Examples: set a timer without specifying duration
       | set timer request |
       | set a timer |
       | start a timer |
-      | timer |
-
-
-  @xfail
-  # Jira MS-60 https://mycroft.atlassian.net/browse/MS-60
-  Scenario Outline: Failing set a timer for an unspecified duration
-    Given an english speaking user
-    And no active timers
-    When the user says "<set timer request>"
-    Then "mycroft-timer" should reply with dialog from "ask-how-long.dialog"
-    And the user replies with "5 minutes"
-    And "mycroft-timer" should reply with dialog from "started-timer.dialog"
-
-    Examples: set a timer for an unspecified duration
-      | set timer request |
-      | timer for 5 |
-
 
   Scenario Outline: set a timer without specifying duration but then dismiss
     Given an english speaking user
     And no active timers
     When the user says "set a timer"
-    Then "mycroft-timer" should reply with dialog from "ask-how-long.dialog"
+    Then "mycroft-timer" should reply with dialog from "ask-how-long"
     And the user replies with "<cancel set timer request>"
 
     Examples: set a timer without specifying duration but then dismiss
@@ -105,7 +85,7 @@ Feature: mycroft-timer
     Given an english speaking user
     And no active timers
     When the user says "set a timer"
-    Then "mycroft-timer" should reply with dialog from "ask-how-long.dialog"
+    Then "mycroft-timer" should reply with dialog from "ask-how-long"
     And the user replies with "<gibberish>"
 
     Examples: set a timer without specifying duration but then say gibberish
@@ -114,27 +94,13 @@ Feature: mycroft-timer
       | goo |
 
 
-  Scenario Outline: set a second timer for an unspecified duration
-    Given an english speaking user
-    And an active 90 minute timer
-    When the user says "<set timer request>"
-    Then "mycroft-timer" should reply with dialog from "ask-how-long.dialog"
-    And the user replies with "5 minutes"
-    And "mycroft-timer" should reply with dialog from "started-timer-named.dialog"
-
-    Examples: set another timer for an unspecified duration
-      | set timer request |
-      | one more timer |
-      | second timer |
-
-
   Scenario Outline: set a timer specifying name but not duration
     Given an english speaking user
     And no active timers
     When the user says "<set timer request>"
-    Then "mycroft-timer" should reply with dialog from "ask-how-long.dialog"
+    Then "mycroft-timer" should reply with dialog from "ask-how-long"
     And the user replies with "5 minutes"
-    And "mycroft-timer" should reply with dialog from "started-timer-named.dialog"
+    And "mycroft-timer" should reply with dialog from "started-timer-named"
 
     Examples: set a timer specifying name but not duration
       | set timer request |
