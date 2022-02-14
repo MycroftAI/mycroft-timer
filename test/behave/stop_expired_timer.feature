@@ -26,7 +26,7 @@ Feature: Stop an expired timer
     And an expired timer
     When the user says "<cancel request>"
     Then the expired timer should stop beeping
-    And "mycroft-timer" should reply with dialog from "cancelled-single-timer.dialog"
+    And "mycroft-timer" should reply with dialog from "cancelled-single-timer"
 
     Examples:
       | cancel request |

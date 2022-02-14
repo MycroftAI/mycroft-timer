@@ -5,7 +5,7 @@ Feature: Cancel Timers
     Given an english speaking user
     And an active 2 minute timer
     When the user says "<cancel timer request>"
-    Then "mycroft-timer" should reply with dialog from "cancelled-single-timer.dialog"
+    Then "mycroft-timer" should reply with dialog from "cancelled-single-timer"
 
     Examples: cancel a timer when only one timer is active
       | cancel timer request |
@@ -27,9 +27,9 @@ Feature: Cancel Timers
       | 2 minutes |
       | 3 minutes |
     When the user says "<cancel timer request>"
-    Then "mycroft-timer" should reply with dialog from "ask-which-timer-cancel.dialog"
+    Then "mycroft-timer" should reply with dialog from "ask-which-timer-cancel"
     And the user replies "1 minute"
-    And "mycroft-timer" should reply with dialog from "cancelled-timer-named.dialog"
+    And "mycroft-timer" should reply with dialog from "cancelled-timer-named"
 
     Examples: cancel a timer when two timers are active
       | cancel timer request |
@@ -51,9 +51,9 @@ Feature: Cancel Timers
       | 2 minutes |
       | 3 minutes |
     When the user says "<cancel timer request>"
-    Then "mycroft-timer" should reply with dialog from "ask-which-timer-cancel.dialog"
-    And the user replies "Timer 1"
-    And "mycroft-timer" should reply with dialog from "cancelled-timer-named.dialog"
+    Then "mycroft-timer" should reply with dialog from "ask-which-timer-cancel"
+    And the user replies "timer 1"
+    And "mycroft-timer" should reply with dialog from "cancelled-timer-named"
 
     Examples: cancel timer with three active timer
       | cancel timer request |
@@ -76,7 +76,7 @@ Feature: Cancel Timers
       | 2 minutes |
       | 3 minutes |
     When the user says "<abort cancel request>"
-    Then "mycroft-timer" should reply with dialog from "ask-which-timer-cancel.dialog"
+    Then "mycroft-timer" should reply with dialog from "ask-which-timer-cancel"
     And the user replies "nevermind"
 
     Examples: abort canceling a timer
@@ -89,7 +89,7 @@ Feature: Cancel Timers
     Given an english speaking user
     And no active timers
     When the user says "<cancel timer request>"
-    Then "mycroft-timer" should reply with dialog from "no-active-timer.dialog"
+    Then "mycroft-timer" should reply with dialog from "no-active-timer"
 
     Examples: attempt to cancel timer when there are no timers active
       | cancel timer request |
@@ -109,7 +109,7 @@ Feature: Cancel Timers
       | 5 minutes  |
       | 10 minutes |
     When the user says "<cancel timer request>"
-    Then "mycroft-timer" should reply with dialog from "cancelled-timer-named.dialog"
+    Then "mycroft-timer" should reply with dialog from "cancelled-timer-named"
 
     Examples: cancel a timer specifying duration
       | cancel timer request |
@@ -129,7 +129,7 @@ Feature: Cancel Timers
       | 5 minutes  |
       | 10 minutes |
     When the user says "<cancel timer request>"
-    Then "mycroft-timer" should reply with dialog from "cancelled-timer-named.dialog"
+    Then "mycroft-timer" should reply with dialog from "cancelled-timer-named"
 
     Examples: cancel a specific timer
       | cancel timer request |
@@ -141,7 +141,7 @@ Feature: Cancel Timers
     Given an english speaking user
     And an active timer named pasta
     When the user says "<cancel timer request>"
-    Then "mycroft-timer" should reply with dialog from "cancelled-single-timer.dialog"
+    Then "mycroft-timer" should reply with dialog from "cancelled-timer-named"
 
     Examples: cancel a timer specifying name
       | cancel timer request |
@@ -163,7 +163,7 @@ Feature: Cancel Timers
       | 10 minutes |
       | 15 minutes |
     When the user says "<cancel timer request>"
-    Then "mycroft-timer" should reply with dialog from "cancel-all.dialog"
+    Then "mycroft-timer" should reply with dialog from "cancel-all"
 
     Examples: cancel all timers
       | cancel timer request |
