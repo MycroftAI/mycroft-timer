@@ -14,6 +14,7 @@
 """A skill to set one or more timers for things like a kitchen timer."""
 import time
 import pickle
+from collections import namedtuple
 from datetime import timedelta
 from pathlib import Path
 from typing import List, Optional
@@ -22,7 +23,6 @@ from mycroft import MycroftSkill, intent_handler
 from mycroft.audio import wait_while_speaking
 from mycroft.skills.intent_service import AdaptIntent
 from mycroft.messagebus.message import Message
-from mycroft.util import play_wav
 from mycroft.util.format import pronounce_number, nice_duration, join_list
 from mycroft.util.parse import extract_duration
 from mycroft.util.time import now_utc, now_local
@@ -42,6 +42,19 @@ ONE_MINUTE = 60
 MARK_I = "mycroft_mark_1"
 MARK_II = "mycroft_mark_2"
 
+StaticResources = namedtuple(
+    "StaticResources",
+    [
+        "all_words",
+        "and_word",
+        "dismiss_words",
+        "hours_word",
+        "minutes_word",
+        "name_regex",
+        "timers_word",
+    ],
+)
+
 
 class TimerValidationException(Exception):
     """This is not really for errors, just a handy way to tidy up the initial checks."""
@@ -58,15 +71,6 @@ class TimerSkill(MycroftSkill):
         self.platform = self.config_core["enclosure"].get("platform", "unknown")
         self.timer_index = 0
         self.display_group = 0
-        self.regex_file_path = self.find_resource("name.rx", "regex")
-        self.all_timers_words = set(
-            word.strip()
-            for word_list in ("all", "timers")
-            for word in self.translate_list(word_list)
-        )
-        self.both_timers_words = set(
-            word.strip() for word in self.translate_list("both")
-        )
         self.save_path = Path(self.file_system.path).joinpath("save_timers")
         self.showing_expired_timers = False
 
@@ -83,6 +87,7 @@ class TimerSkill(MycroftSkill):
                 self.add_event("mycroft.ready", self.handle_mycroft_ready)
             else:
                 self._initialize_active_timers()
+        self._load_resources()
 
         # To prevent beeping while listening
         self.add_event("recognizer_loop:wakeword", self.handle_wake_word_detected)
@@ -91,6 +96,18 @@ class TimerSkill(MycroftSkill):
         )
         self.add_event("speak", self.handle_speak)
         self.add_event("skill.timer.stop", self.handle_timer_stop)
+
+    def _load_resources(self):
+        """Gets a set of static words in the language specified in the configuration."""
+        self.static_resources = StaticResources(
+            all_words=self.resources.load_list_file("all"),
+            and_word=self.resources.load_word_file("and"),
+            dismiss_words=self.resources.load_list_file("dismiss"),
+            hours_word=self.resources.load_word_file("hours"),
+            minutes_word=self.resources.load_word_file("minutes"),
+            name_regex=self.resources.load_regex_file("name"),
+            timers_word=self.resources.load_word_file("timers"),
+        )
 
     def handle_mycroft_ready(self, _):
         self._clear_expired_timers()
@@ -113,7 +130,9 @@ class TimerSkill(MycroftSkill):
             self.log.info("Handling Adapt start generic timer intent")
             self._start_new_timer(message)
 
-    @intent_handler(AdaptIntent().require("start").require("timer").require("name").exclude("query"))
+    @intent_handler(
+        AdaptIntent().require("start").require("timer").require("name").exclude("query")
+    )
     def handle_start_timer_named(self, message: Message):
         """Start a timer with no name or duration.
 
@@ -133,7 +152,7 @@ class TimerSkill(MycroftSkill):
         .exclude("query")
     )
     def handle_start_timer(self, message: Message):
-        """Common handler for start_timer intents.
+        """Common handler for start_timer intent.
 
         Args:
             message: Message Bus event information from the intent parser
@@ -195,18 +214,21 @@ class TimerSkill(MycroftSkill):
             message: Message Bus event information from the intent parser
         """
         with self.activity():
-            self._communicate_timer_status(message)
+            self.log.info("Handling Adapt timer status intent")
+            utterance = message.data["utterance"]
+            self._communicate_timer_status(utterance)
 
     @intent_handler(AdaptIntent().require("cancel").require("timer").optionally("all"))
-    def handle_cancel_timer(self, message):
+    def handle_cancel_timer(self, message: Message):
         """Handles cancelling active timers.
 
         Args:
             message: Message Bus event information from the intent parser
         """
         with self.activity():
-            self.log.info("Handling Adapt start timer intent")
-            self._cancel_timers(message)
+            self.log.info("Handling Adapt cancel timer intent")
+            utterance = message.data["utterance"]
+            self._cancel_timers(utterance)
 
     @intent_handler(AdaptIntent().require("show").require("timer"))
     def handle_show_timers(self, _):
@@ -270,7 +292,7 @@ class TimerSkill(MycroftSkill):
             TimerValidationError when any of the checks do not pass.
         """
         duration, remaining_utterance = self._determine_timer_duration(utterance)
-        name = extract_timer_name(remaining_utterance, self.regex_file_path)
+        name = self._determine_timer_name(remaining_utterance)
         duplicate_timer = self._check_for_duplicate_name(name)
         if duplicate_timer:
             self._handle_duplicate_name_error(duplicate_timer)
@@ -342,6 +364,13 @@ class TimerSkill(MycroftSkill):
                 raise TimerValidationException("No duration specified")
 
         return duration
+
+    def _determine_timer_name(self, remaining_utterance):
+        timer_name = extract_timer_name(remaining_utterance, self.static_resources)
+        if timer_name is None:
+            timer_name = self._assign_timer_name()
+
+        return timer_name
 
     def _check_for_duplicate_name(self, timer_name: str) -> Optional[CountdownTimer]:
         """Determine if the requested timer name is already in use.
@@ -477,14 +506,13 @@ class TimerSkill(MycroftSkill):
         dialog.build_add_dialog(timer_count)
         self.speak_dialog(dialog.name, dialog.data, wait=True)
 
-    def _communicate_timer_status(self, message: Message):
+    def _communicate_timer_status(self, utterance: str):
         """Speak response to the user's request for status of timer(s).
 
         Args:
-            message: Message Bus event information from the intent parser
+            utterance: request spoken by user
         """
         if self.active_timers:
-            utterance = message.data["utterance"]
             matches = self._get_timer_status_matches(utterance)
             if matches is not None:
                 self._speak_timer_status_matches(matches)
@@ -503,7 +531,7 @@ class TimerSkill(MycroftSkill):
         if len(self.active_timers) == 1:
             matches = self.active_timers
         else:
-            matcher = TimerMatcher(utterance, self.active_timers, self.regex_file_path)
+            matcher = TimerMatcher(utterance, self.active_timers, self.static_resources)
             matcher.match()
             matches = matcher.matches or self.active_timers
         while matches is not None and len(matches) > 2:
@@ -544,35 +572,78 @@ class TimerSkill(MycroftSkill):
         self.speak_dialog(dialog.name, dialog.data, wait=True)
         self.enclosure.activate_mouth_events()
 
-    def _cancel_timers(self, message: Message):
+    def _cancel_timers(self, utterance: str):
         """Handles a user's request to cancel one or more timers.
 
         Args:
-            message: Message Bus event information from the intent parser
+            utterance: cancel timer request spoken by user
         """
-        utterance = message.data["utterance"]
-        utterance_words = utterance.split()
-        if not self.active_timers:
-            self.speak_dialog("no-active-timer", wait=True)
-        else:
-            has_both_word = any(
-                word in utterance_words for word in self.both_timers_words
-            )
-            has_all_word = any(
-                word in utterance_words for word in self.all_timers_words
-            )
-
-            if (len(self.active_timers) == 2) and has_both_word:
-                # Special case for "cancel both timers"
-                self._cancel_all(utterance)
-            elif has_all_word and (not has_both_word):
-                self._cancel_all(utterance)
-            else:
-                self._determine_which_timers_to_cancel(utterance)
+        if self.active_timers:
+            matches = self._determine_which_timers_to_cancel(utterance)
+            if matches is not None:
+                self._cancel_requested_timers(matches)
             self._save_timers()
+            if not self.active_timers:
+                self._reset()
+        else:
+            self.speak_dialog("no-active-timer", wait=True)
 
-        if not self.active_timers:
-            self._reset()
+    def _determine_which_timers_to_cancel(self, utterance: str):
+        """Cancels timer(s) based on the user's request.
+
+        Args:
+            utterance: The timer cancellation request made by the user.
+        """
+        matches = None
+        matcher = TimerMatcher(utterance, self.active_timers, self.static_resources)
+        if matcher.no_match_criteria:
+            if self.expired_timers:
+                self._cancel_expired_timers()
+            elif len(self.active_timers) == 1:
+                self.active_timers = list()
+                self.speak_dialog("cancelled-single-timer")
+            else:
+                matches = self._disambiguate_request(question="ask-which-timer-cancel")
+        elif matcher.requested_all:
+            self._cancel_all(utterance)
+        else:
+            matcher.match()
+            matches = matcher.matches
+            if len(matches) > 1:
+                matches = self._disambiguate_request(question="ask-which-timer-cancel")
+
+        return matches
+
+    def _cancel_expired_timers(self):
+        """Cancels all expired timers if a user says "cancel timers"."""
+        self.log.info("Cancelling expired timers")
+        if len(self.expired_timers) == 1:
+            self.speak_dialog("cancelled-single-timer")
+            self.active_timers.remove(self.expired_timers[0])
+        else:
+            self.speak_dialog("cancel-all", data=dict(count=len(self.expired_timers)))
+            for timer in self.expired_timers:
+                self.active_timers.remove(timer)
+
+    def _disambiguate_request(self, question):
+        """Disambiguate a generic user request.
+
+        Args:
+            question: the disambiguation question to ask the user
+        """
+        matches = None
+        reply = self._ask_which_timer(self.active_timers, question)
+        if reply is not None:
+            matcher = TimerMatcher(reply, self.active_timers, self.static_resources)
+            if matcher.no_match_criteria:
+                self.speak_dialog("timer-not-found")
+            elif matcher.requested_all:
+                self._cancel_all(reply)
+            else:
+                matcher.match()
+                matches = matcher.matches
+
+        return matches
 
     def _cancel_all(self, utterance):
         """Handles a user's request to cancel all active timers."""
@@ -606,102 +677,39 @@ class TimerSkill(MycroftSkill):
         Returns:
             a string representation of the duration for STT purposes.
         """
-        hours_word = self.translate("hours")
-        minutes_word = self.translate("minutes")
-        and_word = self.translate("and")
         hours = int(duration.total_seconds() / ONE_HOUR)
         minutes = int((duration.total_seconds() - (hours * ONE_HOUR)) / ONE_MINUTE)
         if hours and minutes:
             speakable_duration = (
-                f"{hours} {hours_word} {and_word} {minutes} {minutes_word}"
+                f"{hours} {self.static_resources.hours_word} "
+                f"{self.static_resources.and_word} {minutes} "
+                f"{self.static_resources.minutes_word}"
             )
         elif hours and not minutes:
-            speakable_duration = f"{hours} {hours_word}"
+            speakable_duration = f"{hours} {self.static_resources.hours_word}"
         else:
-            speakable_duration = f"{minutes} {minutes_word}"
+            speakable_duration = f"{minutes} {self.static_resources.minutes_word}"
 
         return speakable_duration
 
-    def _determine_which_timers_to_cancel(self, utterance: str):
-        """Cancels timer(s) based on the user's request.
+    def _cancel_requested_timers(self, matches: List[CountdownTimer]):
+        """Cancels the timers that matched the user's requests.
 
         Args:
-            utterance: The timer cancellation request made by the user.
+            matches: the timers that matched the request
         """
-        matcher = TimerMatcher(utterance, self.active_timers, self.regex_file_path)
-        expired_timers_canceled = self._cancel_expired_timers(matcher)
-        if not expired_timers_canceled:
-            if len(self.active_timers) == 1:
-                self._match_single_timer(matcher)
-            else:
-                self._match_multiple_timers(matcher)
-
-    def _cancel_expired_timers(self, matcher: TimerMatcher) -> bool:
-        """Cancels all expired timers if a user says "cancel timers"."""
-        cancel_expired = (
-            matcher.requested_name is None
-            and matcher.requested_duration is None
-            and self.expired_timers
-        )
-        if cancel_expired:
-            self.log.info("Cancelling expired timers")
-            if len(self.expired_timers) == 1:
-                self.speak_dialog("cancelled-single-timer")
-                self.active_timers.remove(self.expired_timers[0])
-            else:
-                self.speak_dialog(
-                    "cancel-all", data=dict(count=len(self.expired_timers))
-                )
-                for timer in self.expired_timers:
-                    self.active_timers.remove(timer)
-
-        return cancel_expired
-
-    def _match_single_timer(self, matcher: TimerMatcher):
-        """Attempts to cancel the only active timer.
-
-        The cancellation request may contain a timer name or duration.  Don't cancel
-        a "chicken" timer when the user asked to cancel a "pasta" timer.  Don't cancel
-        a ten minute timer when the user requested to cancel a twenty minute timer.
-
-        Args:
-            matcher: instance of TimerMatcher for matching timers to user request
-        """
-        if matcher.requested_name is None and matcher.requested_duration is None:
-            self._cancel_each_and_every_one()
-        else:
-            matcher.match()
-            if matcher.matches is None:
-                self.speak_dialog("timer-not-found")
-            else:
-                self.active_timers = list()
-                self.speak_dialog("cancelled-single-timer")
-
-    def _match_multiple_timers(self, matcher: TimerMatcher):
-        """Cancels the timer requested by the user when there are multiple active.
-
-        Only one timer should be cancelled.  Match and filter active timers until
-        a single timer is identified or no matching timers are found.
-
-        Args:
-            matcher: instance of TimerMatcher for matching timers to user request
-        """
-        matcher.match()
-        matches = self.active_timers if matcher.matches is None else matcher.matches
-        while matches is not None and len(matches) > 1:
-            matches = self._ask_which_timer(matches, question="ask-which-timer-cancel")
-        if matches:
+        if len(matches) == 1:
             timer = matches[0]
+            dialog = "cancelled-timer-named"
+            self.speak_dialog(dialog, data=dict(name=timer.name))
+            self.log.info(f"Cancelling timer {timer.name}")
             self.active_timers.remove(timer)
-            dialog = TimerDialog(timer, self.lang)
-            dialog.build_cancel_dialog()
-            self.speak_dialog(dialog.name, dialog.data, wait=True)
         else:
-            self.speak_dialog("timer-not-found", wait=True)
+            self.speak_dialog("timer-not-found")
 
     def _ask_which_timer(
         self, timers: List[CountdownTimer], question: str
-    ) -> List[CountdownTimer]:
+    ) -> Optional[str]:
         """Ask the user to provide more information about the timer(s) requested.
 
         Args:
@@ -711,19 +719,15 @@ class TimerSkill(MycroftSkill):
         Returns:
             timers filtered based on the answer to the question.
         """
-        filtered_timers = None
         speakable_matches = self._get_speakable_timer_details(timers)
         reply = self.get_response(
             dialog=question, data=dict(count=len(timers), names=speakable_matches)
         )
         if reply is not None:
-            nevermind = self.translate("nevermind") in reply.replace(" ", "")
-            if not nevermind:
-                matcher = TimerMatcher(reply, self.active_timers, self.regex_file_path)
-                matcher.match()
-                filtered_timers = matcher.matches
+            if reply in self.static_resources.dismiss_words:
+                reply = None
 
-        return filtered_timers
+        return reply
 
     def _get_speakable_timer_details(self, timers: List[CountdownTimer]) -> str:
         """Get timer list as speakable string.

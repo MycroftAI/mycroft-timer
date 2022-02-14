@@ -16,6 +16,7 @@ import re
 from datetime import timedelta
 from typing import Optional, Tuple
 
+from mycroft.skills.skill_data import RegexExtractor
 from mycroft.util.format import pronounce_number
 from mycroft.util.log import LOG
 from mycroft.util.parse import extract_duration, extract_number
@@ -136,3 +137,28 @@ def format_timedelta(time_delta: timedelta) -> str:
     formatted_time_delta = ":".join(time_elements)
 
     return formatted_time_delta
+
+
+def extract_timer_name(utterance: str, static_resources) -> Optional[str]:
+    """Attempts to extract a timer name from an utterance.
+
+    If the regex name matching logic returns no matches, it might be
+    a cancel alarm request.  In this case, make another attempt to find the
+    alarm name in the utterance by removing the first word ("cancel" or some
+    variation) then the second word ("alarm").
+
+    Returns:
+        a matched alarm name or None if no match found
+    """
+    name_extractor = RegexExtractor("Name", static_resources.name_regex)
+    timer_name = name_extractor.extract(utterance)
+    if timer_name is not None:
+        if timer_name == "to":
+            timer_name = "2"
+        elif timer_name == "for":
+            timer_name = "4"
+        LOG.info(f'Extracted timer name "{timer_name}" from utterance')
+    else:
+        LOG.info("No timer name extracted from utterance")
+
+    return timer_name
