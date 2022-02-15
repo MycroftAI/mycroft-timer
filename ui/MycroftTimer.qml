@@ -20,6 +20,7 @@ Rectangle {
     property color backgroundColor
     property var timerInfo
     property int timerCount
+    property real timerOpacity: 1.0
 
     color: {
         if (timerInfo) {
@@ -43,8 +44,15 @@ Rectangle {
             return gridUnit * 22
         }
     }
+    opacity: {
+        if (timerInfo && timerInfo.expired) {
+            return timerOpacity
+        } else {
+            return 1.0
+        }
+    }
     /* Flash the background when the timer expires for a visual cue */
-    SequentialAnimation on opacity {
+    SequentialAnimation on timerOpacity {
         id: expireAnimation
         running: timerInfo ? timerInfo.expired : false
         loops: Animation.Infinite
