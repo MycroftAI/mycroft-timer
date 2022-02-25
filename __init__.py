@@ -1037,8 +1037,11 @@ class TimerSkill(MycroftSkill):
         """
         self.active_timers = list()
         if self.save_path.exists():
-            with open(self.save_path, "rb") as data_file:
-                self.active_timers = pickle.load(data_file)
+            try:
+                with open(self.save_path, "rb") as data_file:
+                    self.active_timers = pickle.load(data_file)
+            except Exception:
+                self.log.exception("Failed to load active timers: %s", self.save_path)
 
 
 def create_skill():
