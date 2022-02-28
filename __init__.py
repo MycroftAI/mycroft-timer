@@ -1029,6 +1029,8 @@ class TimerSkill(MycroftSkill):
             if self.save_path.exists():
                 self.save_path.unlink()
 
+        self._cache_cancel_timer_tts()
+
     def _load_timers(self):
         """Load any saved timers into the active timers list.
 
@@ -1042,6 +1044,19 @@ class TimerSkill(MycroftSkill):
                     self.active_timers = pickle.load(data_file)
             except Exception:
                 self.log.exception("Failed to load active timers: %s", self.save_path)
+
+        self._cache_cancel_timer_tts()
+
+    def _cache_cancel_timer_tts(self):
+        """Cache utterance that asks which timer to cancel when there are 2+ timers."""
+        timers = self.active_timers
+        if len(timers) > 1:
+            cache_key = f"{self.skill_id}.cancel-timer"
+            speakable_matches = self._get_speakable_timer_details(timers)
+            self.cache_dialog(
+                "ask-which-timer-cancel",
+                data=dict(count=len(timers), names=speakable_matches),
+            )
 
 
 def create_skill():
