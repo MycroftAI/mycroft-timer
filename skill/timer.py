@@ -27,10 +27,10 @@ class CountdownTimer:
 
     _speakable_duration = None
 
-    def __init__(self, duration: timedelta, name: str):
+    def __init__(self, duration: timedelta, name: str, index=None):
         self.duration = duration
         self.name = name
-        self.index = None
+        self.index = index
         self.expiration = now_utc() + duration
         self.expiration_announced = False
         self.ordinal = 0

@@ -31,7 +31,9 @@ class TimerMatcher:
         self.requested_duration, remaining_utterance = extract_timer_duration(
             self.utterance
         )
-        self.requested_name = extract_timer_name(remaining_utterance, static_resources)
+        self.requested_name = extract_timer_name(
+            remaining_utterance, static_resources, timer_names=[t.name for t in timers]
+        )
         self.requested_ordinal = extract_ordinal(self.utterance)
         utterance_words = self.utterance.split()
         self.requested_all = any(

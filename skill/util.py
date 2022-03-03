@@ -14,7 +14,7 @@
 """Utility functions for the timer skill."""
 import re
 from datetime import timedelta
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Sequence
 
 from mycroft.skills.skill_data import RegexExtractor
 from mycroft.util.format import pronounce_number
@@ -139,7 +139,9 @@ def format_timedelta(time_delta: timedelta) -> str:
     return formatted_time_delta
 
 
-def extract_timer_name(utterance: str, static_resources) -> Optional[str]:
+def extract_timer_name(
+    utterance: str, static_resources, timer_names: Optional[Sequence[str]] = None,
+) -> Optional[str]:
     """Attempts to extract a timer name from an utterance.
 
     If the regex name matching logic returns no matches, it might be
@@ -148,8 +150,11 @@ def extract_timer_name(utterance: str, static_resources) -> Optional[str]:
     variation) then the second word ("alarm").
 
     Returns:
-        a matched alarm name or None if no match found
+        a matched timer name or None if no match found
     """
+    if timer_names and (utterance in timer_names):
+        return utterance
+
     name_extractor = RegexExtractor("Name", static_resources.name_regex)
     timer_name = name_extractor.extract(utterance)
     if timer_name is not None:
