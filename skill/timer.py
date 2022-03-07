@@ -96,3 +96,17 @@ class CountdownTimer:
             timerName=self.name.title(),
             timeDelta=expiration_delta,
         )
+
+    @property
+    def spoken_name(self) -> str:
+        """Name of timer with 'timer' appended if not already part of the name.
+
+        Examples:
+            * chicken -> chicken timer
+            * timer 2 -> timer 2
+        """
+        spoken_name = self.name
+        if "timer" not in spoken_name.lower().split():
+            spoken_name = f"{spoken_name} timer"
+
+        return spoken_name

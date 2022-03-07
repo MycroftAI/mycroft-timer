@@ -89,4 +89,4 @@ class TimerDialog:
         """
         if self.timer.name != SINGLE_UNNAMED_TIMER_NAME:
             self.name += "-named"
-            self.data.update(name=self.timer.name)
+            self.data.update(name=self.timer.spoken_name)

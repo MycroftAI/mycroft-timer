@@ -701,7 +701,7 @@ class TimerSkill(MycroftSkill):
         if len(matches) == 1:
             timer = matches[0]
             dialog = "cancelled-timer-named"
-            self.speak_dialog(dialog, data=dict(name=timer.name))
+            self.speak_dialog(dialog, data=dict(name=timer.spoken_name))
             self.log.info(f"Cancelling timer {timer.name}")
             self.active_timers.remove(timer)
         else:
