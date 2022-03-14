@@ -80,21 +80,24 @@ Rectangle {
         }
         width: parent.width
 
-        Label {
+        TimerLabel {
             id: timerNameValue
-            anchors.baseline: parent.bottom
+            anchors.top: parent.top
+            anchors.topMargin: gridUnit
             anchors.horizontalCenter: parent.horizontalCenter
             color: "#2C3E50"
             font.family: "Noto Sans"
             font.pixelSize: {
-                if (timerCount <= 2) {
-                    return 60
-                } else {
+                if (timerCount > 2) {
                     return 40
+                } else {
+                    return 50
                 }
             }
             font.styleName: "Bold"
+            heightUnits: 5
             text: timerInfo ? timerInfo.timerName : ""
+            maxTextLength: width / 30
         }
     }
 
