@@ -68,36 +68,36 @@ Rectangle {
         }
     }
 
-    Item {
+    // Show the timer name in the center of the card or scroll it horzontally
+    // if it is longer than the width of the card.
+    Marquee {
         id: timerName
         anchors.top: parent.top
-        height: {
-            if (timerCount <= 2) {
-                return gridUnit * 5
+        anchors.left: parent.left
+        anchors.leftMargin: gridUnit * 2
+        color: "#2C3E50"
+        font.pixelSize: {
+            if (timerCount > 2) {
+                return 40
             } else {
-                return gridUnit * 3
+                return 60
             }
         }
-        width: parent.width
-
-        TimerLabel {
-            id: timerNameValue
-            anchors.top: parent.top
-            anchors.topMargin: gridUnit
-            anchors.horizontalCenter: parent.horizontalCenter
-            color: "#2C3E50"
-            font.family: "Noto Sans"
-            font.pixelSize: {
-                if (timerCount > 2) {
-                    return 40
-                } else {
-                    return 50
-                }
+        font.styleName: "Bold"
+        height: {
+            if (timerCount <= 2) {
+                return gridUnit * 7
+            } else {
+                return gridUnit * 4
             }
-            font.styleName: "Bold"
-            heightUnits: 5
-            text: timerInfo ? timerInfo.timerName : ""
-            maxTextLength: width / 30
+        }
+        text: timerInfo ? timerInfo.timerName : ""
+        width: {
+            if (timerCount == 1) {
+                return gridUnit * 42
+            } else {
+                return gridUnit * 18
+            }
         }
     }
 
@@ -106,11 +106,11 @@ Rectangle {
         anchors.top: timerName.bottom
         height: {
             if (timerCount == 1) {
-                return gridUnit * 12
+                return gridUnit * 11
             } else if (timerCount == 2) {
-                return gridUnit * 10
+                return gridUnit * 9
             } else {
-                return gridUnit * 5
+                return gridUnit * 4
             }
         }
         width: parent.width
