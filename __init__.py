@@ -270,6 +270,7 @@ class TimerSkill(MycroftSkill):
             if duration is not None:
                 timer = self._build_timer(duration, name)
                 self.active_timers.append(timer)
+                self.gui.clear()
                 self._show_gui()
                 if len(self.active_timers) == 1:
                     # the expiration checker isn't started here because it is started
