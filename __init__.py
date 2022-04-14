@@ -21,6 +21,7 @@ from typing import List, Optional
 
 from mycroft import MycroftSkill, intent_handler
 from mycroft.audio import wait_while_speaking
+from mycroft.skills import skill_api_method
 from mycroft.skills.intent_service import AdaptIntent
 from mycroft.messagebus.message import Message
 from mycroft.util.format import pronounce_number, nice_duration, join_list
@@ -1060,6 +1061,56 @@ class TimerSkill(MycroftSkill):
                 "ask-which-timer-cancel",
                 data=dict(count=len(timers), names=speakable_matches),
             )
+
+    ####################################################
+    #### SKILL API METHODS FOR VOIGHT KAMPF TESTING ####
+    ####################################################
+
+    @skill_api_method
+    def _create_single_test_timer(self, utterance: str) -> bool:
+        """For test setup only - create a single timer.
+
+        This replicates `_start_new_timer` but:
+        - does not speak or display anything
+        - does not save the created timers to disk
+        - does not pre-cache TTS for follow up queries.
+
+        It should only be used in Given VK steps as this sets the state of the
+        system for the test. It should never be used in a When or Then step.
+
+        Args:
+            utterance: detail of timer to create
+        """
+        try:
+            duration, name = self._validate_requested_timer(utterance)
+        except TimerValidationException as exc:
+            self.log.info(str(exc))
+        else:
+            # duration should only be None here if the user was asked for
+            # timer duration and responded with "nevermind"
+            if duration is not None:
+                timer = self._build_timer(duration, name)
+                self.active_timers.append(timer)
+
+    @skill_api_method
+    def _cancel_all_timers_for_test(self):
+        """For test setup only - cancel all timers that exist.
+
+        This replicates `_cancel_each_and_every_one()` but:
+        - does not speak or display anything
+        - does not save changes to disk
+        - does not update pre-cached TTS.
+
+        It should only be used in Given VK steps as this sets the state of the
+        system for the test. It should never be used in a When or Then step.
+        """
+        self.active_timers = list()
+        self._reset()
+
+    @skill_api_method
+    def get_number_of_active_timers(self) -> int:
+        """Get the number of active timers."""
+        return len(self.active_timers)
 
 
 def create_skill():
