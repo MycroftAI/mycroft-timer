@@ -17,6 +17,18 @@ Feature: mycroft-timer
       | begin timer 2 minutes |
 
 
+    @xfail
+    Scenario Outline: Failing - set a timer for a specified duration
+    Given an english speaking user
+    And no active timers
+    When the user says "<set timer request>"
+    Then "mycroft-timer" should reply with dialog from "started-timer"
+
+    Examples: set a timer for for a specified duration
+      | set timer request |
+      | set a timer for 2 & a half minutes |
+
+
   Scenario Outline: set a second timer for a specified duration
     Given an english speaking user
     And an active 90 minute timer
