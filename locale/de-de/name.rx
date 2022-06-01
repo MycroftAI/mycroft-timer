@@ -1,5 +1,5 @@
 \bfor.* (abbrechen|für|benannt) (?P<Name>.*)
 \b(abgebrochen|für|bennant) (?P<Name>.*) für
-\b(abgebrochen|für|bennant) (?P<Name>.*)
+\b(mit Bezeichnung|für|namens) (?P<Name>.*)
 \b^.*(ein|von|der) (?P<Name>.*) timer
 \b^.* (?P<Name>.*)(?<!ein)(?<!an)(?<!ein weiterer)(?<!irgedein)(?<!meine)(?<!einen noch)(?<!oder)(?<!den) timer$
