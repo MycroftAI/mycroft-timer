@@ -116,7 +116,6 @@ Feature: Cancel Timers
       | stop the 5 minute timer |
       | cancel the 5 minute timer |
       | kill the 5 minute timer |
-      | disable 5 minute timer |
       | disable the 5 minute timer |
       | delete the 5 minute timer |
       | cancel timer one |
@@ -134,6 +133,7 @@ Feature: Cancel Timers
 
     Examples: cancel a specific timer
       | cancel timer request |
+      | disable 5 minute timer |
       | end 5 minute timer |
       | end the 5 minute timer |
 

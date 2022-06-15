@@ -194,6 +194,9 @@ class TimerSkill(MycroftSkill):
             self.active_timers.append(timer)
             self.active_timers.sort(key=lambda tmr: tmr.expiration)
             if len(self.active_timers) == 1:
+                # the expiration checker isn't started here because it is started
+                # in a speech event handler and the new timer is not spoken until
+                # after the display starts.
                 self._show_gui()
                 self._start_display_update()
             self._speak_new_timer(timer)
@@ -474,10 +477,9 @@ class TimerSkill(MycroftSkill):
         Args:
             timer: timer the status will be communicated for
         """
-        # TODO: stop beeping before speaking
         # TODO: speak_dialog should have option to not show mouth
-        # For now, just deactivate.  The sleep() is to allow the
-        # message to make it across the bus first.
+        #   For now, just deactivate.  The sleep() is to allow the
+        #   message to make it across the bus first.
         self.enclosure.deactivate_mouth_events()
         time.sleep(0.25)
         dialog = TimerDialog(timer, self.lang)
@@ -492,8 +494,9 @@ class TimerSkill(MycroftSkill):
             message: Message Bus event information from the intent parser
         """
         utterance = message.data["utterance"]
+        utterance_words = utterance.split()
         cancel_all = any(
-            word in utterance for word in self.all_timers_words
+            word in utterance_words for word in self.all_timers_words
         ) or message.data.get("all")
         active_timer_count = len(self.active_timers)
 
@@ -730,10 +733,11 @@ class TimerSkill(MycroftSkill):
         """
         expired_timers = [timer for timer in self.active_timers if timer.expired]
         if expired_timers:
-            play_wav(str(self.sound_file_path))
+            play_proc = play_wav(str(self.sound_file_path))
             if self.platform == MARK_I:
                 self._flash_eyes()
             self._speak_expired_timer(expired_timers)
+            play_proc.wait()
 
     def _flash_eyes(self):
         """Flash the eyes (if supported) as a visual indicator that a timer expired."""
@@ -826,9 +830,10 @@ class TimerSkill(MycroftSkill):
         The Mark I performs display events while listening and thinking.  Pause the
         display of the timer to allow these events to display instead.
         """
-        self._stop_expiration_check()
-        if self.platform == MARK_I:
-            self._stop_display_update()
+        if self.active_timers:
+            self._stop_expiration_check()
+            if self.platform == MARK_I:
+                self._stop_display_update()
 
     def handle_speech_recognition_unknown(self, _):
         """React to no request being spoken after the wake word is activated.
