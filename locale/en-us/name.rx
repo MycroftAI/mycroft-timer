@@ -22,7 +22,7 @@
 #   create a sauce timer
 #   cancel the rice timer
 #   stop the clam chowder timer
-\b^.*(a|of|the) (?P<Name>.*) timer
+\b^.*(a|an|of|the) (?P<Name>.*) timer
 
 # Intended Matches:
 #   set a chicken timer
