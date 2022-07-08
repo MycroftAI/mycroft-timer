@@ -180,7 +180,8 @@ class TimerSkill(MycroftSkill):
             message: Message Bus event information from the intent parser
         """
         with self.activity():
-            self._communicate_timer_status(message)
+            utterance = message.data["utterance"]
+            self._communicate_timer_status(utterance)
 
     @intent_handler(
         AdaptIntent()
@@ -196,7 +197,8 @@ class TimerSkill(MycroftSkill):
             message: Message Bus event information from the intent parser
         """
         with self.activity():
-            self._communicate_timer_status(message)
+            utterance = message.data["utterance"]
+            self._communicate_timer_status(utterance)
 
     @intent_handler(
         AdaptIntent()
