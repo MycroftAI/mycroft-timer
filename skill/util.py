@@ -157,6 +157,8 @@ def extract_timer_name(
 
     name_extractor = RegexExtractor("Name", static_resources.name_regex)
     timer_name = name_extractor.extract(utterance)
+    if timer_name == "new":
+        timer_name = None
     if timer_name is not None:
         if timer_name == "to":
             timer_name = "2"
